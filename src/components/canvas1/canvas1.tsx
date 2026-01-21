@@ -91,6 +91,15 @@ const Canvas1 = component$(() => {
 
 
 
+    const onMessage$ = $((event: MessageEvent<string>, ws: NoSerialize<WebSocket>) => {
+        console.log("onMessage:", event);
+    });
+    const onInit$ = $((ws: NoSerialize<WebSocket>) => {
+    });
+    const ws = useWebSocket(onMessage$, onInit$);
+    /** =======================================================
+     *                          MAIN LOOP
+     * ======================================================= */
     useVimFSM(
         $(async (action): Promise<void> => {
             const seq = await nextSeq();

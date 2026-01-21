@@ -52,6 +52,9 @@ export interface ClientActionMessage {
     clientTime: number;
     action: GameAction;
 }
+export type ClientMessage  = ClientActionMessage;
+
+
 export interface ServerPlayerMoveMessage {
     type: "PLAYER_MOVE";
     playerId: string;

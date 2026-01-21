@@ -38,3 +38,10 @@ export const getRandomHexColor = () => {
     return color;
 };
 export const HOT_PINK = "#ff69b4";
+
+export const API_PORT = import.meta.env.PROD 
+    ? 3000 
+    : import.meta.env.DEV 
+        ? 5173 
+        : 4173;
+
