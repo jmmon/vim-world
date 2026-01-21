@@ -11,6 +11,7 @@ import { createQwikCity } from "@builder.io/qwik-city/middleware/node";
 import qwikCityPlan from "@qwik-city-plan";
 import render from "./entry.ssr";
 import { createServer } from "node:http";
+import { initializeWss } from "./server/wss/wss";
 
 // Allow for dynamic port
 const PORT = process.env.PORT ?? 3000;
@@ -26,12 +27,18 @@ const { router, notFound, staticFile } = createQwikCity({
 });
 
 const server = createServer();
+const wss = initializeWss(); // initialize websocket server
 
 server.on("request", (req, res) => {
     staticFile(req, res, () => {
         router(req, res, () => {
             notFound(req, res, () => {});
         });
+    });
+});
+server.on("upgrade", (req, socket, head) => {
+    wss.handleUpgrade(req, socket, head, (ws) => {
+        wss.emit("connection", ws, req);
     });
 });
 
