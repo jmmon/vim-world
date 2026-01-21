@@ -1,4 +1,5 @@
 import { Player, Vec2 } from "~/components/canvas1/types";
+import { PlayerCheckpoint } from "~/server/checkpoint";
 
 export type VimMode = "normal" | "operator" | "awaitingChar" | "command";
 
@@ -24,7 +25,16 @@ export interface ClientActionMessage {
     clientTime: number;
     action: GameAction;
 }
-export type ClientMessage  = ClientActionMessage;
+export interface ClientInitMessage {
+    type: 'INIT';
+    playerId: string;
+}
+export interface ClientCheckpointSaveMessage {
+    type: 'SAVE_CHECKPOINT';
+    checkpoint: PlayerCheckpoint;
+    isClosing?: boolean; // if after client received a 'CLOSE_START' event
+}
+export type ClientMessage  = ClientActionMessage | ClientInitMessage | ClientCheckpointSaveMessage;
 
 
 export interface ServerPlayerMoveMessage {
@@ -39,7 +49,14 @@ export interface ServerAckMessage {
     accepted: boolean;
     correction?: { x: number; y: number };
 }
-export type ServerMessage = ServerPlayerMoveMessage | ServerAckMessage;
+export interface ServerAfkMessage {
+    type: 'AFK' | 'CLOSE_START' | 'CLOSE' | 'TERMINATE';
+}
+export interface ServerLoadCheckpointMessage {
+    type: 'LOAD_CHECKPOINT';
+    checkpoint: PlayerCheckpoint;
+}
+export type ServerMessage = ServerPlayerMoveMessage | ServerAckMessage | ServerAfkMessage | ServerLoadCheckpointMessage;
 export interface Prediction {
     seq: number;
     action: GameAction;

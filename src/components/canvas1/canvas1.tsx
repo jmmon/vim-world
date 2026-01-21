@@ -1,177 +1,235 @@
-import { component$, useSignal, $, useVisibleTask$ } from "@builder.io/qwik";
-import { DIMENSIONS, HOT_PINK, getRandomHexColor } from "./constants";
 import {
-    ClientActionMessage,
+    component$,
+    useSignal,
+    $,
+    useVisibleTask$,
+    NoSerialize,
+} from "@builder.io/qwik";
+import useWebSocket from "./useWebSocket";
+import {
     ServerAckMessage,
     Prediction,
     ServerMessage,
     ServerPlayerMoveMessage,
+    ServerLoadCheckpointMessage,
 } from "~/fsm/types";
 import draw from "./draw";
-import { MapObject, Player, TileType, World } from "./types";
-import { map } from "./map";
+import useSeq from "./useSeq";
 import useVimFSM from "~/fsm/useVimFSM";
 import { initFpsCounter } from "./utils";
-import { applyActionToWorld } from "~/fsm/movement";
+import { World } from "./types";
+import { useNavigate } from "@builder.io/qwik-city";
+import { applyActionToServer, applyActionToWorld, applyCheckpointToServer, onInit } from "~/fsm/actions";
 
-const objectsList: MapObject[] = [
-    { type: "tree", pos: { x: 0, y: 0 }, walkable: false },
-    { type: "chest", pos: { x: 0, y: 0 }, walkable: true },
-];
+const Canvas1 = component$(({ world }: { world: World }) => {
+    const dimensions = world.dimensions;
+    const nav = useNavigate();
 
-export const WALKABLE: TileType[] = ["grass", "dirt"];
-// const WALKABLE_MAP_TILES = map.
-// want to get a list of all coordinates that are walkable:
-const WALKABLE_MAP_TILES = map.reduce(
-    (accum, row, y) => {
-        row.forEach((tile, x) => {
-            if (WALKABLE.includes(tile)) {
-                accum.push({ x, y });
-            }
-        });
-        return accum;
-    },
-    [] as { x: number; y: number }[],
-);
-
-const objects = objectsList.map((obj) => {
-    const random = Math.floor(Math.random() * WALKABLE_MAP_TILES.length);
-    const { x, y } = WALKABLE_MAP_TILES[random];
-    console.assert(
-        !!WALKABLE_MAP_TILES[random],
-        "error indexing walkable map tiles!",
-    );
-    return {
-        ...obj,
-        pos: {
-            x,
-            y,
-        },
-    };
-});
-// objects.sort((a, b) => a.y - b.y); // Draw lower objects later for depth
-//
-
-const otherPlayers: Player[] = [
-    { id: "1", pos: { x: 10, y: 10 }, dir: "left", color: getRandomHexColor() },
-    { id: "2", pos: { x: 11, y: 11 }, dir: "up", color: getRandomHexColor() },
-    { id: "3", pos: { x: 12, y: 12 }, dir: "down", color: getRandomHexColor() },
-];
-const player: Player = {
-    id: "0",
-    pos: { x: 0, y: 0 },
-    dir: "right",
-    color: HOT_PINK,
-};
-
-export const WORLD: World = {
-    dimensions: DIMENSIONS,
-    map: map,
-    player: player,
-    otherPlayers: [...otherPlayers],
-    objects,
-    help: {
-        isOpen: false,
-    },
-};
-
-//
-//
-// // e.g. tracking dirty tiles and only redrawing them:
-// const dirtyTiles = [{x:5, y:5}, {x:6, y:5}];
-// dirtyTiles.forEach(t => drawTile(t.x, t.y));
-
-const Canvas1 = component$(() => {
     const offscreenMap = useSignal<HTMLCanvasElement>();
-
     const mapRef = useSignal<HTMLCanvasElement>();
     const objectsRef = useSignal<HTMLCanvasElement>();
     const playersRef = useSignal<HTMLCanvasElement>();
     const overlayRef = useSignal<HTMLCanvasElement>();
 
+    // could also use regular Dialog components for popups and menus, instead of drawing everything on the canvas
+    // e.g. afk notice
 
+    const nextSeq = useSeq();
+    const predictionBuffer = useSignal<Array<Prediction>>([]);
+
+    const clearPredictedMovesUpTo = $(
+        (predictionArr: Prediction[], index: number) => {
+            predictionArr.splice(0, index + 1);
+        },
+    );
+
+    const onServerAck$ = $((msg: ServerAckMessage) => {
+        const predictionArr = [...predictionBuffer.value];
+        const index = predictionArr.findIndex((p) => p.seq === msg.seq);
+        if (index === -1) return;
+
+        // Prediction matched — just drop it
+        if (!msg.correction) {
+            predictionArr.splice(index, 1);
+            predictionBuffer.value = predictionArr;
+            return;
+        }
+
+        // 1. Roll back to authoritative position
+        // roll back to corrected position for that msg
+        world.player = {
+            ...world.player,
+            pos: msg.correction,
+        };
+
+        // 2. Remove confirmed actions up through index
+        clearPredictedMovesUpTo(predictionArr, index);
+
+        // 3. Replay remaining predictions based on the corrected position
+        for (const p of predictionArr) {
+            applyActionToWorld(
+                world,
+                p.action,
+                overlayRef.value!.getContext("2d")!,
+            );
+        }
+        predictionBuffer.value = predictionArr;
+    });
+
+    const onPlayerMove$ = $((data: ServerPlayerMoveMessage) => {
+        if (data.playerId && data.playerId !== world.player.id) {
+            // e.g. updating from other clients
+            const otherPlayerIndex = world.otherPlayers.findIndex(
+                (p) => p.id === data.playerId,
+            );
+            if (otherPlayerIndex === -2) return;
+
+            world.otherPlayers[otherPlayerIndex].pos = data.pos;
+        }
+    });
+    const onLoadCheckpoint$ = $(({ checkpoint }: ServerLoadCheckpointMessage) => {
+        if (checkpoint.playerId !== world.player.id) return console.log('PLAYER ID MISMATCH:', checkpoint.playerId, world.player.id);
+        world.player = {
+            ...world.player,
+            pos: {
+                x: checkpoint.x,
+                y: checkpoint.y,
+            },
+            dir: checkpoint.dir,
+        }
+        draw.player(world, playersRef.value!.getContext("2d")!, world.player);
+    })
 
     const onMessage$ = $((event: MessageEvent<string>, ws: NoSerialize<WebSocket>) => {
         console.log("onMessage:", event);
+        const data = JSON.parse(event.data) as ServerMessage;
+
+        switch(data.type) {
+            case('CLOSE_START'):
+                applyCheckpointToServer(ws, world.player, true);
+                break;
+            case('TERMINATE'):
+            case('CLOSE'):
+                nav('/');
+                break;
+            case('AFK'):
+                draw.afk(world, overlayRef.value!.getContext("2d")!);
+                break;
+            case('ACK'):
+                onServerAck$(data);
+                break;
+            case("PLAYER_MOVE"):
+                onPlayerMove$(data);
+                break;
+            case("LOAD_CHECKPOINT"):
+                onLoadCheckpoint$(data);
+                break;
+
+
+            default:
+                console.warn('INVALID MESSAGE TYPE RECEIVED:', data);
+        }
     });
     const onInit$ = $((ws: NoSerialize<WebSocket>) => {
+        onInit(ws, world.player);
     });
+
     const ws = useWebSocket(onMessage$, onInit$);
+
     /** =======================================================
      *                          MAIN LOOP
      * ======================================================= */
     useVimFSM(
         $(async (action): Promise<void> => {
             const seq = await nextSeq();
-            // 0. Add to prediction buffer
+            // 1. Add to prediction buffer // for serverAck to replay if needed
             predictionBuffer.value.push({
                 seq,
                 action,
-                snapshotBefore: { ...WORLD.player },
+                snapshotBefore: { ...world.player },
             });
 
-            // 1. Apply local prediction
+            // 2. Apply local prediction
             applyActionToWorld(
-                WORLD.player,
+                world,
                 action,
                 overlayRef.value!.getContext("2d")!,
             );
 
+            // 3. Send to server
+            applyActionToServer(ws.value, seq, action);
         }),
     );
 
+
+    /** =======================================================
+     *                          MAIN LOOP
+     * ======================================================= */
     // eslint-disable-next-line qwik/no-use-visible-task
     useVisibleTask$(() => {
-        // initialize offscreen canvas of map tiles
-        const offscreenCanvas = draw.offscreenMap();
+        // initialize offscreen canvas of map tiles /// is this needed?? offscreen map?
+        const offscreenCanvas = draw.offscreenMap(world);
         offscreenMap.value = offscreenCanvas;
-
         draw.visibleMap(mapRef.value!, offscreenCanvas);
 
-        const countFps = initFpsCounter();
-        function loop() {
-            const {fps, fpsEma} = countFps();
+        const zero = Number(document.timeline.currentTime);
+        const countFps = initFpsCounter(zero, 2);
 
-            draw.objects(objectsRef.value!, WORLD);
-            draw.players(playersRef.value!, WORLD);
-            draw.fps(overlayRef.value!, fps, fpsEma);
+        let timeSinceLastCheckpoint = zero;
+
+
+        // main client loop
+        function loop(ts: number) {
+            const { fps, ema } = countFps(ts);
+
+            draw.objects(world, objectsRef.value!);
+            draw.players(world, playersRef.value!);
+            draw.fps(overlayRef.value!, fps, ema);
+            // draw.afk(world, overlayRef.value!.getContext("2d")!); // testing
+
+            // save checkpoint to server every min or 5 min or something
+            const difference = ts - timeSinceLastCheckpoint;
+            if (difference >= 5 * 1000) {
+                timeSinceLastCheckpoint += difference;
+                applyCheckpointToServer(ws.value!, world.player, false);
+            }
 
             requestAnimationFrame(loop);
         }
 
-        loop();
+        loop(zero);
     });
 
     return (
         <div
             style={{
                 position: "relative",
-                width: DIMENSIONS.canvasWidth + "px",
-                height: DIMENSIONS.canvasHeight + "px",
+                width: dimensions.canvasWidth + "px",
+                height: dimensions.canvasHeight + "px",
             }}
         >
             <canvas
                 ref={mapRef}
-                width={DIMENSIONS.canvasWidth}
-                height={DIMENSIONS.canvasHeight}
+                width={dimensions.canvasWidth}
+                height={dimensions.canvasHeight}
                 style={{ position: "absolute", top: 0, left: 0 }}
             />
             <canvas
                 ref={objectsRef}
-                width={DIMENSIONS.canvasWidth}
-                height={DIMENSIONS.canvasHeight}
+                width={dimensions.canvasWidth}
+                height={dimensions.canvasHeight}
                 style={{ position: "absolute", top: 0, left: 0 }}
             />
             <canvas
                 ref={playersRef}
-                width={DIMENSIONS.canvasWidth}
-                height={DIMENSIONS.canvasHeight}
+                width={dimensions.canvasWidth}
+                height={dimensions.canvasHeight}
                 style={{ position: "absolute", top: 0, left: 0 }}
             />
             <canvas
                 ref={overlayRef}
-                width={DIMENSIONS.canvasWidth}
-                height={DIMENSIONS.canvasHeight}
+                width={dimensions.canvasWidth}
+                height={dimensions.canvasHeight}
                 style={{ position: "absolute", top: 0, left: 0 }}
             />
         </div>

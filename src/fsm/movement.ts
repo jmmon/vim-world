@@ -1,6 +1,5 @@
 import { Player, Vec2, World } from "~/components/canvas1/types";
 import { GameAction } from "./types";
-import { WALKABLE, WORLD } from "~/components/canvas1/canvas1";
 import draw from "~/components/canvas1/draw";
 
 function actionToDelta(action: GameAction): Vec2 | null {
@@ -28,24 +27,22 @@ const computeTargetPos = (pos: Vec2, delta: Vec2): Vec2 => ({
     y: pos.y + delta.y,
 });
 
-const isWithinBounds = (world: World, next: Vec2): boolean => (
+const isWithinBounds = (world: World, next: Vec2): boolean =>
     next.x >= 0 &&
     next.y >= 0 &&
     next.x < world.dimensions.width &&
-    next.y < world.dimensions.height
-);
+    next.y < world.dimensions.height;
 
-
-function isWalkable(next: Vec2) {
+function isWalkable(world: World, next: Vec2) {
     // tile collision
-    const tile = WORLD.map[next.y]?.[next.x];
-    if (!tile || !WALKABLE.includes(tile)) {
+    const tile = world.map[next.y]?.[next.x];
+    if (!tile || !world.walkable.includes(tile)) {
         console.error("unwalkable tile:", { tile });
         return false;
     }
 
     // object collision
-    const obj = WORLD.objects.find(
+    const obj = world.objects.find(
         (o) => o.pos.x === next.x && o.pos.y === next.y,
     );
     if (obj?.walkable === false) {
@@ -54,7 +51,7 @@ function isWalkable(next: Vec2) {
     }
 
     // player collision
-    const otherPlayer = WORLD.otherPlayers.find(
+    const otherPlayer = world.otherPlayers.find(
         (o) => o.pos.x === next.x && o.pos.y === next.y,
     );
     if (otherPlayer) {
@@ -65,54 +62,46 @@ function isWalkable(next: Vec2) {
     return true;
 }
 
-export function applyActionToWorld(
-    p: Player,
-    action: GameAction,
-    ctx: CanvasRenderingContext2D,
-) {
-    switch(action.type) {
-        case('MOVE'): applyMoveAction(p, action);
-            break;
-        case('COMMAND'): applyCommandAction(p, action, ctx);
-            break;
-        default: break;
-    }
-}
 
-export function applyMoveAction(p: Player, action: GameAction) {
+export function applyMoveAction(world: World, action: GameAction) {
     const delta = actionToDelta(action);
     if (!delta) return;
 
     const steps = action.count ?? 1;
+    const p = world.player;
 
     for (let i = 0; i < steps; i++) {
         const next = computeTargetPos(p.pos, delta);
 
-        if (!isWithinBounds(WORLD, next)) {
+        if (!isWithinBounds(world, next)) {
             console.error("not within bounds!", p.pos, next);
             break; // stop at map edge
         }
 
-        if (!isWalkable(next)) {
+        if (!isWalkable(world, next)) {
             break; // stop at obstacle or player
         }
 
         p.pos = next; // commit step
     }
 
-    updateDirection(p, delta);
+    updateDirection(p, delta); // always update direction even if they didn't move
 }
 
 function updateDirection(p: Player, delta: Vec2) {
     // Update facing direction
-    switch(true) {
-        case(delta.x > 0): p.dir = "right";
+    switch (true) {
+        case delta.x > 0:
+            p.dir = "E";
             return;
-        case(delta.x < 0): p.dir = "left";
+        case delta.x < 0:
+            p.dir = "W";
             return;
-        case(delta.y > 0): p.dir = "down";
+        case delta.y > 0:
+            p.dir = "S";
             return;
-        case(delta.y < 0): p.dir = "up";
+        case delta.y < 0:
+            p.dir = "N";
             return;
         default:
             return;
@@ -120,16 +109,16 @@ function updateDirection(p: Player, delta: Vec2) {
 }
 
 export function applyCommandAction(
-    _: Player,
+    world: World,
     action: GameAction,
-    ctx: CanvasRenderingContext2D,
+    overlayCtx: CanvasRenderingContext2D,
 ) {
-    if (action.command === "help") {
-        if (WORLD.help.isOpen) {
-            draw.closeHelp(ctx);
+    if (action.command === "help" || action.command === "h") {
+        if (world.help.isOpen) {
+            draw.closeHelp(world, overlayCtx);
         } else {
-            draw.help(ctx);
+            draw.help(world, overlayCtx);
         }
-        WORLD.help.isOpen = !WORLD.help.isOpen;
+        world.help.isOpen = !world.help.isOpen;
     }
 }

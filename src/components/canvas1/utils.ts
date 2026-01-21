@@ -2,7 +2,7 @@ const EMA_SMOOTHING = 3; // default: 2; higher prefers more recent
 const EMA_INTERVAL = 5; // e.g seconds
 const MULTIPLIER = EMA_SMOOTHING / (1 + EMA_INTERVAL);
 
-const ema = (curFps: number, prevFps: number) =>
+const getEma = (curFps: number, prevFps: number) =>
     curFps * MULTIPLIER + prevFps * (1 - MULTIPLIER);
 
 function roundToDecimals(value: number, decimals: number) {
@@ -12,33 +12,34 @@ function roundToDecimals(value: number, decimals: number) {
         .padStart(3 + decimals, " "); // consistent full string width
 }
 
-export function initFpsCounter(decimals = 1) {
-    let count = 0;
-    let total = 0;
-    let last = performance.now();
+export function initFpsCounter(zero: number, decimals = 1) {
+    let frameCount = 0;
+    let elapsed = 0;
+    let last = zero;
     let fps = "".padStart(3 + decimals, " ");
 
-    let prevFpsEma = "0";
-    let fpsEma = "0";
+    let prevEma = "0";
+    let ema = "0";
 
-    return () => {
+    function countFps (ts: number) {
         // counting frames...
-        count++;
-        const now = performance.now();
-        total += now - last;
+        frameCount++;
+        const duration = ts - last;
+        elapsed += duration;
 
-        if (total >= 1000) {
-            // trigger calculation
-            const fpsRaw = count / (total / 1000);
+        if (elapsed >= 1000) {
+            const fpsRaw = frameCount / (elapsed / 1000);
             fps = roundToDecimals(fpsRaw, decimals);
-            count = 0;
-            total = 0;
-            last = now;
+            frameCount = 0;
+            elapsed = 0;
+            last = ts;
 
-            const prevValue = Number(prevFpsEma) || fpsRaw; // use raw for prev on init
-            fpsEma = roundToDecimals(ema(fpsRaw, prevValue), decimals);
-            prevFpsEma = fpsEma;
+            const prevValue = Number(prevEma) || fpsRaw; // use raw for prev on init
+            const emaRaw = getEma(fpsRaw, prevValue);
+            ema = roundToDecimals(emaRaw, decimals);
+            prevEma = ema;
         }
-        return { fps, fpsEma };
+        return { fps, ema };
     };
+    return countFps;
 }

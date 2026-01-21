@@ -1,4 +1,4 @@
-import { component$ } from "@builder.io/qwik";
+import { Resource, component$, useResource$ } from "@builder.io/qwik";
 import Canvas1 from "~/components/canvas1/canvas1";
 import { API_PORT } from "~/components/canvas1/constants";
 import { World } from "~/components/canvas1/types";
