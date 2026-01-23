@@ -8,8 +8,11 @@ import {
     ServerLoadCheckpointMessage,
     ServerPlayerMoveMessage,
 } from "~/fsm/types";
-import { clients } from "../serverState";
+import { ClientData, WORLD, clients } from "../serverState";
 import checkpoint from "../checkpoint";
+import { applyAction, basicValidation } from "./validation";
+import { Player } from "~/components/canvas1/types";
+import { ReasonPartial, ReasonRejected } from "./types";
 
 
 export const onConnect = (ws: WebSocket) => {
@@ -44,35 +47,77 @@ export const onClose = (clientId: string) => () => {
     console.log(`Client ${clientId} disconnected`);
 };
 
+export function sendRejection(client: ClientData, {seq, authoritativeState}: {seq: number; reason: ReasonRejected, authoritativeState: Player}) {
+    const reject: ServerAckMessage<"REJECTION"> = {
+        type: "REJECTION",
+        seq,
+        accepted: false, // true or false for corrections??
+        authoritativeState: authoritativeState, // Player object
+    };
+    client.ws.send(JSON.stringify(reject));
+}
+
+export function sendCorrection(client: ClientData, {seq, authoritativeState}: {seq: number, reason: ReasonPartial, authoritativeState: Player}) {
+    const correction: ServerAckMessage<"CORRECTION"> = {
+        type: "CORRECTION",
+        seq,
+        accepted: false, // true or false for corrections??
+        authoritativeState: authoritativeState, // Player object
+    };
+    client.ws.send(JSON.stringify(correction));
+}
+
+export function sendAck(client: ClientData, {seq, authoritativeState}: {seq: number, authoritativeState: Player}) {
+    const ack: ServerAckMessage<"ACK"> = {
+        type: "ACK",
+        seq,
+        accepted: true,
+        authoritativeState: authoritativeState, // Player object
+    };
+    client.ws.send(JSON.stringify(ack));
+}
+
+// actually should queue the action to be processed by the tick loop
 function handleServerAction(clientId: string, clientMessage: ClientActionMessage) {
     const client = clients.get(clientId)!;
     client.lastMessageTime = Date.now();
     client.isAfk = false;
+    // TODO: find this player and apply to this player
 
     // 1. confirm the action is valid
+    const reason = basicValidation(WORLD.player, clientMessage);
+    if (reason !== null) {
+        return sendRejection(
+            client,
+            {
+                seq: clientMessage.seq,
+                reason,
+                // authoritativeState: snapshotPlayer(player) // e.g. previous player state
+                authoritativeState: WORLD.player,
+            }
+        );
+    }
 
     // 2. update local gamestate
+    applyAction(client, WORLD.player, clientMessage); // modify server world player state
 
-    // 3. send back ACK and corrections
-    const ack: ServerAckMessage = {
-        type: "ACK",
-        seq: clientMessage.seq,
-        accepted: true,
-        // correction: { x: 10, y: 7 },
-    };
-    client.ws.send(JSON.stringify(ack)); // e.g. send 'ACK'
 
-    // 4. update other clients (e.g. send the player position update from local gamestate)
+    // 4. update OTHER clients (e.g. send the player position update from local gamestate)
+    dispatchMoveToOthers(clientId);
+}
+
+function dispatchMoveToOthers(clientId: string) {
     const playerMove: ServerPlayerMoveMessage = {
         type: "PLAYER_MOVE",
-        playerId: clientId,
-        pos: { x: 10, y: 7 }, // TODO: actually calculate player's position to send correct value to other players
-        facing: 'N'
+        playerId: WORLD.player.id,
+        pos: WORLD.player.pos,
+        dir: WORLD.player.dir,
     };
     clients.forEach((client, key) => {
         if (key !== clientId) client.ws.send(JSON.stringify(playerMove));
     });
 }
+
 
 /**
  * register playerId, load checkpoint
@@ -85,6 +130,14 @@ function handleInit(clientId: string, { playerId }: ClientInitMessage) {
     client.playerId = playerId;
 
     const checkpointData = checkpoint.load(playerId); // default or existing
+    // load checkpoint data into world state
+    // TODO: push new player to players array, e.g. new player logged on
+    WORLD.player = {
+        ...WORLD.player,
+        pos: { x: checkpointData.x, y: checkpointData.y },
+        dir: checkpointData.dir,
+        lastProcessedSeq: -1,
+    }
 
     const checkpointMessage: ServerLoadCheckpointMessage = {
         type: "LOAD_CHECKPOINT",
@@ -95,7 +148,6 @@ function handleInit(clientId: string, { playerId }: ClientInitMessage) {
 
 function handleSave(clientId: string, { checkpoint: checkpointData, isClosing }: ClientCheckpointSaveMessage) {
     const client = clients.get(clientId)!;
-    if (isClosing) console.log('handleSave: CLOSING:', clientId, client, checkpointData);
     if (client.playerId !== checkpointData.playerId) return;
 
     checkpoint.save(checkpointData);

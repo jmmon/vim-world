@@ -9,7 +9,7 @@ import { Player, World } from "~/components/canvas1/types";
 import { applyCommandAction, applyMoveAction } from "./movement";
 import { PlayerCheckpoint } from "~/server/checkpoint";
 
-export function applyActionToServer(
+export function dispatchActionToServer(
     ws: NoSerialize<WebSocket> | null,
     seq: number,
     action: GameAction,
@@ -32,6 +32,9 @@ export function onInit(ws: NoSerialize<WebSocket>, player: Player) {
     console.log('onInit:', ws?.readyState);
     if (!ws || ws?.readyState !== WebSocket.OPEN) return;
 
+    // TODO:
+    // could use localStorage to save a unique playerId on the browser!
+    // later use Dash id or username
     const initMessage: ClientInitMessage = {
         type: "INIT",
         playerId: player.id,
@@ -69,14 +72,21 @@ export function applyCheckpointToServer(
     ws.send(JSON.stringify(checkpointMessage));
 }
 
+/**
+ * doesn't draw anything, only runs collision and updates world state
+ * */
 export function applyActionToWorld(
     world: World,
     action: GameAction,
     overlayCtx: CanvasRenderingContext2D,
+    opts?: Partial<{
+        collision: boolean,
+        prediction: boolean,
+    }>,
 ) {
     switch (action.type) {
         case "MOVE":
-            applyMoveAction(world, action);
+            applyMoveAction(world, action, opts);
             break;
         case "COMMAND":
             applyCommandAction(world, action, overlayCtx);

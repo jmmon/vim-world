@@ -1,3 +1,4 @@
+import { Direction } from "~/fsm/types";
 
 export type TileType = "grass" | "water" | "dirt" | "cliff";
 
@@ -10,9 +11,9 @@ export interface MapObject {
 export interface Player {
     id: string;
     pos: Vec2;
-    // dir: "left" | "right" | "up" | "down";
-    dir: 'N' | 'S' | 'E' | 'W';
+    dir: Direction;
     color: string;
+    lastProcessedSeq: number;
 };
 
 export type MapDimensions = {

@@ -12,6 +12,7 @@ import {
     ServerMessage,
     ServerPlayerMoveMessage,
     ServerLoadCheckpointMessage,
+    ServerAckType,
 } from "~/fsm/types";
 import draw from "./draw";
 import useSeq from "./useSeq";
@@ -19,7 +20,8 @@ import useVimFSM from "~/fsm/useVimFSM";
 import { initFpsCounter } from "./utils";
 import { World } from "./types";
 import { useNavigate } from "@builder.io/qwik-city";
-import { applyActionToServer, applyActionToWorld, applyCheckpointToServer, onInit } from "~/fsm/actions";
+import { dispatchActionToServer, applyActionToWorld, applyCheckpointToServer, onInit } from "~/fsm/actions";
+import { ClientPhysicsMode, clientPhysicsMode } from "./constants";
 
 const Canvas1 = component$(({ world }: { world: World }) => {
     const dimensions = world.dimensions;
@@ -43,13 +45,13 @@ const Canvas1 = component$(({ world }: { world: World }) => {
         },
     );
 
-    const onServerAck$ = $((msg: ServerAckMessage) => {
+    const onServerAck$ = $((msg: ServerAckMessage<ServerAckType>) => {
         const predictionArr = [...predictionBuffer.value];
         const index = predictionArr.findIndex((p) => p.seq === msg.seq);
         if (index === -1) return;
 
         // Prediction matched — just drop it
-        if (!msg.correction) {
+        if (!msg.authoritativeState) {
             predictionArr.splice(index, 1);
             predictionBuffer.value = predictionArr;
             return;
@@ -59,19 +61,24 @@ const Canvas1 = component$(({ world }: { world: World }) => {
         // roll back to corrected position for that msg
         world.player = {
             ...world.player,
-            pos: msg.correction,
+            ...msg.authoritativeState,
         };
 
         // 2. Remove confirmed actions up through index
         clearPredictedMovesUpTo(predictionArr, index);
 
-        // 3. Replay remaining predictions based on the corrected position
-        for (const p of predictionArr) {
-            applyActionToWorld(
-                world,
-                p.action,
-                overlayRef.value!.getContext("2d")!,
-            );
+        if (clientPhysicsMode !== ClientPhysicsMode.NONE) {
+            // 3. Replay remaining predictions based on the corrected position
+            for (const p of predictionArr) {
+                applyActionToWorld(
+                    world,
+                    p.action,
+                    overlayRef.value!.getContext("2d")!,
+                    {
+                        collision: clientPhysicsMode === ClientPhysicsMode.FULL_PREDICTION,
+                    }
+                );
+            }
         }
         predictionBuffer.value = predictionArr;
     });
@@ -87,6 +94,7 @@ const Canvas1 = component$(({ world }: { world: World }) => {
             world.otherPlayers[otherPlayerIndex].pos = data.pos;
         }
     });
+
     const onLoadCheckpoint$ = $(({ checkpoint }: ServerLoadCheckpointMessage) => {
         if (checkpoint.playerId !== world.player.id) return console.log('PLAYER ID MISMATCH:', checkpoint.playerId, world.player.id);
         world.player = {
@@ -100,8 +108,8 @@ const Canvas1 = component$(({ world }: { world: World }) => {
         draw.player(world, playersRef.value!.getContext("2d")!, world.player);
     })
 
-    const onMessage$ = $((event: MessageEvent<string>, ws: NoSerialize<WebSocket>) => {
-        console.log("onMessage:", event);
+    const onMessage$ = $(( ws: NoSerialize<WebSocket>, event: MessageEvent<string> ) => {
+        console.log("onMessage data:", event.data);
         const data = JSON.parse(event.data) as ServerMessage;
 
         switch(data.type) {
@@ -116,6 +124,8 @@ const Canvas1 = component$(({ world }: { world: World }) => {
                 draw.afk(world, overlayRef.value!.getContext("2d")!);
                 break;
             case('ACK'):
+            case('CORRECTION'):
+            case('REJECTION'):
                 onServerAck$(data);
                 break;
             case("PLAYER_MOVE"):
@@ -154,10 +164,14 @@ const Canvas1 = component$(({ world }: { world: World }) => {
                 world,
                 action,
                 overlayRef.value!.getContext("2d")!,
+                {
+                    collision: clientPhysicsMode === ClientPhysicsMode.FULL_PREDICTION,
+                    prediction: clientPhysicsMode !== ClientPhysicsMode.NONE,
+                }
             );
 
             // 3. Send to server
-            applyActionToServer(ws.value, seq, action);
+            dispatchActionToServer(ws.value, seq, action);
         }),
     );
 

@@ -2,7 +2,7 @@ import { NoSerialize, QRL, noSerialize, useSignal, useVisibleTask$ } from "@buil
 import { API_PORT } from "./constants";
 
 export const useWebSocket = (
-    onMessage: QRL<(data: any, ws: NoSerialize<WebSocket>) => any>, 
+    onMessage: QRL<(ws: NoSerialize<WebSocket>, data: any) => any>, 
     onInit: QRL<(ws: NoSerialize<WebSocket>) => any>,
     opts = {
         url: `ws://localhost:${API_PORT}/ws`,
@@ -19,8 +19,8 @@ export const useWebSocket = (
             onInit(ws.value!);
         };
         ws.value!.onmessage = (event) => {
-            // Update player layer or other players
-            onMessage(event, ws.value!);
+            // Update player or other players
+            onMessage(ws.value!, event);
         };
     })
 

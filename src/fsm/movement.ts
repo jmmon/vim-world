@@ -2,10 +2,8 @@ import { Player, Vec2, World } from "~/components/canvas1/types";
 import { GameAction } from "./types";
 import draw from "~/components/canvas1/draw";
 
-function actionToDelta(action: GameAction): Vec2 | null {
-    if (action.type !== "MOVE" || !action.key) return null;
-
-    switch (action.key) {
+export function keyToDirection(key?: string): Vec2 | null {
+    switch (key) {
         case "h":
             return { x: -1, y: 0 };
         case "l":
@@ -22,18 +20,19 @@ function actionToDelta(action: GameAction): Vec2 | null {
             return null;
     }
 }
-const computeTargetPos = (pos: Vec2, delta: Vec2): Vec2 => ({
+export const computeTargetPos = (pos: Vec2, delta: Vec2): Vec2 => ({
     x: pos.x + delta.x,
     y: pos.y + delta.y,
 });
 
-const isWithinBounds = (world: World, next: Vec2): boolean =>
-    next.x >= 0 &&
-    next.y >= 0 &&
-    next.x < world.dimensions.width &&
-    next.y < world.dimensions.height;
+export const isWithinBounds = (world: World, next: Vec2): boolean =>
+    !!world.map[next.y]?.[next.x];
+// next.x >= 0 &&
+// next.y >= 0 &&
+// next.x < world.dimensions.width &&
+// next.y < world.dimensions.height;
 
-function isWalkable(world: World, next: Vec2) {
+export function isWalkable(world: World, next: Vec2) {
     // tile collision
     const tile = world.map[next.y]?.[next.x];
     if (!tile || !world.walkable.includes(tile)) {
@@ -62,30 +61,46 @@ function isWalkable(world: World, next: Vec2) {
     return true;
 }
 
+type Opts = {
+    collision: boolean;
+    prediction: boolean;
+};
+const OPTS = {
+    collision: true,
+    prediction: true,
+};
+export function applyMoveAction(
+    world: World,
+    action: GameAction,
+    opts: Partial<Opts> = OPTS,
+) {
+    const { prediction, collision }: Opts = {
+        ...OPTS,
+        ...opts,
+    };
+    if (!prediction) return;
 
-export function applyMoveAction(world: World, action: GameAction) {
-    const delta = actionToDelta(action);
+    const delta = keyToDirection(action.key);
     if (!delta) return;
 
     const steps = action.count ?? 1;
     const p = world.player;
+    updateDirection(p, delta); // always update direction even if they didn't move
 
     for (let i = 0; i < steps; i++) {
         const next = computeTargetPos(p.pos, delta);
 
-        if (!isWithinBounds(world, next)) {
+        if (collision && !isWithinBounds(world, next)) {
             console.error("not within bounds!", p.pos, next);
             break; // stop at map edge
         }
 
-        if (!isWalkable(world, next)) {
+        if (collision && !isWalkable(world, next)) {
             break; // stop at obstacle or player
         }
 
         p.pos = next; // commit step
     }
-
-    updateDirection(p, delta); // always update direction even if they didn't move
 }
 
 function updateDirection(p: Player, delta: Vec2) {
