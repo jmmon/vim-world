@@ -222,6 +222,14 @@ function closeHelp(world: World, overlayCtx: CanvasRenderingContext2D) {
     overlayCtx.clearRect(HELP.left, HELP.top, HELP.w, HELP.h);
 }
 
+function clearAfk(world: World, overlayCtx: CanvasRenderingContext2D) {
+    overlayCtx.clearRect(
+        world.dimensions.tileSize * 6.5,
+        world.dimensions.tileSize / 2,
+        world.dimensions.canvasWidth - world.dimensions.tileSize * 13,
+        world.dimensions.tileSize * 4,
+    );
+}
 function drawAfk(world: World, overlayCtx: CanvasRenderingContext2D) {
     overlayCtx.clearRect(
         world.dimensions.tileSize * 6.5,
@@ -252,5 +260,6 @@ const draw = {
     offscreenMap: drawOffscreenMap,
     visibleMap: drawVisibleMap,
     afk: drawAfk,
+    clearAfk: clearAfk,
 };
 export default draw;

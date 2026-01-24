@@ -24,8 +24,8 @@ import { dispatchActionToServer, applyActionToWorld, applyCheckpointToServer, on
 import { ClientPhysicsMode, clientPhysicsMode } from "./constants";
 import ChooseUsername from "../choose-username/choose-username";
 
-const Canvas1 = component$(({ world }: { world: World }) => {
-    const dimensions = world.dimensions;
+const Canvas1 = component$(({ world: localWorld }: { world: World }) => {
+    const dimensions = localWorld.dimensions;
     const nav = useNavigate();
     const player = useSignal<Player | null>(null);
 
@@ -61,8 +61,8 @@ const Canvas1 = component$(({ world }: { world: World }) => {
 
         // 1. Roll back to authoritative position
         // roll back to corrected position for that msg
-        world.player = {
-            ...world.player,
+        localWorld.player = {
+            ...localWorld.player,
             ...msg.authoritativeState,
         };
 
@@ -73,7 +73,7 @@ const Canvas1 = component$(({ world }: { world: World }) => {
             // 3. Replay remaining predictions based on the corrected position
             for (const p of predictionArr) {
                 applyActionToWorld(
-                    world,
+                    localWorld,
                     p.action,
                     overlayRef.value!.getContext("2d")!,
                     {
@@ -83,32 +83,42 @@ const Canvas1 = component$(({ world }: { world: World }) => {
             }
         }
         predictionBuffer.value = predictionArr;
+        console.log('predictionBuffer remaining:', predictionArr);
     });
 
     const onPlayerMove$ = $((data: ServerPlayerMoveMessage) => {
-        if (data.playerId && data.playerId !== world.player.id) {
-            // e.g. updating from other clients
-            const otherPlayerIndex = world.otherPlayers.findIndex(
-                (p) => p.id === data.playerId,
-            );
-            if (otherPlayerIndex === -2) return;
-
-            world.otherPlayers[otherPlayerIndex].pos = data.pos;
+        // skip self
+        if (!data.playerId || data.playerId === localWorld.player.id) {
+            return;
         }
+
+        // e.g. updating from other clients
+        const otherPlayerIndex = localWorld.otherPlayers.findIndex(
+            (p) => p.id === data.playerId,
+        );
+        if (otherPlayerIndex === -1) return;
+
+        // snap other players to new state
+        const otherPlayer = localWorld.otherPlayers[otherPlayerIndex];
+        localWorld.otherPlayers[otherPlayerIndex] = {
+            ...otherPlayer,
+            pos: data.pos,
+            dir: data.dir,
+        };
     });
 
     const onLoadCheckpoint$ = $(({ checkpoint }: ServerLoadCheckpointMessage) => {
-        if (checkpoint.playerId !== world.player.id) return console.log('PLAYER ID MISMATCH:', checkpoint.playerId, world.player.id);
-        world.player = {
-            ...world.player,
+        if (checkpoint.playerId !== localWorld.player.id) return console.log('PLAYER ID MISMATCH:', checkpoint.playerId, localWorld.player.id);
+        localWorld.player = {
+            ...localWorld.player,
             pos: {
                 x: checkpoint.x,
                 y: checkpoint.y,
             },
             dir: checkpoint.dir,
         }
-        draw.player(world, playersRef.value!.getContext("2d")!, world.player);
-    })
+        draw.player(localWorld, playersRef.value!.getContext("2d")!, localWorld.player);
+    });
 
     const onMessage$ = $(( ws: NoSerialize<WebSocket>, event: MessageEvent<string> ) => {
         console.log("onMessage data:", event.data);
@@ -116,14 +126,14 @@ const Canvas1 = component$(({ world }: { world: World }) => {
 
         switch(data.type) {
             case('CLOSE_START'):
-                applyCheckpointToServer(ws, world.player, true);
+                applyCheckpointToServer(ws, localWorld.player, true);
                 break;
             case('TERMINATE'):
             case('CLOSE'):
                 nav('/');
                 break;
             case('AFK'):
-                draw.afk(world, overlayRef.value!.getContext("2d")!);
+                draw.afk(localWorld, overlayRef.value!.getContext("2d")!)
                 break;
             case('ACK'):
             case('CORRECTION'):
@@ -137,19 +147,15 @@ const Canvas1 = component$(({ world }: { world: World }) => {
                 onLoadCheckpoint$(data);
                 break;
 
-
             default:
                 console.warn('INVALID MESSAGE TYPE RECEIVED:', data);
         }
     });
-    const onInit$ = $((ws: NoSerialize<WebSocket>) => {
-        onInit(ws, world.player);
-    });
 
-    const ws = useWebSocket(onMessage$, onInit$);
+    const ws = useWebSocket(onMessage$, $((ws) => onInit(ws, localWorld.player)));
 
     /** =======================================================
-     *                          MAIN LOOP
+     *          keyboard actions; apply to world
      * ======================================================= */
     useVimFSM(
         $(async (action): Promise<void> => {
@@ -158,12 +164,12 @@ const Canvas1 = component$(({ world }: { world: World }) => {
             predictionBuffer.value.push({
                 seq,
                 action,
-                snapshotBefore: { ...world.player },
+                snapshotBefore: { ...localWorld.player },
             });
 
             // 2. Apply local prediction
             applyActionToWorld(
-                world,
+                localWorld,
                 action,
                 overlayRef.value!.getContext("2d")!,
                 {
@@ -171,6 +177,7 @@ const Canvas1 = component$(({ world }: { world: World }) => {
                     prediction: clientPhysicsMode !== ClientPhysicsMode.NONE,
                 }
             );
+            draw.clearAfk(localWorld, overlayRef.value!.getContext("2d")!)
 
             // 3. Send to server
             dispatchActionToServer(ws.value, seq, action);
@@ -185,7 +192,7 @@ const Canvas1 = component$(({ world }: { world: World }) => {
     // eslint-disable-next-line qwik/no-use-visible-task
     useVisibleTask$(() => {
         // initialize offscreen canvas of map tiles /// is this needed?? offscreen map?
-        const offscreenCanvas = draw.offscreenMap(world);
+        const offscreenCanvas = draw.offscreenMap(localWorld);
         offscreenMap.value = offscreenCanvas;
         draw.visibleMap(mapRef.value!, offscreenCanvas);
 
@@ -199,8 +206,8 @@ const Canvas1 = component$(({ world }: { world: World }) => {
         function loop(ts: number) {
             const { fps, ema } = countFps(ts);
 
-            draw.objects(world, objectsRef.value!);
-            draw.players(world, playersRef.value!);
+            draw.objects(localWorld, objectsRef.value!);
+            draw.players(localWorld, playersRef.value!);
             draw.fps(overlayRef.value!, fps, ema);
             // draw.afk(world, overlayRef.value!.getContext("2d")!); // testing
 
@@ -208,7 +215,7 @@ const Canvas1 = component$(({ world }: { world: World }) => {
             const difference = ts - timeSinceLastCheckpoint;
             if (difference >= 5 * 1000) {
                 timeSinceLastCheckpoint += difference;
-                applyCheckpointToServer(ws.value!, world.player, false);
+                applyCheckpointToServer(ws.value!, localWorld.player, false);
             }
 
             requestAnimationFrame(loop);
