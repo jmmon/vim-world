@@ -120,6 +120,7 @@ const Canvas1 = component$(({ world: localWorld }: { world: World }) => {
         draw.player(localWorld, playersRef.value!.getContext("2d")!, localWorld.player);
     });
 
+    const timeSinceLastCheckpoint = useSignal(Date.now());
     const onMessage$ = $(( ws: NoSerialize<WebSocket>, event: MessageEvent<string> ) => {
         console.log("onMessage data:", event.data);
         const data = JSON.parse(event.data) as ServerMessage;
@@ -127,6 +128,7 @@ const Canvas1 = component$(({ world: localWorld }: { world: World }) => {
         switch(data.type) {
             case('CLOSE_START'):
                 applyCheckpointToServer(ws, localWorld.player, true);
+                timeSinceLastCheckpoint.value = Date.now();
                 break;
             case('TERMINATE'):
             case('CLOSE'):
@@ -199,7 +201,7 @@ const Canvas1 = component$(({ world: localWorld }: { world: World }) => {
         const zero = Number(document.timeline.currentTime);
         const countFps = initFpsCounter(zero, 2);
 
-        let timeSinceLastCheckpoint = zero;
+        timeSinceLastCheckpoint.value = Date.now();
 
 
         // main client loop
@@ -210,11 +212,12 @@ const Canvas1 = component$(({ world: localWorld }: { world: World }) => {
             draw.players(localWorld, playersRef.value!);
             draw.fps(overlayRef.value!, fps, ema);
             // draw.afk(world, overlayRef.value!.getContext("2d")!); // testing
+            const now = Date.now();
 
-            // save checkpoint to server every min or 5 min or something
-            const difference = ts - timeSinceLastCheckpoint;
+            // save checkpoint to server every min or 5 min or something (every 5s for testing)
+            const difference = now - timeSinceLastCheckpoint.value;
             if (difference >= 5 * 1000) {
-                timeSinceLastCheckpoint += difference;
+                timeSinceLastCheckpoint.value += difference;
                 applyCheckpointToServer(ws.value!, localWorld.player, false);
             }
 
