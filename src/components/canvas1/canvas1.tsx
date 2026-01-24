@@ -197,6 +197,7 @@ const Canvas1 = component$(({ world: localWorld }: { world: World }) => {
         const offscreenCanvas = draw.offscreenMap(localWorld);
         offscreenMap.value = offscreenCanvas;
         draw.visibleMap(mapRef.value!, offscreenCanvas);
+        draw.helpHint(localWorld, overlayRef.value!.getContext("2d")!);
 
         const zero = Number(document.timeline.currentTime);
         const countFps = initFpsCounter(zero, 2);

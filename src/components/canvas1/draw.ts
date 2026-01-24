@@ -249,6 +249,25 @@ function drawAfk(world: World, overlayCtx: CanvasRenderingContext2D) {
     overlayCtx.fillText(`You are AFK!`, world.dimensions.tileSize * 15, world.dimensions.tileSize * 2.5);
 }
 
+function drawHelpHint(world: World, overlayCtx: CanvasRenderingContext2D) {
+    overlayCtx.clearRect(world.dimensions.tileSize * 0.5, world.dimensions.tileSize * 0.5, world.dimensions.tileSize * 4, world.dimensions.tileSize * 2.5);
+    overlayCtx.fillStyle = "rgba(0, 0, 0, 0.3)";
+    overlayCtx.fillRect(world.dimensions.tileSize * 0.5, world.dimensions.tileSize * 0.5, world.dimensions.tileSize * 4, world.dimensions.tileSize * 2.5);
+    const text = [{text: "Hint: type", color: 'white'}, {text: " :h<enter>", color: '#ffcc88'}, {text: "to open Help", color: 'white'}];
+    overlayCtx.font = `bold 16px mono`;
+    for (let i = 0; i < text.length; i++) {
+        overlayCtx.fillStyle = text[i].color;
+        overlayCtx.fillText(
+            text[i].text,
+            world.dimensions.tileSize * 0.5 + 8,
+            world.dimensions.tileSize * 1 + 4 + (24 * i)
+        );
+    }
+}
+
+// NOTE: create a setup function that takes all the canvases and returns the draw functions object
+// then each function can use the canvases without passing through each time
+// downside: would need to pass the draw object instead!!!
 const draw = {
     fps: drawFps,
     players: drawPlayers,
@@ -261,5 +280,9 @@ const draw = {
     visibleMap: drawVisibleMap,
     afk: drawAfk,
     clearAfk: clearAfk,
+    helpHint: drawHelpHint,
+
 };
 export default draw;
+
+
