@@ -123,6 +123,23 @@ function updateDirection(p: Player, delta: Vec2) {
     }
 }
 
+const QUIT_ACTIONS = [
+    "q",
+    "quit",
+    "qa",
+    "qall",
+    "quita",
+    "quitall",
+    "wq",
+    "wqa",
+    "wqall",
+    "wa",
+    "x",
+    "xit",
+    "exi",
+    "exit",
+];
+// :q[uit][!], :wq[!], :wa[ll], :conf[irm] q[uit], :x[it], :exi[t], :[w]qa[ll][!], :quita[ll][!]
 export function applyCommandAction(
     world: World,
     action: GameAction,
@@ -144,6 +161,14 @@ export function applyCommandAction(
         // can basically toggle state.isOpen to true/false
         // so would probably need the world state to be a store (or context)
         console.log("TODO: 'ctrl+[' => show some menu");
+        return;
+    }
+    // allow optional ! at end
+    if (action.command!.endsWith('!')) {
+        action.command = action.command!.slice(0, -1);
+    }
+    if (QUIT_ACTIONS.includes(action.command!)) {
+        console.log("TODO: quit command: save checkpoint then redirect to homepage");
         return;
     }
 }
