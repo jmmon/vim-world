@@ -18,14 +18,16 @@ import draw from "./draw";
 import useSeq from "./useSeq";
 import useVimFSM from "~/fsm/useVimFSM";
 import { initFpsCounter } from "./utils";
-import { World } from "./types";
+import { Player, World } from "./types";
 import { useNavigate } from "@builder.io/qwik-city";
 import { dispatchActionToServer, applyActionToWorld, applyCheckpointToServer, onInit } from "~/fsm/actions";
 import { ClientPhysicsMode, clientPhysicsMode } from "./constants";
+import ChooseUsername from "../choose-username/choose-username";
 
 const Canvas1 = component$(({ world }: { world: World }) => {
     const dimensions = world.dimensions;
     const nav = useNavigate();
+    const player = useSignal<Player | null>(null);
 
     const offscreenMap = useSignal<HTMLCanvasElement>();
     const mapRef = useSignal<HTMLCanvasElement>();
@@ -173,6 +175,7 @@ const Canvas1 = component$(({ world }: { world: World }) => {
             // 3. Send to server
             dispatchActionToServer(ws.value, seq, action);
         }),
+        player,
     );
 
 
@@ -246,6 +249,7 @@ const Canvas1 = component$(({ world }: { world: World }) => {
                 height={dimensions.canvasHeight}
                 style={{ position: "absolute", top: 0, left: 0 }}
             />
+            <ChooseUsername player={player} />
         </div>
     );
 });

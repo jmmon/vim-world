@@ -26,9 +26,17 @@ export class VimFSM {
         }
     }
 
-    keyPress(event: KeyboardEvent) {
+    keyPress(event: KeyboardEvent, initialized = false) {
+        if (!initialized) return;
+        event.preventDefault(); // prevent browser default hotkeys
         const key = event.key;
-        if (key === "Shift" && event.shiftKey) return;
+        // skip if only modifier key
+        if (
+            (key === "Shift" && event.shiftKey) ||
+            (key === "Control" && event.ctrlKey) ||
+            (key === "Alt" && event.altKey)
+        )
+            return;
 
         if (this.timeoutId) clearTimeout(this.timeoutId);
         this.timeoutId = window.setTimeout(this.reset, this.timeoutMs);
