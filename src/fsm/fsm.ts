@@ -43,7 +43,7 @@ export class VimFSM {
 
         const result = transitionTable[this.state.mode](
             this.state,
-            key,
+            event,
             this.lastAction,
         );
         if (result.state === "reset") {
@@ -58,4 +58,3 @@ export class VimFSM {
         }
     }
 }
-

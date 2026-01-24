@@ -10,7 +10,26 @@ export function resetCtx(): VimFSMState {
 
 export const transitionTable: Record<VimMode, TransitionFn> = {
     /* ---------------- NORMAL MODE ---------------- */
-    normal(state, key, lastAction) {
+    normal(state, event, lastAction) {
+        const key = event.key;
+        if (key === '[' && event.ctrlKey) {
+            // TODO: show some menu
+            if (state.buffer.length > 0 || state.count !== null) {
+                console.log('resetting state via ctrl+[')
+                return {
+                    state: 'reset',
+                }
+            }
+            return {
+                state,
+                emit: {
+                    type: 'COMMAND',
+                    command: 'ctrl+[', // ok?
+                }
+            }
+        }
+
+
         // Handle counts
         if (/^[0-9]$/.test(key)) {
             const digit = Number(key);
@@ -56,7 +75,7 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
             };
         }
 
-        if (key === "f" || key === "F" || key === "t" || key === "T") {
+        if (key === "f" || key === "F" || key === "t" || key === "T" || key === 'g') {
             return {
                 state: {
                     mode: "awaitingChar",
@@ -76,11 +95,21 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
                 },
             };
         }
+
         return { state };
     },
 
     /* ---------------- OPERATOR MODE ---------------- */
-    operator(state, key) {
+    operator(state, event) {
+        const key = event.key;
+        if (key === '[' && event.ctrlKey) {
+            // cancel current command
+            console.log('resetting state via ctrl+[')
+            return {
+                state: 'reset',
+            }
+        }
+
         if (key === "a" || key === "i") {
             return { state: { ...state, buffer: [...state.buffer, key] } };
         }
@@ -101,8 +130,26 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
     },
 
     /* ---------------- AWAITING CHAR ---------------- */
-    awaitingChar(state, key) {
+    awaitingChar(state, event) {
+        const key = event.key;
+        if (key === '[' && event.ctrlKey) {
+            // cancel current command
+            console.log('resetting state via ctrl+[')
+            return {
+                state: 'reset',
+            }
+        }
         const cmd = `${state.motion}${key}`;
+        if (key === '?') {
+            return {
+                state: "reset",
+                emit: {
+                    type: "COMMAND",
+                    command: cmd,
+                },
+            };
+        }
+
         return {
             state: "reset",
             emit: {
@@ -114,7 +161,16 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
     },
 
     /* ---------------- COMMAND MODE ---------------- */
-    command(state, key) {
+    command(state, event) {
+        const key = event.key;
+        if (key === '[' && event.ctrlKey) {
+            // cancel current command
+            console.log('resetting state via ctrl+[')
+            return {
+                state: 'reset',
+            }
+        }
+
         if (key === "Enter") {
             return {
                 state: "reset",
@@ -125,6 +181,7 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
             };
         }
 
+        // add command keys to buffer
         return {
             state: { ...state, buffer: [...state.buffer, key] },
         };

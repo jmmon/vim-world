@@ -128,12 +128,22 @@ export function applyCommandAction(
     action: GameAction,
     overlayCtx: CanvasRenderingContext2D,
 ) {
-    if (action.command === "help" || action.command === "h") {
+    if (action.command === "help" || action.command === "h" || action.command === 'g?') {
         if (world.help.isOpen) {
             draw.closeHelp(world, overlayCtx);
         } else {
             draw.help(world, overlayCtx);
         }
         world.help.isOpen = !world.help.isOpen;
+        return;
+    }
+
+    if (action.command === "ctrl+[") {
+        // show some menu
+        // a dialog component
+        // can basically toggle state.isOpen to true/false
+        // so would probably need the world state to be a store (or context)
+        console.log("TODO: 'ctrl+[' => show some menu");
+        return;
     }
 }

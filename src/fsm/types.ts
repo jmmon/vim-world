@@ -86,6 +86,6 @@ export type TransitionResult = {
 
 export type TransitionFn = (
     state: VimFSMState,
-    key: string,
+    event: KeyboardEvent,
     lastAction: null | GameAction,
 ) => TransitionResult;

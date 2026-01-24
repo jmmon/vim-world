@@ -183,13 +183,18 @@ const getHelpDimensions = (world: World) => {
     return HELP_DIMENSIONS;
 };
 const HELP_TEXT = [
-    "h: Move left",
-    "l: Move right",
-    "k: Move up",
-    "j: Move down",
-    "w: Jump right",
-    "b: Jump left",
+    "h - Move left",
+    "l - Move right",
+    "k - Move up",
+    "j - Move down",
+    "w - Jump right",
+    "b - Jump left",
+    ":h<enter> :help<enter> g? - Open Help",
+    // ":h<enter> - Toggle Help",
+    // ":help<enter> - Toggle Help",
+    // "g? - Toggle Help",
 ];
+const ROWS = 6;
 function drawHelp(world: World, overlayCtx: CanvasRenderingContext2D) {
     const HELP = getHelpDimensions(world);
     overlayCtx.clearRect(HELP.left, HELP.top, HELP.w, HELP.h);
@@ -203,10 +208,12 @@ function drawHelp(world: World, overlayCtx: CanvasRenderingContext2D) {
         y: 1,
     };
     for (let i = 0; i < HELP_TEXT.length; i++) {
+        const col = Math.floor(i / ROWS);
+        const row = i % ROWS;
         overlayCtx.fillText(
             HELP_TEXT[i],
-            HELP.left + world.dimensions.tileSize * helpTextPadding.x,
-            HELP.top + world.dimensions.tileSize * (helpTextPadding.y + i) + 20,
+            HELP.left + world.dimensions.tileSize * helpTextPadding.x + col * 224,
+            HELP.top + world.dimensions.tileSize * (helpTextPadding.y + row) + 20,
         );
     }
 }
