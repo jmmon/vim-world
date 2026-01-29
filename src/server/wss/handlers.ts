@@ -5,19 +5,35 @@ import {
     ClientInitMessage,
     ClientMessage,
     ServerAckMessage,
-    ServerLoadCheckpointMessage,
     ServerPlayerMoveMessage,
 } from "~/fsm/types";
-import { ClientData, WORLD, clients } from "../serverState";
-import checkpoint from "../checkpoint";
-import { applyAction, basicValidation } from "./validation";
+import { WORLD_WRAPPER, clients } from "../serverState";
+import checkpointService from "../checkpointService";
+import { applyAction, basicValidation } from "../movement/validation";
 import { Player } from "~/components/canvas1/types";
-import { ReasonPartial, ReasonRejected } from "./types";
+import { ReasonCorrection, ReasonRejected } from "../movement/types";
+import { closeAfkPlayer } from "./handleAfkDisconnect";
+import { ClientData } from "../types";
 
+const initializeClientData = (ws: WebSocket, id: string) => ({
+    clientId: id,
+    ws,
+    lastMessageTime: Date.now(),
+    isAfk: false,
+    playerId: undefined,
+    reset: function(this) {
+        this.lastMessageTime = Date.now();
+        this.isAfk = false;
+    },
+    disconnect: function(this) {
+        this.ws.terminate();
+        clients.delete(this.clientId);
+    },
+})
 
 export const onConnect = (ws: WebSocket) => {
     const id = crypto.randomUUID();
-    clients.set(id, { ws, lastMessageTime: Date.now(), isAfk: false, playerId: id }); // later set playerId to actual playerId
+    clients.set(id, initializeClientData(ws, id));
     console.log("Client connected", id);
     return id;
 };
@@ -26,24 +42,30 @@ export const onMessage = (clientId: string) => (message: WebSocket.RawData) => {
     const clientMessage = JSON.parse(
         message.toString(),
     ) as ClientMessage;
-    console.log("Received ClientMessage:", message.toString());
 
     switch(clientMessage.type) {
-        case('ACTION'):
-            handleServerAction(clientId, clientMessage);
-            break;
         case('INIT'):
             handleInit(clientId, clientMessage);
+            break;
+        case('ACTION'):
+            handleServerAction(clientId, clientMessage);
             break;
         case('SAVE_CHECKPOINT'):
             handleSave(clientId, clientMessage);
             break;
+        default:
+            console.log("UNHANDLED:: RECEIVED ClientMessage:", message.toString());
     }
-
 };
 
 export const onClose = (clientId: string) => () => {
+    const client = clients.get(clientId);
+    if (!client) return;
+    const playerId = client.playerId;
+    if (playerId) WORLD_WRAPPER.world.players.delete(playerId);
+    client.disconnect();
     clients.delete(clientId);
+
     console.log(`Client ${clientId} disconnected`);
 };
 
@@ -57,7 +79,7 @@ export function sendRejection(client: ClientData, {seq, authoritativeState}: {se
     client.ws.send(JSON.stringify(reject));
 }
 
-export function sendCorrection(client: ClientData, {seq, authoritativeState}: {seq: number, reason: ReasonPartial, authoritativeState: Player}) {
+export function sendCorrection(client: ClientData, {seq, authoritativeState}: {seq: number, reason: ReasonCorrection, authoritativeState: Player}) {
     const correction: ServerAckMessage<"CORRECTION"> = {
         type: "CORRECTION",
         seq,
@@ -80,12 +102,15 @@ export function sendAck(client: ClientData, {seq, authoritativeState}: {seq: num
 // actually should queue the action to be processed by the tick loop
 function handleServerAction(clientId: string, clientMessage: ClientActionMessage) {
     const client = clients.get(clientId)!;
-    client.lastMessageTime = Date.now();
-    client.isAfk = false;
+    client.reset();
+    if (!client.playerId) return console.error('!!client has no playerId!!', client.playerId);
+    // console.log('handleServerAction', clientMessage );
+    const player = WORLD_WRAPPER.world.players.get(client.playerId);
+    if (!player) return console.error('!!no player found for playerId:', client.playerId);
     // TODO: find this player and apply to this player
 
     // 1. confirm the action is valid
-    const reason = basicValidation(WORLD.player, clientMessage);
+    const reason = basicValidation(client, player, clientMessage);
     if (reason !== null) {
         return sendRejection(
             client,
@@ -93,25 +118,51 @@ function handleServerAction(clientId: string, clientMessage: ClientActionMessage
                 seq: clientMessage.seq,
                 reason,
                 // authoritativeState: snapshotPlayer(player) // e.g. previous player state
-                authoritativeState: WORLD.player,
+                authoritativeState: player,
             }
         );
     }
 
     // 2. update local gamestate
-    applyAction(client, WORLD.player, clientMessage); // modify server world player state
+    const result = applyAction(player, clientMessage); // modify server world player state
 
+    switch(result.reason) {
+        case(null): 
+            sendAck(client, {
+                seq: result.seq,
+                authoritativeState: player,
+            });
+            break;
+        case("INVALID_KEY"): 
+        case("INVALID_ACTION"): 
+            sendRejection(client, {
+                reason: result.reason,
+                seq: result.seq,
+                authoritativeState: player,
+            });
+            break;
+        default:
+            sendCorrection(client, {
+                reason: result.reason,
+                seq: result.seq,
+                authoritativeState: player,
+            });
+    }
+
+    // update checkpoint cache
+    const checkpoint = checkpointService.toCheckpoint(player);
+    checkpointService.update(checkpoint);
 
     // 4. update OTHER clients (e.g. send the player position update from local gamestate)
-    dispatchMoveToOthers(clientId);
+    dispatchMoveToOthers(clientId, player);
 }
 
-function dispatchMoveToOthers(clientId: string) {
+function dispatchMoveToOthers(clientId: string, player: Player) {
     const playerMove: ServerPlayerMoveMessage = {
         type: "PLAYER_MOVE",
-        playerId: WORLD.player.id,
-        pos: WORLD.player.pos,
-        dir: WORLD.player.dir,
+        playerId: player.id,
+        pos: player.pos,
+        dir: player.dir,
     };
     clients.forEach((client, key) => {
         if (key !== clientId) client.ws.send(JSON.stringify(playerMove));
@@ -120,90 +171,32 @@ function dispatchMoveToOthers(clientId: string) {
 
 
 /**
- * register playerId, load checkpoint
+ * assign playerId to client
+ * load checkpoint, should exist
+ * set into world
  * */
 function handleInit(clientId: string, { playerId }: ClientInitMessage) {
-    // register the playerId
+    // // register the playerId
     const client = clients.get(clientId)!;
-    client.lastMessageTime = Date.now();
-    client.isAfk = false;
+    client.reset();
+    if (client.playerId) console.error('!!client already has playerId!!', client.playerId, {clientId, playerId});
+    console.log(`assigning playerId ${playerId} to client: ${clientId}`);
     client.playerId = playerId;
 
-    const checkpointData = checkpoint.load(playerId); // default or existing
-    // load checkpoint data into world state
-    // TODO: push new player to players array, e.g. new player logged on
-    WORLD.player = {
-        ...WORLD.player,
-        pos: { x: checkpointData.x, y: checkpointData.y },
-        dir: checkpointData.dir,
-        lastProcessedSeq: -1,
-    }
-
-    const checkpointMessage: ServerLoadCheckpointMessage = {
-        type: "LOAD_CHECKPOINT",
-        checkpoint: checkpointData,
-    };
-    client.ws.send(JSON.stringify(checkpointMessage)); // e.g. send 'ACK'
+    const checkpoint = checkpointService._loadCheckpoint(playerId); // default or existing
+    console.assert(checkpoint, `!!No checkpoint found for playerId ${playerId}!!`);
+    client.ws.send(JSON.stringify({ type: "INIT_CONFIRM", checkpoint: checkpoint, playerId }));
 }
+
+
 
 function handleSave(clientId: string, { checkpoint: checkpointData, isClosing }: ClientCheckpointSaveMessage) {
     const client = clients.get(clientId)!;
     if (client.playerId !== checkpointData.playerId) return;
 
-    checkpoint.save(checkpointData);
+    checkpointService.update(checkpointData);
 
-    if (isClosing) {
-        closeAfkPlayer(clientId);
-    }
+    if (isClosing) closeAfkPlayer(clientId);
 }
 
 
-
-const AFK_TIME = 0.25 * 60 * 1000;
-const DISCONNECT_TIME = 0.5 * 60 * 1000;
-const TERMINATE_TIME = 10 * 1000; // 10s
-
-
-function hasTimePassed(clientId: string, time: number) {
-    if (!clients.has(clientId)) return false;
-    return Date.now() > (clients.get(clientId)!.lastMessageTime + time);
-}
-export function markAfkPlayer(clientId: string) {
-    if (!hasTimePassed(clientId, AFK_TIME)) return;
-
-    const client = clients.get(clientId)!;
-
-    client.ws.send(JSON.stringify({type: 'AFK'}));
-    console.log('~~ markAfkPlayer:', clientId);
-    client.isAfk = true;
-}
-
-
-export function startCloseAfkPlayer(clientId: string) {
-    if (!hasTimePassed(clientId, DISCONNECT_TIME)) return;
-
-    const client = clients.get(clientId)!;
-    client.ws.send(JSON.stringify({ type: 'CLOSE_START' })); // client will then send a checkpoint
-    console.log('~~ startCloseAfkPlayer:', clientId);
-}
-
-export function closeAfkPlayer(clientId: string) {
-    const client = clients.get(clientId);
-    console.log('~~ closeAfkPlayer:', clientId);
-    if (!client) return;
-    client.ws.send(JSON.stringify({ type: 'CLOSE' }));
-    client.ws.close();
-}
-
-export function terminateAfkPlayer(clientId: string) {
-    if (!hasTimePassed(clientId, DISCONNECT_TIME + TERMINATE_TIME)) return;
-
-    const client = clients.get(clientId)!;
-
-    if ([client.ws.OPEN, client.ws.CLOSING].includes(client.ws.readyState)) {
-        client.ws.send(JSON.stringify({type: 'TERMINATE'}));
-        client.ws.terminate();
-        clients.delete(clientId);
-        console.log('~~ terminateAfkPlayer:', clientId);
-    }
-}

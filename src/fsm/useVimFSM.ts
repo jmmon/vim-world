@@ -1,4 +1,13 @@
-import { NoSerialize, QRL,  Signal,  noSerialize, useSignal, useVisibleTask$ } from "@builder.io/qwik";
+import {
+    NoSerialize,
+    QRL,
+    Signal,
+    $,
+    noSerialize,
+    useOnDocument,
+    useSignal,
+    useVisibleTask$,
+} from "@builder.io/qwik";
 import { GameAction } from "./types";
 import { VimFSM } from "./fsm";
 
@@ -9,15 +18,16 @@ const useVimFSM = (
     timeoutMs = 1500,
 ) => {
     const fsm = useSignal<NoSerialize<VimFSM>>();
-    // eslint-disable-next-line qwik/no-use-visible-task
-    useVisibleTask$(({cleanup}) => {
-        fsm.value = noSerialize(new VimFSM(onAction, timeoutMs));
-        const onKeyDown = (event: KeyboardEvent) => fsm.value?.keyPress(event, !!initialized.value);
 
-        document.addEventListener("keydown", onKeyDown);
-        cleanup(() => {
-            document.removeEventListener("keydown", onKeyDown);
-        });
+    const onKeyDown$ = $((event: KeyboardEvent) => {
+        fsm.value?.keyPress(event, !!initialized.value);
+    });
+    useOnDocument("keydown", onKeyDown$);
+
+    // eslint-disable-next-line qwik/no-use-visible-task
+    useVisibleTask$(() => {
+        console.log("initializing fsm");
+        fsm.value ??= noSerialize(new VimFSM(onAction, timeoutMs));
     });
 
     return fsm;

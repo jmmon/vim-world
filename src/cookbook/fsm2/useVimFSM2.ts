@@ -1,7 +1,7 @@
 import { $, QRL, useSignal } from "@builder.io/qwik";
-import { GameAction, VimFSMState } from "../types";
+import { GameAction, VimFSMState } from "../../fsm/types";
 import { classifyInput, transitionTable } from "./transitionTable2";
-import { resetCtx } from "../transtionTable";
+import { resetCtx } from "../../fsm/transtionTable";
 
 export function useVimFsm2(onAction: QRL<(a: GameAction) => void>) {
     const TIMEOUT_MS = 1500;

@@ -1,147 +1,96 @@
-import { DIMENSIONS, HOT_PINK } from "~/components/canvas1/constants";
-import { map } from "~/components/canvas1/map";
-import { MapObject, Player, TileType, Vec2, World } from "~/components/canvas1/types";
-import { getRandomHexColor } from "~/components/canvas1/utils";
+import { DIMENSIONS } from "~/components/canvas1/constants";
+import { MAP } from "~/server/map";
+import { Player, Vec2 } from "~/components/canvas1/types";
 import { isWalkable, isWithinBounds } from "~/fsm/movement";
-
-// type Item = any;
-// type ItemId = string;
-// type SessionAggregate = {
-//     xpGained: number;
-//     goldGained: number;
-//     itemsAdded: Item[];
-//     itesmRemoved: ItemId[];
-//     achievementsUnlocked: string[];
-// }
-// type ServerPlayer = {
-//     x: number;
-//     y: number;
-//     zone: string;
-//     facing: 'N' | 'S' | 'E' | 'W'
-//     session: SessionAggregate;
-// }
-// const players = new Map<string, ServerPlayer>();
-//
-// export type ServerState = {
-//     dimensions: MapDimensions;
-//     map: TileType[][];
-//     players: Map<string, ServerPlayer>;
-//     objects: MapObject[],
-// };
-//
-// export const SERVER_WORLD = {
-//     dimensions: DIMENSIONS,
-//     map: [[]],
-//     players: players,
-//     objects: [],
-// }
+import { WALKABLE, objects } from "./objects";
+import { ClientData, ServerWorld, ServerWorldWrapper } from "./types";
 
 
-export type ClientData = {
-    ws: any;
-    lastMessageTime: number;
-    isAfk: boolean;
-    playerId: string;
-};
-export const clients = new Map<string, ClientData>();
+export const clients = new Map<string, ClientData<undefined | 'withPlayerId'>>();
 
+const players = new Map<string, Player>();
 
-
-
-const objectsList: MapObject[] = [
-    { type: "tree", pos: { x: 0, y: 0 }, walkable: false },
-    { type: "chest", pos: { x: 0, y: 0 }, walkable: true },
-];
-
-export const WALKABLE: TileType[] = ["grass", "dirt"];
-// const WALKABLE_MAP_TILES = map.
-// want to get a list of all coordinates that are walkable:
-const WALKABLE_MAP_TILES = map.reduce(
-    (accum, row, y) => {
-        row.forEach((tile, x) => {
-            if (WALKABLE.includes(tile)) {
-                accum.push({ x, y });
-            }
-        });
-        return accum;
-    },
-    [] as { x: number; y: number }[],
-);
-
-const objects = objectsList.map((obj) => {
-    const random = Math.floor(Math.random() * WALKABLE_MAP_TILES.length);
-    const { x, y } = WALKABLE_MAP_TILES[random];
-    console.assert(
-        !!WALKABLE_MAP_TILES[random],
-        "error indexing walkable map tiles!",
-    );
-    return {
-        ...obj,
-        pos: {
-            x,
-            y,
-        },
-    };
-});
-// objects.sort((a, b) => a.y - b.y); // Draw lower objects later for depth
-//
-
-// const DIRECTIONS: Player["dir"][]  = ["N", "S", "E", "W"];
-// const SPAWN_POSITION: Vec2 = {x: 0, y: 0};
-// const getRandom = (max: number) => Math.floor(Math.random() * max);
-// function getRandomPosition() {
-//     const x = getRandom(DIMENSIONS.width);
-//     const y = getRandom(DIMENSIONS.height);
-//     return { x, y };
-// }
-// function generatePlayer(id: string, TEST_isFirst: boolean): Player {
-//     if (TEST_isFirst) return { id: id,
-//         pos: SPAWN_POSITION,
-//         dir: "E",
-//         color: HOT_PINK,
-//     };
-//
-//     return {
-//         id,
-//         pos: getRandomPosition(),
-//         dir: DIRECTIONS[getRandom(DIRECTIONS.length)],
-//         color: getRandomHexColor(),
-//     };
-// }
-
-const otherPlayers: Player[] = [
-    { id: "1", pos: { x: 10, y: 10 }, dir: "E", color: getRandomHexColor(), lastProcessedSeq: -1 },
-    { id: "2", pos: { x: 11, y: 11 }, dir: "N", color: getRandomHexColor(), lastProcessedSeq: -1 },
-    { id: "3", pos: { x: 12, y: 12 }, dir: "S", color: getRandomHexColor(), lastProcessedSeq: -1 },
-];
-const player: Player = {
-    id: "abc",
-    pos: { x: 0, y: 0 },
-    dir: "E",
-    color: HOT_PINK,
-    lastProcessedSeq: -1
-};
-
-export const WORLD: World & {
-    isWithinBounds(target: Vec2): boolean;
-    isWalkable(target: Vec2): boolean;
-} = {
+export const SERVER_WORLD: ServerWorld = {
     dimensions: DIMENSIONS,
-    map: map,
-    player: player,
-    otherPlayers: [...otherPlayers],
+    map: MAP,
+    players,
     objects,
-    walkable: WALKABLE, // dont really like this here, but there are also other changes for server worldstate
-    help: { // not needed on server state, client only
-        isOpen: false,
-    },
+    walkable: WALKABLE, // for collision
+}
+export const WORLD_WRAPPER: ServerWorldWrapper = {
+    world: SERVER_WORLD,
     isWithinBounds(target: Vec2) {
-        return isWithinBounds(this, target);
+        return isWithinBounds(this.world.map, target);
     },
     isWalkable(target: Vec2) {
-        return isWalkable(this, target);
+        return isWalkable(this.world, target);
     },
+    /**
+     * set player into world.players
+     * */
+    addPlayer(player: Player) {
+        if (!player) return false;
+        try {
+            const pos = player.pos;
+            while (!this.isWalkable(pos) || (
+                !this.isWalkable({ x: pos.x, y: pos.y + 1 })
+                && !this.isWalkable({ x: pos.x, y: pos.y - 1 })
+                && !this.isWalkable({ x: pos.x + 1, y: pos.y })
+                && !this.isWalkable({ x: pos.x - 1, y: pos.y })
+            )) {
+                const isAtRight = pos.x === this.world.dimensions.width - 1;
+                const isAtBottom = pos.y === this.world.dimensions.height - 1;
+                if (isAtBottom && isAtRight) {
+                    throw new Error('!!no walkable tiles found!!');
+                }
+                if (isAtRight) {
+                    pos.x = 0;
+                    pos.y += 1;
+                } else {
+                    pos.x += 1;
+                }
+            }
+
+            this.world.players.set(player.id, player);
+            console.log('added player:', player);
+            return true;
+        } catch(err) {
+            console.error('addPlayer error:', err);
+            return false;
+        }
+    }
 };
+
+
+
+
+
+
+
+
+
+
+
+// export const WORLD: World & {
+//     isWithinBounds(target: Vec2): boolean;
+//     isWalkable(target: Vec2): boolean;
+// } = {
+//     dimensions: DIMENSIONS,
+//     map: MAP,
+//     player: player,
+//     players: [...otherPlayers],
+//     objects,
+//     walkable: WALKABLE, // dont really like this here, but there are also other changes for server worldstate
+//     help: { // not needed on server state, client only
+//         isOpen: false,
+//     },
+//     isWithinBounds(target: Vec2) {
+//         return isWithinBounds(this, target);
+//     },
+//     isWalkable(target: Vec2) {
+//         return isWalkable(this, target);
+//     },
+// };
 
 
 
@@ -189,6 +138,46 @@ export const WORLD: World & {
 // after submitting, can create/fetch the user
 
 
+/* *
+ * so: 
+ * 1. on load:
+ * - fetch the world map, obstacles, etc
+ * - render the map without any players
+ *
+ * 2. after initial load:
+ * 2.a. show Username popup
+ * 2.b. fetch/render online players
+ * 
+ * 2.c. submit username to server
+ * - POST request with the hash
+ * - check for player in cache,
+ *   - if not found, create player in cache
+ * - return the player to client
+ * - client renders the player (hides modal)
+ *
+ * 3. log out:
+ * - find player in cache, mark as logged out or removed from world
+ * - broadcast logout to other players: {
+ *       type: 'LOGOUT',
+ *       playerId: player.id
+ *   }
+ * - client receives this request, removes that player from localWorld
+ *   - now it will not be rendered
+ * 
+ * client:
+ * - localWorld: make players a map<PlayerId, Player> for easy removing
+ * server: 
+ * - need to maintain all characters in a map in memory
+ * - need to maintain a list of logged-in players or playerIds
+ *
+ * so the server state:
+ * - world holds players map, these are players logged-in
+ * - checkpoints is basically the dash network cache, to look up an offline char and allow them to log in
+ *
+ */
+
+
+
 
 
 // IDEA:
@@ -200,3 +189,70 @@ export const WORLD: World & {
 // ya(, ya", ya[, ya{, ya', ya` yank around whatever - kinda complex command but used to pick up items of different "types" e.g. paren/quote/braket items
 // - maybe some of them could be unlocked later, more item types
 // 
+//
+// maybe some powerup items: +1 to range while equipped??
+
+// is this going to be a puzzle game only or will it be some combat game?? (hp)
+//
+// later: 
+// data stored in dash network: could be some sort of encoded data?? compressed? to reduce the payload size??
+//
+//
+//
+// =========================================
+//      TOAST:
+// =========================================
+// some sort of toast message? circle on left, squared on right, maybe some icon on left circle + text on right
+// not sure what for, but could come in handy
+//
+//
+//
+// =========================================
+//      MAPS:
+// =========================================
+// hard-coded starter maps e.g. tutorial maps (a few levels or so)
+// - item to get extra xp??
+// by the end, should be level 2 or 2.5ish (if they picked up items)
+// some sort of bonus points for using counts (if counts got you to the target, e.g. something interactable is within +-1 block)
+//
+//
+//
+// =========================================
+//      INTERACTION:
+// =========================================
+// first need to implement ya( to pick up items
+//
+// carry items overhead and place them again??? keybinds for this??? y then p
+// - sometimes need to do pi( to specifically place, maybe this could also place diagonally
+//
+// - e.g. pick up a box and place on some switchplate??
+//
+//
+//
+// TODO:
+// =========================================
+//      other ideas:::
+// =========================================
+// `<leader>g` to open some diff for the session? (lazygit)
+// `-` to open something (oil.nvim)
+// some command input line e.g. typing `:` shows the line, and each additional char is also shown until command is submitted
+// and/or something like screenkey
+// also `/` or `?` should do similar, for string search find/replace (only in certain views?? inventory view - could it be useful in the map view??? maybe to locate some target)
+//
+// some sort of statusbar to show the mode, coords, command, keys, search?
+//
+// havent even thought about visual or insert modes!
+// insert: maybe have some sort of q and a: user inserts the answer
+// could `ci"` or `ci(` or `ca"` etc?
+//
+// would Inventory be a modal or a canvas overlay?
+// 
+//
+//
+//
+//
+//
+//
+//
+//
+//

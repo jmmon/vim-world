@@ -1,7 +1,7 @@
-import { clients } from "../serverState";
-import { markAfkPlayer, startCloseAfkPlayer, terminateAfkPlayer } from "./handlers";
+import { clients } from "./serverState";
+import { markAfkPlayer, startCloseAfkPlayer, terminateAfkPlayer } from "./wss/handleAfkDisconnect";
 
-export function serverLoop() {
+export default function serverLoop() {
     console.log('started serverLoop');
     let ticks = 0;
 

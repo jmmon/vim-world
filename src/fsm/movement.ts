@@ -1,6 +1,12 @@
-import { Player, Vec2, World } from "~/components/canvas1/types";
+import {
+    LocalWorldWrapper,
+    MapObject,
+    Player,
+    TileType,
+    Vec2,
+} from "~/components/canvas1/types";
 import { GameAction } from "./types";
-import draw from "~/components/canvas1/draw";
+import { $ } from "@builder.io/qwik";
 
 export function keyToDirection(key?: string): Vec2 | null {
     switch (key) {
@@ -20,19 +26,24 @@ export function keyToDirection(key?: string): Vec2 | null {
             return null;
     }
 }
+
 export const computeTargetPos = (pos: Vec2, delta: Vec2): Vec2 => ({
     x: pos.x + delta.x,
     y: pos.y + delta.y,
 });
 
-export const isWithinBounds = (world: World, next: Vec2): boolean =>
-    !!world.map[next.y]?.[next.x];
-// next.x >= 0 &&
-// next.y >= 0 &&
-// next.x < world.dimensions.width &&
-// next.y < world.dimensions.height;
+export const isWithinBounds = (map: TileType[][], next: Vec2): boolean =>
+    !!map[next.y]?.[next.x];
 
-export function isWalkable(world: World, next: Vec2) {
+export function isWalkable(
+    world: {
+        objects: MapObject[];
+        map: TileType[][];
+        players: Map<string, Player>;
+        walkable: TileType[];
+    },
+    next: Vec2,
+) {
     // tile collision
     const tile = world.map[next.y]?.[next.x];
     if (!tile || !world.walkable.includes(tile)) {
@@ -50,12 +61,14 @@ export function isWalkable(world: World, next: Vec2) {
     }
 
     // player collision
-    const otherPlayer = world.otherPlayers.find(
-        (o) => o.pos.x === next.x && o.pos.y === next.y,
-    );
-    if (otherPlayer) {
-        console.error("cannot walk on other players", otherPlayer);
-        return false;
+    if (world.players.size === 0) return true;
+
+    for (const kvPair of world.players) {
+        const p = kvPair[1];
+        if (p.pos.x === next.x && p.pos.y === next.y) {
+            console.error("cannot walk on other players", p);
+            return false;
+        }
     }
 
     return true;
@@ -69,39 +82,43 @@ const OPTS = {
     collision: true,
     prediction: true,
 };
-export function applyMoveAction(
-    world: World,
+export const applyMoveAction = $(async function (
+    state: LocalWorldWrapper,
     action: GameAction,
     opts: Partial<Opts> = OPTS,
-) {
+): Promise<boolean> {
     const { prediction, collision }: Opts = {
         ...OPTS,
         ...opts,
     };
-    if (!prediction) return;
+    if (!prediction) return false;
 
     const delta = keyToDirection(action.key);
-    if (!delta) return;
+    if (!delta) return false;
 
     const steps = action.count ?? 1;
-    const p = world.player;
+    const p = state.client.player!;
     updateDirection(p, delta); // always update direction even if they didn't move
 
-    for (let i = 0; i < steps; i++) {
+    let processed = 0;
+    for (; processed < steps; processed++) {
         const next = computeTargetPos(p.pos, delta);
+        // console.log({processed, next});
 
-        if (collision && !isWithinBounds(world, next)) {
+        if (collision && (await state.isWithinBounds(next))) {
             console.error("not within bounds!", p.pos, next);
             break; // stop at map edge
         }
 
-        if (collision && !isWalkable(world, next)) {
+        if (collision && (await state.isWalkable(next))) {
             break; // stop at obstacle or player
         }
 
         p.pos = next; // commit step
     }
-}
+    // console.log({processed, p});
+    return processed > 0;
+});
 
 function updateDirection(p: Player, delta: Vec2) {
     // Update facing direction
@@ -141,34 +158,33 @@ const QUIT_ACTIONS = [
 ];
 // :q[uit][!], :wq[!], :wa[ll], :conf[irm] q[uit], :x[it], :exi[t], :[w]qa[ll][!], :quita[ll][!]
 export function applyCommandAction(
-    world: World,
+    state: LocalWorldWrapper,
     action: GameAction,
-    overlayCtx: CanvasRenderingContext2D,
-) {
-    if (action.command === "help" || action.command === "h" || action.command === 'g?') {
-        if (world.help.isOpen) {
-            draw.closeHelp(world, overlayCtx);
-        } else {
-            draw.help(world, overlayCtx);
-        }
-        world.help.isOpen = !world.help.isOpen;
-        return;
+    // overlayCtx: CanvasRenderingContext2D,
+): boolean {
+    if (
+        action.command === "help" ||
+        action.command === "h" ||
+        action.command === "g?"
+    ) {
+        state.show.help = !state.show.help;
+        return false;
     }
 
     if (action.command === "ctrl+[") {
-        // show some menu
-        // a dialog component
-        // can basically toggle state.isOpen to true/false
-        // so would probably need the world state to be a store (or context)
-        console.log("TODO: 'ctrl+[' => show some menu");
-        return;
+        // show menu
+        state.show.menu = !state.show.menu;
+        return false;
     }
     // allow optional ! at end
-    if (action.command!.endsWith('!')) {
+    if (action.command!.endsWith("!")) {
         action.command = action.command!.slice(0, -1);
     }
     if (QUIT_ACTIONS.includes(action.command!)) {
-        console.log("TODO: quit command: save checkpoint then redirect to homepage");
-        return;
+        console.log(
+            "TODO: quit command: save checkpoint then redirect to homepage",
+        );
+        return false;
     }
+    return false;
 }

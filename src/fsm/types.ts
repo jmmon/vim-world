@@ -1,5 +1,5 @@
-import { Player, Vec2 } from "~/components/canvas1/types";
-import { PlayerCheckpoint } from "~/server/checkpoint";
+import { Direction, Player, Vec2 } from "~/components/canvas1/types";
+import { PlayerCheckpoint } from "~/server/checkpointService";
 
 export type VimMode = "normal" | "operator" | "awaitingChar" | "command";
 
@@ -19,6 +19,9 @@ export interface GameAction {
     command?: string;
     count?: number;
 }
+
+
+// send to server
 export interface ClientActionMessage {
     type: "ACTION";
     seq: number;
@@ -39,16 +42,17 @@ export type ClientMessage =
     | ClientInitMessage
     | ClientCheckpointSaveMessage;
 
-export type Direction = "N" | "S" | "E" | "W";
+
+// send from server:
 // send to other clients:
-export interface ServerPlayerMoveMessage {
+export type ServerPlayerMoveMessage = {
     type: "PLAYER_MOVE";
     playerId: string;
     pos: Vec2;
     dir: Direction;
 }
 export type ServerAckType = "ACK" | "REJECTION" | "CORRECTION";
-export interface ServerAckMessage<T extends ServerAckType> {
+export type ServerAckMessage<T extends ServerAckType> = {
     type: T;
     seq: number;
     accepted: boolean;
@@ -56,28 +60,27 @@ export interface ServerAckMessage<T extends ServerAckType> {
     authoritativeState?: Partial<Player>;
     dir?: Direction;
 }
-export interface ServerAfkMessage {
-    type: "AFK" | "CLOSE_START" | "CLOSE" | "TERMINATE";
+type ConnectionMessage = "AFK" | "CLOSE_START" | "CLOSE" | "TERMINATE";
+export type ServerAfkMessage<T extends ConnectionMessage> = {
+    type: T;
 }
-export interface ServerLoadCheckpointMessage {
-    type: "LOAD_CHECKPOINT";
+// export type ServerLoadCheckpointMessage = {
+//     type: "LOAD_CHECKPOINT";
+//     checkpoint: PlayerCheckpoint;
+// }
+export type ServerInitConfirmMessage = {
+    type: "INIT_CONFIRM";
     checkpoint: PlayerCheckpoint;
+    playerId: string;
 }
-export type ServerMessage =
+export type ServerMessage = 
     | ServerPlayerMoveMessage
     | ServerAckMessage<ServerAckType>
-    | ServerAfkMessage
-    | ServerLoadCheckpointMessage;
-export interface Prediction {
-    seq: number;
-    action: GameAction;
-    snapshotBefore: Player;
-}
-// export type TransitionResult =
-//     | { ctx: VimFSMState }
-//     | { ctx: VimFSMState; emit: GameAction };
-//
-// export type TransitionFn = (ctx: VimFSMState, input: Input) => TransitionResult;
+    | ServerAfkMessage<ConnectionMessage>
+    // | ServerLoadCheckpointMessage
+    | ServerInitConfirmMessage;
+
+
 
 export type TransitionResult = {
     state: VimFSMState | "reset";

@@ -1,5 +1,5 @@
 import { Slot, component$, $, useOnDocument, QRL, useStore, useSignal } from "@builder.io/qwik";
-import { ActionHandler, KEY_TO_ACTION_MAP, MoveDirection, useFSM } from "~/utils/FSM";
+import { ActionHandler, KEY_TO_ACTION_MAP, MoveDirection, useFSM } from "~/components/inventory/utils/FSM";
 
 
 const COLS = 8;

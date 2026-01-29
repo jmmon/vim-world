@@ -1,4 +1,4 @@
-import { GameAction, VimFSMState, VimMode } from "../types";
+import { GameAction, VimFSMState, VimMode } from "../../fsm/types";
 import { InputType } from "./types";
 export interface Transition {
     next: VimMode;

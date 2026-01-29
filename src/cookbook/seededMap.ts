@@ -1,3 +1,5 @@
+import { CHUNK_SIZE } from "~/components/canvas1/constants";
+
 export function mulberry32(seed: number) {
     return function () {
         let t = (seed += 0x6d2b79f5);
@@ -10,28 +12,28 @@ export function mulberry32(seed: number) {
 // const rng = mulberry32(seed);
 // const n = rng(); // deterministic 0..1
 
-export type TileType = "floor" | "wall" | "water" | "grass" | "tree";
+export type TileType2 = "floor" | "wall" | "water" | "grass" | "tree";
 
-export interface Tile {
-    type: TileType;
+export interface Tile2 {
+    type: TileType2;
     solid: boolean;
 }
 
-export interface MapConfig {
+export interface MapConfig2 {
     width: number;
     height: number;
 }
 
-export function generateBaseMap(seed: number, config: MapConfig): Tile[][] {
+export function generateBaseMap(seed: number, config: MapConfig2): Tile2[][] {
     const rng = mulberry32(seed);
-    const map: Tile[][] = [];
+    const map: Tile2[][] = [];
 
     for (let y = 0; y < config.height; y++) {
-        const row: Tile[] = [];
+        const row: Tile2[] = [];
         for (let x = 0; x < config.width; x++) {
             const r = rng();
 
-            let tile: Tile;
+            let tile: Tile2;
             if (r < 0.1) {
                 tile = { type: "water", solid: true };
             } else if (r < 0.2) {
@@ -48,7 +50,7 @@ export function generateBaseMap(seed: number, config: MapConfig): Tile[][] {
     return map;
 }
 
-function addBorders(map: Tile[][]) {
+function addBorders(map: Tile2[][]) {
     const h = map.length;
     const w = map[0].length;
 
@@ -64,7 +66,7 @@ function addBorders(map: Tile[][]) {
 }
 addBorders([[]]);
 
-function carveRoom(map: Tile[][], x: number, y: number, w: number, h: number) {
+function carveRoom(map: Tile2[][], x: number, y: number, w: number, h: number) {
     for (let dy = 0; dy < h; dy++) {
         for (let dx = 0; dx < w; dx++) {
             map[y + dy][x + dx] = { type: "floor", solid: false };
@@ -72,7 +74,7 @@ function carveRoom(map: Tile[][], x: number, y: number, w: number, h: number) {
     }
 }
 
-function generateRooms(map: Tile[][], rng: () => number) {
+function generateRooms(map: Tile2[][], rng: () => number) {
     const roomCount = 5 + Math.floor(rng() * 5);
 
     for (let i = 0; i < roomCount; i++) {
@@ -95,7 +97,7 @@ generateRooms([[]], () => 0)
 // }
 
 // TODO:
-export function generateMap(seed: number, ruleset: string): Tile[][] {
+export function generateMap(seed: number, ruleset: string): Tile2[][] {
     switch (ruleset) {
         case "forest-v1":
             return generateForest(seed);
@@ -125,7 +127,6 @@ function generateDungeon(seed: number) {
 /* ============== CHUNKS ================ */
 /* ====================================== */
 
-const CHUNK_SIZE = 32; // tiles per side
 // TODO:
 // function createChunk(x: number, y: number) {
 //     const chunkX = Math.floor(x / CHUNK_SIZE);
@@ -207,17 +208,17 @@ const worldSeed = 123456;
 // }
 
 /* ================== RULESETS ================ */
-interface TileRule {
-    type: TileType;
+interface TileRule2 {
+    type: TileType2;
     weight: number;
     solid: boolean;
 }
 
-interface Ruleset {
+interface Ruleset2 {
     id: string;
-    baseTiles: TileRule[];
+    baseTiles: TileRule2[];
 }
-const RULESETS: Record<string, Ruleset> = {
+const RULESETS: Record<string, Ruleset2> = {
     "forest-v1": {
         id: "forest-v1",
         baseTiles: [
@@ -250,7 +251,7 @@ function pickWeighted<T>(
     return options[options.length - 1].value;
 }
 
-function generateBaseTile2(rng: () => number, rulesetId: string): Tile {
+function generateBaseTile2(rng: () => number, rulesetId: string): Tile2 {
     const ruleset = RULESETS[rulesetId];
     if (!ruleset) throw new Error(`Unknown ruleset: ${rulesetId}`);
 
@@ -273,7 +274,7 @@ const tiles = [];
 const rng = mulberry32(worldSeed);
 const ruleset = 'forest-v1';
 for (let y = 0; y < CHUNK_SIZE; y++) {
-    const row: Tile[] = [];
+    const row: Tile2[] = [];
     for (let x = 0; x < CHUNK_SIZE; x++) {
         row.push(generateBaseTile2(rng, ruleset));
     }

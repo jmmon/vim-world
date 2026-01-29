@@ -1,15 +1,24 @@
-import { MapObject, TileType } from "./types";
+import { MapDimensions, MapObject, TileType } from "./types";
 
-
-const MAP_WIDTH = 36;
-const MAP_HEIGHT = 36;
 const TILE_SIZE = 32;
-export const DIMENSIONS = {
+const MAP_WIDTH = 32;
+const MAP_HEIGHT = 32;
+const SCALE_DEFAULT = 1;
+export const getScaledTileSize = (scaleDecimal: number) => {
+    const tileSize = Math.round(TILE_SIZE * scaleDecimal);
+    const actualScale = tileSize / TILE_SIZE;
+
+    return { tileSize, actualScale };
+}
+export const CHUNK_SIZE = MAP_WIDTH;
+
+export const DIMENSIONS: MapDimensions = {
     width: MAP_WIDTH,
     height: MAP_HEIGHT,
     tileSize: TILE_SIZE,
     canvasWidth: MAP_WIDTH * TILE_SIZE,
     canvasHeight: MAP_HEIGHT * TILE_SIZE,
+    scale: SCALE_DEFAULT,
 }
 
 export const TILE_COLOR_MAP: Record<TileType, string> = {
@@ -35,7 +44,7 @@ export enum ClientPhysicsMode {
   NONE, // server-controlled, wait for ACK before rendering anything (turn off collision and prediction)
 };
 
-export const clientPhysicsMode: ClientPhysicsMode = ClientPhysicsMode.NONE;
+export const clientPhysicsMode: ClientPhysicsMode = ClientPhysicsMode.VISUAL_ONLY;
 
 export const API_PORT = import.meta.env.PROD 
 

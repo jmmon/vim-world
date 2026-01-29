@@ -1,20 +1,21 @@
-import { Player, Vec2 } from "~/components/canvas1/types";
+import { Direction, Player, Vec2 } from "~/components/canvas1/types";
 import { computeTargetPos, keyToDirection } from "~/fsm/movement";
-import { ClientActionMessage, Direction, GameAction } from "~/fsm/types";
-import { ClientData, WORLD } from "../serverState";
-import { sendAck, sendCorrection, sendRejection } from "./handlers";
-import { ReasonPartial, ValidateMoveCorrection, ValidateMoveResult } from "./types";
+import { ClientActionMessage, GameAction } from "~/fsm/types";
+import { WORLD_WRAPPER } from "../serverState";
+import { ReasonCorrection, ValidateMoveCorrection, ValidateMoveResult } from "./types";
+import { ClientData } from "../types";
 
-function validateActionSequence(player: Player, msg: ClientActionMessage) {
+function validateActionSequence(client: ClientData, player: Player, msg: ClientActionMessage) {
     // basic validation:
+    console.log('basic validation:', msg, player);
     if (msg.seq <= player.lastProcessedSeq) {
+        console.log('~~basic validation FAILED seq');
         return false; // duplicate or replay
     }
 
     if (!isFinite(msg.clientTime)) {
-        // TODO:
-        // disconnect(player);
-        // return false;
+        client.disconnect();
+        return false;
     }
 
     return true;
@@ -43,11 +44,20 @@ function validateActionSchema(action: GameAction): boolean {
             return false;
     }
 }
-// e.g. if false, return an invalid message:
-// sendCorrection(player, {
-//     reason: "INVALID_ACTION",
-//     authoritativeState: snapshotPlayer(player)
-// });
+
+export function basicValidation(client: ClientData, player: Player, msg: ClientActionMessage) {
+    if (!validateActionSequence(client, player, msg)) {
+        console.log('invalid action sequence! at:', player.lastProcessedSeq, 'msg:', msg.seq);
+        return "INVALID_SEQUENCE";
+    }
+
+    if (!validateActionSchema(msg.action)) {
+        console.log('invalid action schema!', msg.action);
+        return "INVALID_ACTION";
+    }
+    return null;
+}
+
 
 function deltaToDirection(delta: Vec2): Direction | undefined {
     // Update facing direction
@@ -79,17 +89,17 @@ function validateMove(player: Player, action: GameAction): ValidateMoveResult {
     }
     // processing multiple counts within one tick:
     let processedCount = 0;
-    let reason: ReasonPartial | undefined = undefined;
+    let reason: ReasonCorrection | undefined = undefined;
     while (processedCount < steps) {
         const next = computeTargetPos(player.pos, delta);
 
-        if (!WORLD.isWithinBounds(next)) {
+        if (!WORLD_WRAPPER.isWithinBounds(next)) {
             console.error("not within bounds!", player.pos, next);
             reason = "OUT_OF_BOUNDS";
             break; // stop at map edge
         }
 
-        if (!WORLD.isWalkable(next)) {
+        if (!WORLD_WRAPPER.isWalkable(next)) {
             reason = "COLLISION";
             break; // stop at obstacle or player
         }
@@ -128,62 +138,37 @@ function applyMoveToWorld(player: Player, msg: ClientActionMessage, result: { ta
 }
 
 
-export function basicValidation(player: Player, msg: ClientActionMessage) {
-    if (!validateActionSequence(player, msg)) {
-        console.log('invalid action sequence! at:', player.lastProcessedSeq, 'msg:', msg.seq);
-        return "INVALID_SEQUENCE";
-    }
-
-    if (!validateActionSchema(msg.action)) {
-        console.log('invalid action schema!', msg.action);
-        return "INVALID_ACTION";
-    }
-    return null;
-}
-
 // TODO: more action types: 'INTERACT', 'COMMAND', 'TARGET'
 // apply msg.type === 'ACTION'
-export function applyAction(client: ClientData, player: Player, msg: ClientActionMessage) {
+export function applyAction(player: Player, msg: ClientActionMessage) {
     const result = validateMove(player, msg.action);
-    // cases: result not ok because of invalid key or action (no target, no dir)
-    // result not ok because of collision (with target and dir)
-    // result not ok because of out of bounds (with target and dir)
-    // result ok (with target and dir)
 
     if (!result.ok) {
         if (result.reason === 'INVALID_KEY' || result.reason === 'INVALID_ACTION') {
-            sendRejection(client, {
-                reason: result.reason,
+            return {
                 seq: msg.seq,
-                // authoritativeState: snapshotPlayer(player) // e.g. previous player state
-                authoritativeState: player,
-            });
-            // dont apply move since it was invalid
-            return;
+                reason: result.reason,
+            };
         } 
 
-        console.log('RESULT: expect coords:', result);
-        // apply corrected move
+        // console.log('RESULT: expect coords:', result);
         applyMoveToWorld(player, msg, result as ValidateMoveCorrection); // updates player object
-        console.log('CORRECTED: updated player: EXPECT new position!', player);
-        sendCorrection(client, {
-            reason: result.reason,
+        // console.log('CORRECTED: updated player: EXPECT new position!', player);
+        return {
             seq: msg.seq,
-            // authoritativeState: snapshotPlayer(player) // e.g. previous player state
-            authoritativeState: player,
-        });
-        return;
+            reason: result.reason,
+        };
     }
     
-    console.log('RESULT: expect coords:', result);
+    // console.log('RESULT: expect coords:', result);
 
     // apply valid move
     applyMoveToWorld(player, msg, result);
-    console.log('VALID: updated player: EXPECT new position!', player);
-    sendAck(client, {
+    // console.log('VALID: updated player: EXPECT new position!', player);
+    return {
         seq: msg.seq,
-        authoritativeState: player,
-    });
+        reason: null,
+    };
 }
 
 

@@ -1,5 +1,5 @@
-import { DIMENSIONS } from "./constants";
-import { TileType } from "./types";
+import { DIMENSIONS } from "../components/canvas1/constants";
+import { Direction, TileType } from "../components/canvas1/types";
 
 const CHANCE = {
     dirt: 0.05,
@@ -27,7 +27,7 @@ const SPREAD_CHANCE = {
 };
 type Data = {
     count: number;
-    dir: Array<'left' | 'right' | 'up' | 'down'>;
+    dir: Array<Direction>;
 }
 function spread() {
     for (let y = 0; y < DIMENSIONS.height; y++) {
@@ -43,7 +43,7 @@ function spread() {
             // const filtered = typesValues.filter((v) => v !== undefined);
             const nearbyTypes = typesValues.reduce((accum, cur, i) => {
                 if (!cur) return accum;
-                const dir = i === 0 ? 'up' : i === 1 ? 'right' : i === 2 ? 'left' : 'down';
+                const dir = i === 0 ? 'N' : i === 1 ? 'E' : i === 2 ? 'W' : 'S';
                 accum[cur] = {
                     count: (accum[cur]?.count || 0) + 1,
                     dir: [...(accum[cur]?.dir || []), dir ],
@@ -85,19 +85,20 @@ function spread() {
             // TODO: attempt to reduce the number of stragglers
             const random2 = Math.random();
             if (random2 > 0.95) {
-                if (lowest[1].dir.includes('up')) {
+                if (lowest[1].dir.includes('N')) {
                     INITIAL_MAP[y - 1][x] = avg[0];
-                } else if (lowest[1].dir.includes('right')) {
+                } else if (lowest[1].dir.includes('E')) {
                     INITIAL_MAP[y][x + 1] = avg[0];
-                } else if (lowest[1].dir.includes('left')) {
+                } else if (lowest[1].dir.includes('W')) {
                     INITIAL_MAP[y][x - 1] = avg[0];
-                } else if (lowest[1].dir.includes('down')) {
+                } else if (lowest[1].dir.includes('S')) {
                     INITIAL_MAP[y + 1][x] = avg[0];
                 }
             }
         }
     }
 }
+
 export function generateMap(spreadCount: number = 7) {
     for (let i = 0; i < spreadCount; i++) {
         spread();
@@ -106,4 +107,4 @@ export function generateMap(spreadCount: number = 7) {
     return INITIAL_MAP;
 }
 
-export const map = generateMap();
+export const MAP = generateMap();

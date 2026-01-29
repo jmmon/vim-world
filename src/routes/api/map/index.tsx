@@ -1,5 +1,5 @@
 import { RequestHandler } from "@builder.io/qwik-city";
-import { WORLD } from "~/server/serverState";
+import { WORLD_WRAPPER } from "~/server/serverState";
 
 // FIRST: need world state on server!
 // for now: send entire worldstate to client? map, objects, players?
@@ -16,5 +16,5 @@ import { WORLD } from "~/server/serverState";
 // or are maps simply going to be hardcoded... would be cool to generate more though
 export const onGet: RequestHandler = async (reqEvent) => {
     // return just the map tiles?
-    reqEvent.json(200, WORLD);
+    reqEvent.json(200, WORLD_WRAPPER.world);
 }

@@ -15,18 +15,17 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
         if (key === '[' && event.ctrlKey) {
             // TODO: show some menu
             if (state.buffer.length > 0 || state.count !== null) {
-                console.log('resetting state via ctrl+[')
                 return {
                     state: 'reset',
-                }
+                };
             }
             return {
                 state,
                 emit: {
                     type: 'COMMAND',
-                    command: 'ctrl+[', // ok?
+                    command: 'ctrl+[',
                 }
-            }
+            };
         }
 
 
@@ -104,7 +103,6 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
         const key = event.key;
         if (key === '[' && event.ctrlKey) {
             // cancel current command
-            console.log('resetting state via ctrl+[')
             return {
                 state: 'reset',
             }
@@ -134,7 +132,6 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
         const key = event.key;
         if (key === '[' && event.ctrlKey) {
             // cancel current command
-            console.log('resetting state via ctrl+[')
             return {
                 state: 'reset',
             }
@@ -165,7 +162,6 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
         const key = event.key;
         if (key === '[' && event.ctrlKey) {
             // cancel current command
-            console.log('resetting state via ctrl+[')
             return {
                 state: 'reset',
             }
