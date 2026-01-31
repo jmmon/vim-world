@@ -32,6 +32,7 @@ import {
 import ChooseUsername from "../choose-username/choose-username";
 import { isWalkable, isWithinBounds } from "~/fsm/movement";
 import useWebSocket, { dispatch } from "~/hooks/useWebSocket";
+import Menu from "../menu/menu";
 import useRenderLoop from "~/hooks/useRenderLoop";
 import { ServerWorld } from "~/server/types";
 
@@ -378,6 +379,7 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
                 style={{ position: "absolute", top: 0, left: 0 }}
             />
             <ChooseUsername initializeSelfData={initializeSelfData} />
+            <Menu state={localWorldWrapper} />
         </div>
     );
 });
