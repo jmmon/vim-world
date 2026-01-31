@@ -1,5 +1,5 @@
+import { Direction, TileType } from "~/types/worldTypes";
 import { DIMENSIONS } from "../components/canvas1/constants";
-import { Direction, TileType } from "../components/canvas1/types";
 
 const CHANCE = {
     dirt: 0.05,
@@ -108,3 +108,5 @@ export function generateMap(spreadCount: number = 7) {
 }
 
 export const MAP = generateMap();
+
+

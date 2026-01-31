@@ -9,10 +9,10 @@ import {
 import {
     ServerAckMessage,
     ServerMessage,
-    ServerPlayerMoveMessage,
+    ServerOtherPlayerMessage,
     ServerAckType,
     ServerInitConfirmMessage,
-} from "~/fsm/types";
+} from "~/types/messageTypes";
 import useSeq from "../../hooks/useSeq";
 import useVimFSM from "~/fsm/useVimFSM";
 import {
@@ -38,7 +38,7 @@ import { ServerWorld } from "~/server/types";
 
 type Canvas1Props = {
     worldState: ServerWorld;
-}
+};
 const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
     const isReady = useSignal(false);
     const nav = useNavigate();
@@ -205,7 +205,7 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
         }
     });
 
-    const onOtherPlayerMove$ = $((data: ServerPlayerMoveMessage) => {
+    const onOtherPlayerMove$ = $((data: ServerOtherPlayerMessage<"MOVE">) => {
         // skip self
         if (
             !data.playerId ||
@@ -237,34 +237,41 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
             // console.log("onMessage data:", event.data);
             const data = JSON.parse(event.data) as ServerMessage;
             console.assert(!!ws, "!!websocket not open!! in onMessage$");
+            console.log("onMessage:", data);
 
             switch (data.type) {
-                case "CLOSE_START":
-                    if (!localWorldWrapper.client.player) break;
-
-                    dispatch.checkpoint(
-                        ws,
-                        localWorldWrapper.client.player,
-                        true,
-                    );
-                    timeSinceLastCheckpoint.value = Date.now();
-                    break;
-                case "TERMINATE":
                 case "CLOSE":
+                    if (data.subtype === "START") {
+                        if (!state.ctx.client.player) break;
+
+                        dispatch.checkpoint(
+                            ws,
+                            state.ctx.client.player,
+                            true,
+                        );
+                        state.ctx.client.timeSinceLastCheckpoint =
+                            Date.now();
+                        break;
+                    }
                     nav("/");
                     break;
                 case "AFK":
-                    isAfk.value = Date.now();
+                    state.ctx.client.afkStartTime = Date.now();
+                    state.ctx.show.afk = true;
                     break;
                 case "ACK":
-                case "CORRECTION":
-                case "REJECTION":
+                    if (data?.subtype === "REJECTION") console.log("REJECTION:", data.reason);
+                    if (data?.subtype === "CORRECTION")
+                        console.log("CORRECTION:", data.reason);
                     onServerAck$(data);
                     break;
-                case "PLAYER_MOVE":
-                    onOtherPlayerMove$(data);
+                case "PLAYER":
+                    if (data.subtype === "MOVE") {
+                        onOtherPlayerMove$(data as ServerOtherPlayerMessage<"MOVE">);
+                    }
                     break;
-                case "INIT_CONFIRM":
+                case "INIT":
+                    console.assert(data.subtype === "CONFIRM", 'EXPECTED subtype "CONFIRM", got', data.subtype);
                     // confirm that playerId has been saved on server
                     onInitConfirm$(data);
                     break;
@@ -385,3 +392,5 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
 });
 
 export default Canvas1;
+
+

@@ -1,8 +1,8 @@
 import { QRL } from "@builder.io/qwik";
-import { GameAction, VimFSMState } from "./types";
+import { VimAction, VimFSMState } from "./types";
 import { resetCtx, transitionTable } from "./transtionTable";
 
-export type ActionFunction = (action: GameAction) => void | Promise<void>;
+export type ActionFunction = (action: VimAction) => void | Promise<void>;
 export class VimFSM {
     state: VimFSMState = {
         mode: "normal",
@@ -10,7 +10,7 @@ export class VimFSM {
         count: null,
     };
 
-    lastAction: GameAction | null = null;
+    lastAction: VimAction | null = null;
     timeoutId: number | null = null;
 
     constructor(
@@ -70,3 +70,5 @@ export class VimFSM {
         }
     }
 }
+
+

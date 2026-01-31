@@ -1,5 +1,5 @@
 import {
-    GameAction,
+    VimAction,
 } from "./types";
 import { applyCommandAction, applyMoveAction } from "./movement";
 import { LocalWorldWrapper } from "~/components/canvas1/types";
@@ -9,7 +9,7 @@ import { LocalWorldWrapper } from "~/components/canvas1/types";
  * */
 export function applyActionToWorld(
     localWorldWrapper: LocalWorldWrapper,
-    action: GameAction,
+    action: VimAction,
     opts?: Partial<{
         collision: boolean,
         prediction: boolean,
@@ -24,3 +24,5 @@ export function applyActionToWorld(
             return false;
     }
 }
+
+

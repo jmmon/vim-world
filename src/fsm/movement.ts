@@ -1,12 +1,9 @@
 import {
     LocalWorldWrapper,
-    MapObject,
-    Player,
-    TileType,
-    Vec2,
 } from "~/components/canvas1/types";
-import { GameAction } from "./types";
+import { VimAction } from "./types";
 import { $ } from "@builder.io/qwik";
+import { MapObject, Player, TileType, Vec2 } from "~/types/worldTypes";
 
 export function keyToDirection(key?: string): Vec2 | null {
     switch (key) {
@@ -84,7 +81,7 @@ const OPTS = {
 };
 export const applyMoveAction = $(async function (
     state: LocalWorldWrapper,
-    action: GameAction,
+    action: VimAction,
     opts: Partial<Opts> = OPTS,
 ): Promise<boolean> {
     const { prediction, collision }: Opts = {
@@ -159,7 +156,7 @@ const QUIT_ACTIONS = [
 // :q[uit][!], :wq[!], :wa[ll], :conf[irm] q[uit], :x[it], :exi[t], :[w]qa[ll][!], :quita[ll][!]
 export function applyCommandAction(
     state: LocalWorldWrapper,
-    action: GameAction,
+    action: VimAction,
     // overlayCtx: CanvasRenderingContext2D,
 ): boolean {
     if (
@@ -188,3 +185,5 @@ export function applyCommandAction(
     }
     return false;
 }
+
+

@@ -1,5 +1,5 @@
 import { MAP } from "~/server/map";
-import { MapObject, TileType } from "~/components/canvas1/types";
+import { MapObject, TileType } from "~/types/worldTypes";
 
 const objectsList: MapObject[] = [
     { type: "tree", pos: { x: 0, y: 0 }, walkable: false },
@@ -37,4 +37,5 @@ export const objects = objectsList.map((obj) => {
         },
     };
 });
+
 

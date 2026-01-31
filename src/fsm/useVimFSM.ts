@@ -8,12 +8,12 @@ import {
     useSignal,
     useVisibleTask$,
 } from "@builder.io/qwik";
-import { GameAction } from "./types";
+import { VimAction } from "./types";
 import { VimFSM } from "./fsm";
 
 // wrapper around VimFSM class
 const useVimFSM = (
-    onAction: QRL<(a: GameAction) => void>,
+    onAction: QRL<(a: VimAction) => void>,
     initialized: Signal<any>,
     timeoutMs = 1500,
 ) => {
@@ -33,3 +33,5 @@ const useVimFSM = (
     return fsm;
 };
 export default useVimFSM;
+
+

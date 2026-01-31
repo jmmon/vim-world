@@ -18,3 +18,5 @@ export const onGet: RequestHandler = async (reqEvent) => {
     // return just the map tiles?
     reqEvent.json(200, WORLD_WRAPPER.world);
 }
+
+

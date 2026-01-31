@@ -1,4 +1,5 @@
-import { LocalWorldWrapper, MapDimensions } from "../../components/canvas1/types";
+import { MapDimensions } from "~/types/worldTypes";
+import { LocalWorldWrapper } from "../../components/canvas1/types";
 
 const COMPARE_GRANULARITY = 1000;
 export function hasScaleChanged(state: LocalWorldWrapper) {
@@ -38,3 +39,5 @@ export function generateOldDimensions(
         scale: world.lastScale,
     };
 }
+
+

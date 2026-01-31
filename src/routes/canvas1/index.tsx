@@ -1,6 +1,6 @@
 import { Resource, component$, useResource$ } from "@builder.io/qwik";
 import Canvas1 from "~/components/canvas1/canvas1";
-import { Player } from "~/components/canvas1/types";
+import { Player } from "~/types/worldTypes";
 import { ServerWorld } from "~/server/types";
 import httpService from "~/services/http";
 
@@ -33,3 +33,5 @@ export default component$(() => {
         />
     );
 });
+
+

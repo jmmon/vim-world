@@ -1,4 +1,4 @@
-import { MapDimensions, MapObject, TileType } from "./types";
+import { MapDimensions, MapObject, TileType } from "~/types/worldTypes";
 
 const TILE_SIZE = 32;
 const MAP_WIDTH = 32;
@@ -52,4 +52,5 @@ export const API_PORT = import.meta.env.PROD
     : import.meta.env.DEV 
         ? 5173 
         : 4173;
+
 

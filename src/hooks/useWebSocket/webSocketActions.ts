@@ -1,13 +1,14 @@
 import { NoSerialize } from "@builder.io/qwik";
-import { Player } from "~/components/canvas1/types";
-import { ClientActionMessage, ClientCheckpointSaveMessage, ClientInitMessage, GameAction } from "~/fsm/types";
+import { Player } from "~/types/worldTypes";
+import { VimAction } from "~/fsm/types";
+import { ClientActionMessage, ClientCheckpointMessage, ClientInitMessage } from "~/types/messageTypes";
 import { PlayerCheckpoint } from "~/server/checkpointService";
 
 
 function action(
     ws: NoSerialize<WebSocket> | null,
     seq: number,
-    action: GameAction,
+    action: VimAction,
 ) {
     // 3. Send to server
     if (!ws || ws?.readyState !== WebSocket.OPEN) return;
@@ -52,13 +53,14 @@ function checkpoint(
         x: player.pos.x,
         y: player.pos.y,
         dir: player.dir,
-        // ...player.session,
+        // TODO: session: player.session,
         lastSeenAt: Date.now(),
     };
 
     // use ws to send checkpoint data to server
-    const checkpointMessage: ClientCheckpointSaveMessage = {
-        type: "SAVE_CHECKPOINT",
+    const checkpointMessage: ClientCheckpointMessage<"SAVE"> = {
+        type: "CHECKPOINT",
+        subtype: "SAVE",
         checkpoint: checkpoint,
         isClosing,
     };
@@ -72,3 +74,5 @@ const dispatch = {
     checkpoint,
 };
 export default dispatch;
+
+

@@ -5,10 +5,11 @@
 // small chance to change direction, otherwise keep the same direction
 // small chance to do w/b?
 
+import { ServerOtherPlayerMessage } from "~/types/messageTypes";
+import { Direction, Player } from "~/types/worldTypes";
+
 // import { HOT_PINK } from "~/components/canvas1/constants";
-import { Direction, Player } from "~/components/canvas1/types";
 // import { getRandomHSLColor } from "~/components/canvas1/utils";
-import { ServerPlayerMoveMessage } from "~/fsm/types";
 
 const directions: Direction[] = [
     'N',
@@ -20,7 +21,7 @@ const directions: Direction[] = [
 const DIR_CHANGE_CHANCE = 0.2;
 
 // TODO:
-export function createMoveActionRandom(player: Player): ServerPlayerMoveMessage {
+export function createMoveActionRandom(player: Player): ServerOtherPlayerMessage<"MOVE"> {
     const random = Math.random();
     // const count = Math.ceil((random * 2) ** 2);
     let dir = player.dir;
@@ -37,8 +38,9 @@ export function createMoveActionRandom(player: Player): ServerPlayerMoveMessage 
         default:
         break;
     }
-    const moveMessage: ServerPlayerMoveMessage = {
-        type: "PLAYER_MOVE",
+    const moveMessage: ServerOtherPlayerMessage<"MOVE"> = {
+        type: "PLAYER",
+        subtype: "MOVE",
         playerId: player.id,
         pos: player.pos,
         dir: player.dir,
@@ -85,3 +87,5 @@ export function createMoveActionRandom(player: Player): ServerPlayerMoveMessage 
 //     color: HOT_PINK,
 //     lastProcessedSeq: -1
 // };
+
+

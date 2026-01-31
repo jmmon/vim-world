@@ -280,3 +280,5 @@ for (let y = 0; y < CHUNK_SIZE; y++) {
     }
     tiles.push(row);
 }
+
+

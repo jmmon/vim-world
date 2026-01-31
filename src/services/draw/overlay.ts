@@ -1,5 +1,7 @@
 import { LocalWorldWrapper, MapDimensions } from "../../components/canvas1/types";
+import { LocalWorldWrapper } from "~/components/canvas1/types";
 import { generateOldDimensions, hasScaleChanged } from "./utils";
+import { MapDimensions } from "~/types/worldTypes";
 
 function getFpsStyles(
     dimensions: MapDimensions,
@@ -262,4 +264,5 @@ export function drawAfk(
         state.world.dimensions.tileSize * 2.5,
     );
 }
+
 

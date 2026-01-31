@@ -205,3 +205,5 @@ function getChar(code?: string) {
 }
 
 const BASE_58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz".split("");
+
+

@@ -30,3 +30,5 @@ test(`[ExampleTest Component]: Click counter +1`, async () => {
   await userEvent("button", "click");
   expect(spanAfter.innerHTML).toEqual("Count:2");
 });
+
+

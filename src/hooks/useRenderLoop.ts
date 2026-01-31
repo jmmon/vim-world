@@ -5,7 +5,8 @@ import {
     useSignal,
     useVisibleTask$,
 } from "@builder.io/qwik";
-import { LocalWorldWrapper, Player } from "~/components/canvas1/types";
+import { Player } from "~/types/worldTypes";
+import { LocalWorldWrapper } from "~/components/canvas1/types";
 import { initFpsTest } from "~/components/canvas1/utils";
 import { dispatch } from "./useWebSocket";
 import draw from "~/services/draw";
@@ -166,3 +167,5 @@ export default function useRenderLoop(
         })(zero);
     });
 }
+
+

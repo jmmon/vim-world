@@ -183,3 +183,5 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
         };
     },
 };
+
+

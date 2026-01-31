@@ -18,3 +18,4 @@ export const onPost: RequestHandler = async (requestEvent) => {
     requestEvent.json(200, { player, isNew });
 }
 
+

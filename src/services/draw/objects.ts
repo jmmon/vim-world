@@ -1,5 +1,6 @@
+import { LocalWorldWrapper } from "~/components/canvas1/types";
+import { MapDimensions, MapObject } from "~/types/worldTypes";
 import { HOT_PINK, OBJECT_COLOR_MAP } from "../../components/canvas1/constants";
-import { LocalWorldWrapper, MapDimensions, MapObject } from "../../components/canvas1/types";
 import { closeOldCanvas } from "./utils";
 
 export function drawObject(
@@ -42,4 +43,5 @@ export function drawObjects(
         drawObject(state.world.dimensions, ctx, obj);
     }
 }
+
 

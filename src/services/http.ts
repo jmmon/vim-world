@@ -1,6 +1,6 @@
 import { API_PORT } from "~/components/canvas1/constants";
-import { Player } from "~/components/canvas1/types";
 import { ServerWorld } from "~/server/types";
+import { Player } from "~/types/worldTypes";
 
 const httpService = {
     api: {
@@ -28,3 +28,5 @@ const httpService = {
     },
 };
 export default httpService;
+
+

@@ -1,4 +1,4 @@
-import { MapDimensions, MapObject, Player, TileType, Vec2 } from "~/components/canvas1/types";
+import { MapDimensions, MapObject, Player, TileType, Vec2 } from "~/types/worldTypes";
 
 export type Item = any;
 export type ItemId = string;
@@ -34,3 +34,5 @@ export type ClientData<T extends undefined | 'withPlayerId' = undefined> = {
     reset: () => void;
     disconnect: () => void;
 };
+
+

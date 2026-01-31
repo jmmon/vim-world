@@ -1,4 +1,4 @@
-import { ServerAfkMessage } from "~/fsm/types";
+import { ServerAfkMessage, ServerConnectionMessage } from "~/types/messageTypes";
 import { clients } from "../serverState";
 
 
@@ -16,7 +16,7 @@ export function markAfkPlayer(clientId: string) {
 
     const client = clients.get(clientId)!;
 
-    const msg: ServerAfkMessage<"AFK"> = { type: 'AFK' };
+    const msg: ServerAfkMessage = { type: 'AFK' };
     client.ws.send(JSON.stringify(msg));
     console.log('~~ markAfkPlayer:', clientId);
     client.isAfk = true;
@@ -27,7 +27,7 @@ export function startCloseAfkPlayer(clientId: string) {
     if (!hasTimePassed(clientId, DISCONNECT_TIME)) return;
 
     const client = clients.get(clientId)!;
-    const msg: ServerAfkMessage<"CLOSE_START"> = { type: 'CLOSE_START' };
+    const msg: ServerConnectionMessage<"START"> = { type: "CLOSE", subtype: "START" };
     client.ws.send(JSON.stringify(msg)); // client will then send a checkpoint
     console.log('~~ startCloseAfkPlayer:', clientId);
 }
@@ -36,7 +36,7 @@ export function closeAfkPlayer(clientId: string) {
     const client = clients.get(clientId);
     console.log('~~ closeAfkPlayer:', clientId);
     if (!client) return;
-    const msg: ServerAfkMessage<"CLOSE"> = { type: 'CLOSE' };
+    const msg: ServerConnectionMessage = { type: 'CLOSE' };
     client.ws.send(JSON.stringify(msg));
     client.ws.close();
 }
@@ -47,10 +47,12 @@ export function terminateAfkPlayer(clientId: string) {
     const client = clients.get(clientId)!;
 
     if ([client.ws.OPEN, client.ws.CLOSING].includes(client.ws.readyState)) {
-        const msg: ServerAfkMessage<'TERMINATE'> = { type: 'TERMINATE' };
+        const msg: ServerConnectionMessage<'END'> = { type: "CLOSE", subtype: "END" };
         client.ws.send(JSON.stringify(msg));
         client.ws.terminate();
         clients.delete(clientId);
         console.log('~~ terminateAfkPlayer:', clientId);
     }
 }
+
+

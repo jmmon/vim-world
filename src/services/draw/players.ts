@@ -1,8 +1,7 @@
 import {
     LocalWorldWrapper,
-    MapDimensions,
-    Player,
 } from "../../components/canvas1/types";
+import { MapDimensions, Player } from "~/types/worldTypes";
 import { closeOldCanvas } from "./utils";
 
 export function drawPlayers(
@@ -124,3 +123,5 @@ function drawPlayerDirection(
 
     ctx.stroke();
 }
+
+

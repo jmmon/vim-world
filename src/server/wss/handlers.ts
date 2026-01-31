@@ -1,16 +1,17 @@
 import WebSocket from "ws";
 import {
     ClientActionMessage,
-    ClientCheckpointSaveMessage,
+    ClientCheckpointMessage,
     ClientInitMessage,
     ClientMessage,
     ServerAckMessage,
-    ServerPlayerMoveMessage,
-} from "~/fsm/types";
+    ServerInitConfirmMessage,
+    ServerOtherPlayerMessage,
+} from "~/types/messageTypes";
 import { WORLD_WRAPPER, clients } from "../serverState";
 import checkpointService from "../checkpointService";
 import { applyAction, basicValidation } from "../movement/validation";
-import { Player } from "~/components/canvas1/types";
+import { Player } from "~/types/worldTypes";
 import { ReasonCorrection, ReasonRejected } from "../movement/types";
 import { closeAfkPlayer } from "./handleAfkDisconnect";
 import { ClientData } from "../types";
@@ -50,8 +51,10 @@ export const onMessage = (clientId: string) => (message: WebSocket.RawData) => {
         case('ACTION'):
             handleServerAction(clientId, clientMessage);
             break;
-        case('SAVE_CHECKPOINT'):
-            handleSave(clientId, clientMessage);
+        case('CHECKPOINT'):
+            if (clientMessage.subtype === 'SAVE') {
+                handleSave(clientId, clientMessage as ClientCheckpointMessage<'SAVE'>);
+            }
             break;
         default:
             console.log("UNHANDLED:: RECEIVED ClientMessage:", message.toString());
@@ -69,9 +72,11 @@ export const onClose = (clientId: string) => () => {
     console.log(`Client ${clientId} disconnected`);
 };
 
-export function sendRejection(client: ClientData, {seq, authoritativeState}: {seq: number; reason: ReasonRejected, authoritativeState: Player}) {
-    const reject: ServerAckMessage<"REJECTION"> = {
-        type: "REJECTION",
+export function sendRejection(client: ClientData, {seq, authoritativeState, reason}: {seq: number; reason: ReasonRejected, authoritativeState: Player}) {
+    const reject: ServerAckMessage<"ACK"> = {
+        type: "ACK",
+        subtype: "REJECTION",
+        reason,
         seq,
         accepted: false, // true or false for corrections??
         authoritativeState: authoritativeState, // Player object
@@ -79,9 +84,11 @@ export function sendRejection(client: ClientData, {seq, authoritativeState}: {se
     client.ws.send(JSON.stringify(reject));
 }
 
-export function sendCorrection(client: ClientData, {seq, authoritativeState}: {seq: number, reason: ReasonCorrection, authoritativeState: Player}) {
-    const correction: ServerAckMessage<"CORRECTION"> = {
-        type: "CORRECTION",
+export function sendCorrection(client: ClientData, {seq, authoritativeState, reason}: {seq: number, reason: ReasonCorrection, authoritativeState: Player}) {
+    const correction: ServerAckMessage<"ACK"> = {
+        type: "ACK",
+        subtype: "CORRECTION",
+        reason,
         seq,
         accepted: false, // true or false for corrections??
         authoritativeState: authoritativeState, // Player object
@@ -94,7 +101,7 @@ export function sendAck(client: ClientData, {seq, authoritativeState}: {seq: num
         type: "ACK",
         seq,
         accepted: true,
-        authoritativeState: authoritativeState, // Player object
+        authoritativeState: authoritativeState,
     };
     client.ws.send(JSON.stringify(ack));
 }
@@ -158,8 +165,9 @@ function handleServerAction(clientId: string, clientMessage: ClientActionMessage
 }
 
 function dispatchMoveToOthers(clientId: string, player: Player) {
-    const playerMove: ServerPlayerMoveMessage = {
-        type: "PLAYER_MOVE",
+    const playerMove: ServerOtherPlayerMessage<"MOVE"> = {
+        type: "PLAYER",
+        subtype: "MOVE",
         playerId: player.id,
         pos: player.pos,
         dir: player.dir,
@@ -185,12 +193,19 @@ function handleInit(clientId: string, { playerId }: ClientInitMessage) {
 
     const checkpoint = checkpointService._loadCheckpoint(playerId); // default or existing
     console.assert(checkpoint, `!!No checkpoint found for playerId ${playerId}!!`);
-    client.ws.send(JSON.stringify({ type: "INIT_CONFIRM", checkpoint: checkpoint, playerId }));
+
+    const init: ServerInitConfirmMessage = {
+        type: "INIT",
+        subtype: "CONFIRM",
+        checkpoint,
+        playerId,
+    };
+    client.ws.send(JSON.stringify(init));
 }
 
 
 
-function handleSave(clientId: string, { checkpoint: checkpointData, isClosing }: ClientCheckpointSaveMessage) {
+function handleSave(clientId: string, { checkpoint: checkpointData, isClosing }: ClientCheckpointMessage<"SAVE">) {
     const client = clients.get(clientId)!;
     if (client.playerId !== checkpointData.playerId) return;
 

@@ -1,9 +1,10 @@
-import { Direction, Player, Vec2 } from "~/components/canvas1/types";
+import { Direction, Player, Vec2 } from "~/types/worldTypes";
 import { computeTargetPos, keyToDirection } from "~/fsm/movement";
-import { ClientActionMessage, GameAction } from "~/fsm/types";
+import { VimAction } from "~/fsm/types";
 import { WORLD_WRAPPER } from "../serverState";
 import { ReasonCorrection, ValidateMoveCorrection, ValidateMoveResult } from "./types";
 import { ClientData } from "../types";
+import { ClientActionMessage } from "~/types/messageTypes";
 
 function validateActionSequence(client: ClientData, player: Player, msg: ClientActionMessage) {
     // basic validation:
@@ -34,7 +35,7 @@ function validateActionSequence(client: ClientData, player: Player, msg: ClientA
 // }
 
 // basic schema validation
-function validateActionSchema(action: GameAction): boolean {
+function validateActionSchema(action: VimAction): boolean {
     switch (action.type) {
         case "MOVE":
             return typeof action.key === "string";
@@ -76,7 +77,7 @@ function deltaToDirection(delta: Vec2): Direction | undefined {
 }
 
 
-function validateMove(player: Player, action: GameAction): ValidateMoveResult {
+function validateMove(player: Player, action: VimAction): ValidateMoveResult {
     if (action.type !== 'MOVE') return { ok: false, reason: "INVALID_ACTION" };
     const delta = keyToDirection(action.key);
     if (!delta) return { ok: false, reason: "INVALID_KEY" };

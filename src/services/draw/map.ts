@@ -36,3 +36,4 @@ export function drawVisibleMap(
     ctx.drawImage(offscreenCanvas, 0, 0);
 }
 
+

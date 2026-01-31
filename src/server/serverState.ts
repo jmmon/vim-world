@@ -1,9 +1,9 @@
 import { DIMENSIONS } from "~/components/canvas1/constants";
 import { MAP } from "~/server/map";
-import { Player, Vec2 } from "~/components/canvas1/types";
 import { isWalkable, isWithinBounds } from "~/fsm/movement";
 import { WALKABLE, objects } from "./objects";
 import { ClientData, ServerWorld, ServerWorldWrapper } from "./types";
+import { Player, Vec2 } from "~/types/worldTypes";
 
 
 export const clients = new Map<string, ClientData<undefined | 'withPlayerId'>>();
@@ -255,4 +255,5 @@ export const WORLD_WRAPPER: ServerWorldWrapper = {
 //
 //
 //
-//
+
+

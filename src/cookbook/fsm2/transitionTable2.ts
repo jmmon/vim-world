@@ -1,8 +1,8 @@
-import { GameAction, VimFSMState, VimMode } from "../../fsm/types";
+import { VimAction, VimFSMState, VimMode } from "../../fsm/types";
 import { InputType } from "./types";
 export interface Transition {
     next: VimMode;
-    effect?: (ctx: VimFSMState, key: string) => GameAction | void;
+    effect?: (ctx: VimFSMState, key: string) => VimAction | void;
 }
 
 
@@ -38,7 +38,7 @@ export const transitionTable: Record<
         const count = ctx.count || 1;
         ctx.count = 0;
 
-        const action: GameAction = {
+        const action: VimAction = {
           type: "MOVE",
           key,
           count,
@@ -89,7 +89,7 @@ export const transitionTable: Record<
       next: "normal",
       effect: (ctx, key) => {
         const cmd = `${ctx.operator}${ctx.buffer.join("")}${key}`;
-        const action: GameAction = {
+        const action: VimAction = {
           type: "INTERACT",
           command: cmd,
         };
@@ -103,7 +103,7 @@ export const transitionTable: Record<
     char: {
       next: "normal",
       effect: (ctx, key) => {
-        const action: GameAction = {
+        const action: VimAction = {
           type: "TARGET",
           command: `${ctx.motion}${key}`,
         };
@@ -128,4 +128,5 @@ export const transitionTable: Record<
     },
   },
 };
+
 
