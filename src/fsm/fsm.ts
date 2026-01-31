@@ -28,15 +28,27 @@ export class VimFSM {
 
     keyPress(event: KeyboardEvent, initialized = false) {
         if (!initialized) return;
+        const { key, shiftKey, ctrlKey, altKey } = event;
+
+        const ALLOW_BROWSER_HOTKEYS = [
+            /** refresh */
+            ctrlKey && key === 'r' || key === 'R',
+            /** hard refresh */
+            ctrlKey && shiftKey && key === 'r' || key === 'R',
+            /** function keys */
+            ...(Array.from({length: 12}, (_, i) => key === `<F${i + 1}>`)),
+        ];
+        if (ALLOW_BROWSER_HOTKEYS.some(Boolean)) return; // completely ignore these
+
         event.preventDefault(); // prevent browser default hotkeys
-        const key = event.key;
-        // skip if only modifier key
-        if (
-            (key === "Shift" && event.shiftKey) ||
-            (key === "Control" && event.ctrlKey) ||
-            (key === "Alt" && event.altKey)
-        )
-            return;
+
+        // skip if modifier and no key
+        const IGNORE_LIST = [
+            (key === "Shift" && shiftKey),
+            (key === "Control" && ctrlKey),
+            (key === "Alt" && altKey),
+        ]
+        if (IGNORE_LIST.some(Boolean)) return;
 
         if (this.timeoutId) clearTimeout(this.timeoutId);
         this.timeoutId = window.setTimeout(this.reset, this.timeoutMs);
