@@ -1,9 +1,41 @@
 import { MAP } from "~/server/map";
-import { MapObject, TileType } from "~/types/worldTypes";
+import { Item, MapObject, TileType } from "~/types/worldTypes";
+
+export const items: Item[] = [
+    { quality: 'rare', id: "123", type: "item", name: "item", description: "description" },
+    { quality: 'common', id: "456", type: "item", name: "item2", description: "description2" },
+];
 
 const objectsList: MapObject[] = [
-    { type: "tree", pos: { x: 0, y: 0 }, walkable: false },
-    { type: "chest", pos: { x: 0, y: 0 }, walkable: true },
+    {
+        type: "tree",
+        pos: {
+            x: 0,
+            y: 0
+        },
+        walkable: false,
+        liftable: false,
+    }, {
+        type: "chest",
+        target: '"',
+        pos: {
+            x: 0,
+            y: 0
+        },
+        walkable: false,
+        liftable: true,
+        itemIds: ['123']
+    }, {
+        type: "item",
+        target: '[',
+        pos: {
+            x: 0,
+            y: 0
+        },
+        walkable: true,
+        liftable: true,
+        itemIds: ['456']
+    },
 ];
 
 export const WALKABLE: TileType[] = ["grass", "dirt"];

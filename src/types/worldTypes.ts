@@ -1,12 +1,23 @@
-import { SessionAggregate } from "~/server/types";
-
 export type Direction = "N" | "S" | "E" | "W";
 export type TileType = "grass" | "water" | "dirt" | "cliff";
+export type ObjectType = "tree" | "box" | "chest" | "stone" | "cliff" | "item";
+export type ItemQuality = "common" | "uncommon" | "rare" | "epic" | "legendary";
 
 export interface MapObject {
-    type: "tree" | "box" | "chest" | "stone" | "cliff";
+    type: ObjectType;
+    target?: string;
     pos: Vec2;
     walkable: boolean;
+    itemIds?: string[]; // lootable
+    liftable: boolean;
+};
+
+export type Item = {
+    id: string;
+    type: string;
+    quality: ItemQuality;
+    name: string;
+    description: string;
 };
 
 export interface Player {
@@ -19,6 +30,15 @@ export interface Player {
     lastProcessedSeq: number;
     session: SessionAggregate;
 };
+
+export type SessionAggregate = {
+    xpGained: number;
+    goldGained: number;
+    itemsAdded: string[];
+    itemsRemoved: string[];
+    achievementsUnlocked: string[];
+}
+
 
 export type MapDimensions = {
     width: number;

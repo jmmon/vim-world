@@ -1,10 +1,9 @@
-// e.g. player checkpoints saved in memory (future in a db)
-// in memory, should be able to log out and then log back in to the same position hopefully
-// would need some consistent clientId (make something up for testing)
+// e.g. player checkpoints saved in memory 
+//
+// in future, this would be the DASH platform interface
 
 import { getRandomHSLColor } from "~/components/canvas1/utils";
-import { SessionAggregate } from "./types";
-import { Direction, Player } from "~/types/worldTypes";
+import { Direction, Player, SessionAggregate } from "~/types/worldTypes";
 
 export type PlayerCheckpoint = {
     playerId: string;

@@ -1,6 +1,4 @@
-import {
-    LocalWorldWrapper,
-} from "~/components/canvas1/types";
+import { LocalWorldWrapper } from "~/components/canvas1/types";
 import { VimAction } from "./types";
 import { $ } from "@builder.io/qwik";
 import { MapObject, Player, TileType, Vec2 } from "~/types/worldTypes";
@@ -186,4 +184,41 @@ export function applyCommandAction(
     return false;
 }
 
+function applyYankCommand(
+    state: LocalWorldWrapper,
+    action: VimAction,
+    opts: Partial<Opts> = OPTS,
+) {
+    const target = action.command?.slice(2);
+    if (!target) return false;
+    console.log('applyYankCommand TODO:', {state, opts})
 
+    // e.g. if ya then pick up the object, if yi then try to get the item inside the object if there is one
+    // some objects could be liftable and others not
+    // could also allow pushing them?? e.g. if pushing, process movement every 4 ticks or something
+    // could allow sliding of the player!!! e.g. from x to x + 1 over some time, and if you stop pressing the key or didn't do high enough count, it will reset yours and the object's positioning
+
+    // check in front of player for object matching target type
+
+    // later::
+
+    // if (action.command?.startsWith("ya")) {
+    //
+    // } else { // yi
+    //
+    // }
+}
+export function applyInteraction(
+    state: LocalWorldWrapper,
+    action: VimAction,
+    opts: Partial<Opts> = OPTS,
+) {
+    // TODO: e.g. ya" to pick up object in the forward direction, if there is one
+    if (
+        action.command?.startsWith("ya") ||
+        (action.command?.startsWith("yi") && action.command.length === 3)
+    ) {
+        applyYankCommand(state, action, opts);
+    }
+    return true;
+}

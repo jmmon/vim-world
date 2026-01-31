@@ -1,7 +1,7 @@
 import {
     VimAction,
 } from "./types";
-import { applyCommandAction, applyMoveAction } from "./movement";
+import { applyCommandAction, applyInteraction, applyMoveAction } from "./movement";
 import { LocalWorldWrapper } from "~/components/canvas1/types";
 
 /**
@@ -20,6 +20,8 @@ export function applyActionToWorld(
             return applyMoveAction(localWorldWrapper, action, opts);
         case "COMMAND":
             return applyCommandAction(localWorldWrapper, action);
+        case "INTERACT":
+            return applyInteraction(localWorldWrapper, action, opts);
         default:
             return false;
     }
