@@ -1,36 +1,36 @@
-import {
-    LocalWorldWrapper,
-} from "../../components/canvas1/types";
 import { MapDimensions, Player } from "~/types/worldTypes";
 import { closeOldCanvas } from "./utils";
+import { GameState } from "~/hooks/useState";
 
-export function drawPlayers(
-    state: LocalWorldWrapper,
-    canvas: HTMLCanvasElement,
-) {
+export function drawPlayers(state: GameState) {
+    const canvas = state.refs.players.value!;
     const ctx = canvas.getContext("2d")!;
-    closeOldCanvas(state, ctx);
+    closeOldCanvas(state.ctx, ctx);
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     // draw others
-    if (state.client.player) drawPlayer(state, ctx, state.client.player);
-    if (!state.world.players.size) return;
-    state.world.players.forEach((player) => drawPlayer(state, ctx, player));
+    if (state.ctx.client.player)
+        drawPlayer(state, state.ctx.client.player);
+    if (!state.ctx.world.players.size) return;
+    state.ctx.world.players.forEach((player) =>
+        drawPlayer(state, player),
+    );
 }
 
 export function drawPlayer(
-    state: LocalWorldWrapper,
-    ctx: CanvasRenderingContext2D,
+    state: GameState,
     player: Player,
 ) {
+    const ctx = state.refs.players.value!.getContext("2d")!;
+
     ctx.fillStyle = player.color;
-    const tileSize = state.world.dimensions.tileSize;
+    const tileSize = state.ctx.world.dimensions.tileSize;
     const x = player.pos.x * tileSize;
     const y = player.pos.y * tileSize;
     ctx.fillRect(x, y, tileSize, tileSize);
 
-    drawPlayerName(state.world.dimensions, x, y, ctx, player);
-    drawPlayerDirection(state.world.dimensions, ctx, player);
+    drawPlayerName(state.ctx.world.dimensions, x, y, ctx, player);
+    drawPlayerDirection(state.ctx.world.dimensions, ctx, player);
 }
 
 function drawPlayerName(

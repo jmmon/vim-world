@@ -1,6 +1,7 @@
 import { LocalWorldWrapper } from "~/components/canvas1/types";
 import { TILE_COLOR_MAP } from "../../components/canvas1/constants";
 import { closeOldCanvas } from "./utils";
+import { GameState } from "~/hooks/useState";
 
 // Draw map tiles once
 export function drawOffscreenMap(state: LocalWorldWrapper) {
@@ -25,15 +26,13 @@ export function drawOffscreenMap(state: LocalWorldWrapper) {
 }
 
 export function drawVisibleMap(
-    state: LocalWorldWrapper,
-    mapCanvas: HTMLCanvasElement,
-    offscreenCanvas: HTMLCanvasElement,
+    state: GameState,
 ) {
-    const ctx = mapCanvas.getContext("2d")!;
-    closeOldCanvas(state, ctx);
-    ctx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
+    const ctx = state.refs.map.value!.getContext("2d")!;
+    closeOldCanvas(state.ctx, ctx);
+    ctx.clearRect(0, 0, state.refs.map.value!.width, state.refs.map.value!.height);
     // draw map (blit from offscreen)
-    ctx.drawImage(offscreenCanvas, 0, 0);
+    ctx.drawImage(state.refs.offscreenMap.value!, 0, 0);
 }
 
 

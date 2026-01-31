@@ -1,7 +1,7 @@
-import { LocalWorldWrapper } from "~/components/canvas1/types";
 import { MapDimensions, MapObject } from "~/types/worldTypes";
 import { HOT_PINK, OBJECT_COLOR_MAP } from "../../components/canvas1/constants";
 import { closeOldCanvas } from "./utils";
+import { GameState } from "~/hooks/useState";
 
 export function drawObject(
     dimensions: MapDimensions,
@@ -31,16 +31,16 @@ export function drawObject(
 }
 
 export function drawObjects(
-    state: LocalWorldWrapper,
-    canvas: HTMLCanvasElement,
+    state: GameState,
 ) {
-    const ctx = canvas.getContext("2d")!;
-    // clear old rect
-    closeOldCanvas(state, ctx);
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    for (const obj of state.world.objects) {
-        drawObject(state.world.dimensions, ctx, obj);
+    const ctx = state.refs.objects.value!.getContext("2d")!;
+    // clear old rect
+    closeOldCanvas(state.ctx, ctx);
+
+    ctx.clearRect(0, 0, state.refs.objects.value!.width, state.refs.objects.value!.height);
+    for (const obj of state.ctx.world.objects) {
+        drawObject(state.ctx.world.dimensions, ctx, obj);
     }
 }
 

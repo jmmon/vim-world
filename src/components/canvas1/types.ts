@@ -14,6 +14,16 @@ export type ClientData = {
     username?: string;
     usernameHash?: string; // needed??
     lastProcessedSeq?: number;
+    afkStartTime: number;
+    idleStartTime: number;
+    timeSinceLastCheckpoint: number;
+    isDirty: {
+        players: boolean;
+        objects: boolean;
+        map: boolean;
+    },
+    predictionBuffer: Prediction[],
+    lastSnapshot?: Player;
 };
 export type InitializeClientData = {
     player: Player;
@@ -25,6 +35,7 @@ export type InterfaceData = {
         help: boolean;
         menu: boolean;
         afk: boolean;
+        devStats: boolean;
     };
 };
 export type LocalWorldWrapper = {

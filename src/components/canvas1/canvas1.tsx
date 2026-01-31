@@ -4,7 +4,6 @@ import {
     $,
     useVisibleTask$,
     NoSerialize,
-    useStore,
 } from "@builder.io/qwik";
 import {
     ServerAckMessage,
@@ -17,24 +16,19 @@ import useSeq from "../../hooks/useSeq";
 import useVimFSM from "~/fsm/useVimFSM";
 import {
     InitializeClientData,
-    LocalWorldWrapper,
-    Player,
-    Prediction,
-    Vec2,
 } from "./types";
 import { useNavigate } from "@builder.io/qwik-city";
 import { applyActionToWorld } from "~/fsm/actions";
 import {
     ClientPhysicsMode,
     clientPhysicsMode,
-    getScaledTileSize,
 } from "./constants";
 import ChooseUsername from "../choose-username/choose-username";
-import { isWalkable, isWithinBounds } from "~/fsm/movement";
 import useWebSocket, { dispatch } from "~/hooks/useWebSocket";
 import Menu from "../menu/menu";
 import useRenderLoop from "~/hooks/useRenderLoop";
 import { ServerWorld } from "~/server/types";
+import useState from "../../hooks/useState";
 
 type Canvas1Props = {
     worldState: ServerWorld;
@@ -43,90 +37,15 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
     const isReady = useSignal(false);
     const nav = useNavigate();
 
-    const mapRef = useSignal<HTMLCanvasElement>();
-    const objectsRef = useSignal<HTMLCanvasElement>();
-    const playersRef = useSignal<HTMLCanvasElement>();
-    const overlayRef = useSignal<HTMLCanvasElement>();
-    const isAfk = useSignal(-1);
+    const state = useState(worldState);
 
     const getNextSeq = useSeq(); // action index
-    const initializeSelfData = useSignal<InitializeClientData | undefined>(
-        undefined,
-    );
-    const predictionBuffer = useSignal<Prediction[]>([]);
-    const isObjectsDirty = useSignal(true);
-    const isPlayersDirty = useSignal(true);
-    const isMapDirty = useSignal(true);
-    const lastSnapshot = useSignal<Player | undefined>(undefined);
-    const timeSinceLastCheckpoint = useSignal(Date.now());
-
-    const localWorldWrapper = useStore<LocalWorldWrapper>({
-        world: {
-            ...worldState,
-            lastScale: 0,
-        },
-        client: {
-            player: undefined,
-            username: undefined,
-            usernameHash: undefined,
-            lastProcessedSeq: undefined,
-        },
-        show: {
-            help: false,
-            menu: false,
-            afk: false,
-        },
-        isWithinBounds: $(function (this: LocalWorldWrapper, target: Vec2) {
-            return isWithinBounds(this.world.map, target);
-        }),
-        isWalkable: $(function (this: LocalWorldWrapper, target: Vec2) {
-            return isWalkable(this.world, target);
-        }),
-        addPlayer: $(function (this: LocalWorldWrapper, player: Player) {
-            if (!player) return false;
-            try {
-                this.world.players.set(player.id, player);
-                console.log("added player:", player);
-                return true;
-            } catch (err) {
-                console.error("addPlayer error:", err);
-                return false;
-            }
-        }),
-        initClientData: $(function (
-            this: LocalWorldWrapper,
-            data: InitializeClientData,
-        ) {
-            try {
-                lastSnapshot.value = this.client.player;
-
-                this.client.player = data.player;
-                this.client.username = data.username;
-                this.client.usernameHash = data.usernameHash;
-                this.client.lastProcessedSeq = -1;
-
-                console.log("initializeSelf complete!:", data);
-                return true;
-            } catch (err) {
-                console.error("initializeSelf error:", err);
-                return false;
-            }
-        }),
-        getScaledTileSize: $(function (this: LocalWorldWrapper, scale: number) {
-            return getScaledTileSize(scale);
-        }),
-        rerender: $(function (this: LocalWorldWrapper) {
-            isMapDirty.value = true;
-            isObjectsDirty.value = true;
-            isPlayersDirty.value = true;
-        }),
-    });
+    const initializeSelfData = useSignal<InitializeClientData>();
 
     console.log(
         "canvas1 component init: players:",
-        localWorldWrapper.world.players,
+        state.ctx.world.players,
     );
-
 
     const lastInit = useSignal(0);
     // eslint-disable-next-line qwik/no-use-visible-task
@@ -134,10 +53,10 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
         const selfData = track(initializeSelfData);
         if (!selfData) return;
 
-        const success = await localWorldWrapper.initClientData(selfData);
+        const success = await state.ctx.initClientData(selfData);
         if (!success)
             return console.error("error initializing self!", selfData);
-        isPlayersDirty.value = true;
+        state.ctx.client.isDirty.players = true;
 
         const now = Date.now();
 
@@ -158,70 +77,113 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
     // could also use regular Dialog components for popups and menus, instead of drawing everything on the canvas
     // e.g. afk notice
 
-    const clearPredictedMovesUpTo = $(
-        (predictionArr: Prediction[], index: number) => {
-            predictionArr.splice(0, index + 1);
-        },
-    );
-
     const onServerAck$ = $((msg: ServerAckMessage<ServerAckType>) => {
-        const predictionArr = [...predictionBuffer.value];
-        // console.log({ predictionArr, msg, isDirty: hasDirtyPlayers.value });
+        const predictionArr = [...state.ctx.client.predictionBuffer];
+        console.log({
+            predictionArr: [...predictionArr],
+            msg: { ...msg },
+            isPlayersDirty: state.ctx.client.isDirty.players,
+        });
         const index = predictionArr.findIndex((p) => p.seq === msg.seq);
         if (index === -1) return;
+        console.log("found prediction by sequence:", {
+            predictionArr: [...predictionArr],
+            index,
+        });
+
+        // NOTE: skip if results of the changes matched: for full prediction on the client
+        // - if no client visual prediction, then the resultState and authState would NOT match since client would be behind
+        // in case server sends authState while accepted === true
+        const resultState =
+            predictionArr[predictionArr.findIndex((p) => p.seq === msg.seq + 1)]
+                ?.snapshotBefore || state.ctx.client.player;
+        if (
+            msg.authoritativeState?.pos &&
+            resultState.pos.x === msg.authoritativeState.pos.x &&
+            resultState.pos.y === msg.authoritativeState.pos.y &&
+            msg.authoritativeState.dir &&
+            resultState.dir === msg.authoritativeState.dir
+        ) {
+            // results at that point in time matched:
+            // still remove prediction at index from buffer,
+            predictionArr.splice(index, 1);
+            // do I want to clear everything before it as well?
+            // predictionArr.splice(0, index + 1);
+            state.ctx.client.predictionBuffer = predictionArr;
+            console.log("~~ results are same: remaining predictions:", {
+                remaining: [...predictionArr],
+                index,
+                resultState: { ...resultState },
+            });
+            return;
+            // no need to replay anything
+        }
 
         // Prediction matched — just drop it
         if (!msg.authoritativeState) {
+            console.log("~~ no authoritative state, do nothing", {
+                predictionArr: [...predictionArr],
+                index,
+            });
             predictionArr.splice(index, 1);
-            predictionBuffer.value = predictionArr;
+            state.ctx.client.predictionBuffer = predictionArr;
             return;
         }
 
         // 1. Roll back to authoritative position
         // roll back to corrected position for that msg
-
-        lastSnapshot.value = localWorldWrapper.client.player;
-        localWorldWrapper.client.player = {
-            ...localWorldWrapper.client.player!,
+        state.ctx.client.player = {
+            ...state.ctx.client.player!,
             ...msg.authoritativeState,
+            pos: {
+                ...state.ctx.client.player!.pos,
+                ...msg.authoritativeState.pos,
+            },
         };
+        console.log("EXPECT POSITION DIFFERENCE::", {
+            lastSnapshot: { ...state.ctx.client.lastSnapshot },
+            currentPlayer: { ...state.ctx.client.player },
+        });
+        state.ctx.client.lastSnapshot = {...state.ctx.client.player!};
 
         // 2. Remove confirmed actions up through index
-        clearPredictedMovesUpTo(predictionArr, index);
+        predictionArr.splice(0, index + 1);
 
-        predictionBuffer.value = predictionArr;
-        isPlayersDirty.value = true;
+        state.ctx.client.predictionBuffer = predictionArr;
+        state.ctx.client.isDirty.players = true;
 
         if (clientPhysicsMode === ClientPhysicsMode.NONE) return;
 
-        console.log("predictionBuffer remaining:", predictionArr);
+        console.log("~~ predictionBuffer replaying:", [...predictionArr]);
 
         // 3. Replay remaining predictions based on the corrected position
         for (const p of predictionArr) {
-            applyActionToWorld(localWorldWrapper, p.action, {
+            applyActionToWorld(state.ctx, p.action, {
                 collision:
                     clientPhysicsMode === ClientPhysicsMode.FULL_PREDICTION,
             });
         }
+        // snapshot is current visual state of client
+        state.ctx.client.lastSnapshot = { ...state.ctx.client.player! };
     });
 
     const onOtherPlayerMove$ = $((data: ServerOtherPlayerMessage<"MOVE">) => {
         // skip self
         if (
             !data.playerId ||
-            data.playerId === localWorldWrapper.client.player?.id
+            data.playerId === state.ctx.client.player?.id
         ) {
             return;
         }
 
         // e.g. updating from other clients: find the moving player and move it
-        const otherPlayer = localWorldWrapper.world.players.get(data.playerId);
+        const otherPlayer = state.ctx.world.players.get(data.playerId);
         if (!otherPlayer) return;
 
         otherPlayer.pos = data.pos;
         otherPlayer.dir = data.dir;
 
-        isPlayersDirty.value = true;
+        state.ctx.client.isDirty.players = true;
     });
 
     const onInitConfirm$ = $((data: ServerInitConfirmMessage) => {
@@ -283,14 +245,14 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
     );
 
     const onConnect$ = $((ws: NoSerialize<WebSocket>) => {
-        isPlayersDirty.value = true;
+        state.ctx.client.isDirty.players = true;
         console.assert(
-            !!localWorldWrapper.client.player,
+            !!state.ctx.client.player,
             "EXPECTED PLAYER ON INIT",
-            localWorldWrapper.client.player,
+            state.ctx.client.player,
         );
 
-        dispatch.init(ws, localWorldWrapper.client.player!.id);
+        dispatch.init(ws, state.ctx.client.player!.id);
 
         // would prefer to do it on /api/player post req, but don't have the clientId yet
         //
@@ -310,27 +272,31 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
         $(async (action) => {
             const seq = await getNextSeq();
             // 1. Add to prediction buffer // for serverAck to replay if needed
-            predictionBuffer.value.push({
+            const snapshotBefore = { ...state.ctx.client.player! };
+            state.ctx.client.predictionBuffer.push({
                 seq,
                 action,
-                snapshotBefore: { ...localWorldWrapper.client.player! },
+                snapshotBefore,
             });
-            lastSnapshot.value = localWorldWrapper.client.player;
+            state.ctx.client.lastSnapshot = snapshotBefore;
+            console.log("onAction:", { snapshotBefore });
 
             // 2. Apply local prediction
             // console.log('APPLYING ACTION:', {action, localWorldWrapper});
-            const result = await applyActionToWorld(localWorldWrapper, action, {
+            const result = await applyActionToWorld(state.ctx, action, {
                 collision:
                     clientPhysicsMode === ClientPhysicsMode.FULL_PREDICTION,
                 prediction: clientPhysicsMode !== ClientPhysicsMode.NONE,
             });
             // console.log('applyAction result:', result);
-            if (result) isPlayersDirty.value = true;
+            if (result) state.ctx.client.isDirty.players = true;
+            console.log("afterAction:", { ...state.ctx.client.player });
 
             // 3. Send to server; wipe local and server AFK state
             dispatch.action(ws.value, seq, action);
-            localWorldWrapper.show.afk = false;
-            isAfk.value = -1;
+            state.ctx.show.afk = false;
+            state.ctx.client.afkStartTime = -1;
+            state.ctx.client.idleStartTime = Date.now();
         }),
         isReady,
     );
@@ -340,19 +306,10 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
      * ======================================================= */
     useRenderLoop(
         ws,
-        localWorldWrapper,
-        overlayRef,
-        mapRef,
-        objectsRef,
-        playersRef,
-        timeSinceLastCheckpoint,
-        isMapDirty,
-        isPlayersDirty,
-        isObjectsDirty,
-        lastSnapshot,
+        state,
     );
 
-    const dimensions = localWorldWrapper.world.dimensions;
+    const dimensions = state.ctx.world.dimensions;
     return (
         <div
             style={{
@@ -362,31 +319,31 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
             }}
         >
             <canvas
-                ref={mapRef}
+                ref={state.refs.map}
                 width={dimensions.canvasWidth}
                 height={dimensions.canvasHeight}
                 style={{ position: "absolute", top: 0, left: 0 }}
             />
             <canvas
-                ref={objectsRef}
+                ref={state.refs.objects}
                 width={dimensions.canvasWidth}
                 height={dimensions.canvasHeight}
                 style={{ position: "absolute", top: 0, left: 0 }}
             />
             <canvas
-                ref={playersRef}
+                ref={state.refs.players}
                 width={dimensions.canvasWidth}
                 height={dimensions.canvasHeight}
                 style={{ position: "absolute", top: 0, left: 0 }}
             />
             <canvas
-                ref={overlayRef}
+                ref={state.refs.overlay}
                 width={dimensions.canvasWidth}
                 height={dimensions.canvasHeight}
                 style={{ position: "absolute", top: 0, left: 0 }}
             />
             <ChooseUsername initializeSelfData={initializeSelfData} />
-            <Menu state={localWorldWrapper} />
+            <Menu state={state.ctx} />
         </div>
     );
 });

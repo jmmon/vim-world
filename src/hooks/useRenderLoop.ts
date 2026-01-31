@@ -2,14 +2,12 @@ import {
     NoSerialize,
     Signal,
     useComputed$,
-    useSignal,
     useVisibleTask$,
 } from "@builder.io/qwik";
-import { Player } from "~/types/worldTypes";
-import { LocalWorldWrapper } from "~/components/canvas1/types";
 import { initFpsTest } from "~/components/canvas1/utils";
 import { dispatch } from "./useWebSocket";
 import draw from "~/services/draw";
+import { GameState } from "~/hooks/useState";
 
 const stringify = (data: Record<any, any>) =>
     JSON.stringify(
@@ -18,24 +16,13 @@ const stringify = (data: Record<any, any>) =>
 
 export default function useRenderLoop(
     ws: Signal<NoSerialize<WebSocket>>,
-    localWorldWrapper: LocalWorldWrapper,
-    overlayRef: Signal<HTMLCanvasElement | undefined>,
-    mapRef: Signal<HTMLCanvasElement | undefined>,
-    objectsRef: Signal<HTMLCanvasElement | undefined>,
-    playersRef: Signal<HTMLCanvasElement | undefined>,
-    timeSinceLastCheckpoint: Signal<number>,
-    isMapDirty: Signal<boolean>,
-    isPlayersDirty: Signal<boolean>,
-    isObjectsDirty: Signal<boolean>,
-    lastSnapshot: Signal<Player | undefined>,
+    state: GameState,
 ) {
-    const offscreenMap = useSignal<HTMLCanvasElement>();
-
     const isSnapshotChanged$ = useComputed$(() => {
-        if (!localWorldWrapper.client.player) return false;
-        if (!lastSnapshot.value) return true;
-        const last = stringify(lastSnapshot.value);
-        const current = stringify(localWorldWrapper.client.player);
+        if (!state.ctx.client.player) return false;
+        if (!state.ctx.client.lastSnapshot) return true;
+        const last = stringify(state.ctx.client.lastSnapshot);
+        const current = stringify(state.ctx.client.player);
         return last !== current;
     });
 
@@ -43,19 +30,16 @@ export default function useRenderLoop(
     useVisibleTask$(() => {
         const zero = Number(document.timeline.currentTime);
         const countFps = initFpsTest(zero);
-        timeSinceLastCheckpoint.value = Date.now();
+        state.ctx.client.timeSinceLastCheckpoint = Date.now();
         console.log("starting main loop:");
 
         // initialize offscreen canvas of map tiles /// is this needed?? offscreen map?
         function renderMap() {
             console.log("~~ RENDER MAP ~~ EXPECT to happen RARELY");
-            const offscreenCanvas = draw.offscreenMap(localWorldWrapper);
-            offscreenMap.value = offscreenCanvas;
-            draw.visibleMap(localWorldWrapper, mapRef.value!, offscreenCanvas);
-            draw.helpHint(
-                localWorldWrapper,
-                overlayRef.value!.getContext("2d")!,
-            );
+            const offscreenCanvas = draw.offscreenMap(state.ctx);
+            state.refs.offscreenMap.value = offscreenCanvas;
+            draw.visibleMap(state);
+            draw.helpHint(state);
         }
 
         let lastFps = 0;
@@ -63,51 +47,35 @@ export default function useRenderLoop(
 
         function saveCheckpoint() {
             const now = Date.now();
-            const difference = now - timeSinceLastCheckpoint.value;
+            const difference = now - state.ctx.client.timeSinceLastCheckpoint;
             if (difference >= 5 * 1000) {
                 console.log("fps:", lastFps, "ema:", lastEma);
 
-                timeSinceLastCheckpoint.value += difference;
-                dispatch.checkpoint(
-                    ws.value!,
-                    localWorldWrapper.client.player!,
-                    false,
-                );
+                state.ctx.client.timeSinceLastCheckpoint += difference;
+                dispatch.checkpoint(ws.value!, state.ctx.client.player!, false);
                 // TODO: run this on  some sort of "ACK_CHECKPOINT" response??
                 // e.g. lastSnapshot.value = response.snapshot to store the actual last-saved snapshot
-                lastSnapshot.value = localWorldWrapper.client.player;
+                state.ctx.client.lastSnapshot = { ...state.ctx.client.player! };
             }
         }
 
-        let isHelpShowing = localWorldWrapper.show.help;
+        let wasHelpShowing = state.ctx.show.help;
         let needsRedrawHelp = false;
         function renderHelp() {
-            if (isHelpShowing) {
-                draw.closeHelp(
-                    localWorldWrapper,
-                    overlayRef.value!.getContext("2d")!,
-                );
+            if (state.ctx.show.help) {
+                draw.closeHelp(state);
             } else {
-                draw.help(
-                    localWorldWrapper,
-                    overlayRef.value!.getContext("2d")!,
-                );
+                draw.help(state);
             }
         }
 
-        let isAfkShowing = localWorldWrapper.show.afk;
+        let wasAfkShowing = state.ctx.show.afk;
         let needsRedrawAfk = false;
         function renderAfk() {
-            if (isAfkShowing) {
-                draw.afk(
-                    localWorldWrapper,
-                    overlayRef.value!.getContext("2d")!,
-                );
+            if (state.ctx.show.afk) {
+                draw.afk(state);
             } else {
-                draw.closeAfk(
-                    localWorldWrapper,
-                    overlayRef.value!.getContext("2d")!,
-                );
+                draw.closeAfk(state);
             }
         }
 
@@ -121,48 +89,49 @@ export default function useRenderLoop(
             }
 
             // handle popups
-            needsRedrawHelp = isHelpShowing !== localWorldWrapper.show.help;
+            needsRedrawHelp = wasHelpShowing !== state.ctx.show.help;
             if (needsRedrawHelp) {
+                console.log("redrawing HELP!");
                 renderHelp();
                 needsRedrawHelp = false;
-                isHelpShowing = localWorldWrapper.show.help;
+                wasHelpShowing = state.ctx.show.help;
             }
 
-            needsRedrawAfk = isAfkShowing !== localWorldWrapper.show.afk;
+            needsRedrawAfk = wasAfkShowing !== state.ctx.show.afk;
             if (needsRedrawAfk) {
+                console.log("redrawing AFK!");
                 renderAfk();
                 needsRedrawAfk = false;
-                isAfkShowing = localWorldWrapper.show.afk;
+                wasAfkShowing = state.ctx.show.afk;
             }
 
             // handle rendering
-            draw.fps(
-                localWorldWrapper,
-                overlayRef.value!,
-                String(lastFps),
-                String(lastEma),
-            );
+            draw.fps(state, String(lastFps), String(lastEma));
+            if (state.ctx.show.devStats) {
+                draw.devStats(state);
+            } else {
+                draw.closeDevStats(state);
+            }
 
-            if (isMapDirty.value) {
-                isMapDirty.value = false;
+            if (state.ctx.client.isDirty.map) {
+                state.ctx.client.isDirty.map = false;
                 renderMap();
             }
 
-            if (isObjectsDirty.value) {
-                isObjectsDirty.value = false;
-                draw.objects(localWorldWrapper, objectsRef.value!);
+            if (state.ctx.client.isDirty.objects) {
+                state.ctx.client.isDirty.objects = false;
+                draw.objects(state);
             }
 
-            if (isPlayersDirty.value) {
-                isPlayersDirty.value = false;
-                draw.players(localWorldWrapper, playersRef.value!);
+            if (state.ctx.client.isDirty.players) {
+                state.ctx.client.isDirty.players = false;
+                draw.players(state);
             }
 
-            localWorldWrapper.world.lastScale =
-                localWorldWrapper.world.dimensions.scale;
+            state.ctx.world.lastScale = state.ctx.world.dimensions.scale;
 
             // handle checkpoints
-            if (localWorldWrapper.client.player && isSnapshotChanged$.value)
+            if (state.ctx.client.player && isSnapshotChanged$.value)
                 saveCheckpoint();
         })(zero);
     });
