@@ -8,8 +8,8 @@ import {
     useSignal,
     useVisibleTask$,
 } from "@builder.io/qwik";
-import { VimAction } from "./types";
-import { VimFSM } from "./fsm";
+import { VimAction } from "../fsm/types";
+import { VimFSM } from "../fsm/fsm";
 
 // wrapper around VimFSM class
 const useVimFSM = (

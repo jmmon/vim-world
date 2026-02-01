@@ -1,7 +1,7 @@
 import { VimAction } from "~/fsm/types";
 import { PlayerCheckpoint } from "~/server/checkpointService";
 import { Direction, Player, Vec2 } from "./worldTypes";
-import { ReasonCorrection, ReasonRejected } from "~/server/movement/types";
+import { ReasonCorrection, ReasonRejected } from "~/simulation/server/types";
 
 // client -> server
 export interface ClientActionMessage {

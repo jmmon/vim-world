@@ -10,11 +10,12 @@ import {
 } from "~/types/messageTypes";
 import { WORLD_WRAPPER, clients } from "../serverState";
 import checkpointService from "../checkpointService";
-import { applyAction, basicValidation } from "../movement/validation";
 import { Player } from "~/types/worldTypes";
-import { ReasonCorrection, ReasonRejected } from "../movement/types";
+import { ReasonCorrection, ReasonRejected } from "~/simulation/server/types";
 import { closeAfkPlayer } from "./handleAfkDisconnect";
 import { ClientData } from "../types";
+import { basicValidation } from "~/simulation/server/serverBasicValidation";
+import { applyActionToServerWorld } from "~/simulation/server/applyAction";
 
 const initializeClientData = (ws: WebSocket, id: string) => ({
     clientId: id,
@@ -107,7 +108,7 @@ export function sendAck(client: ClientData, {seq, authoritativeState}: {seq: num
 }
 
 // actually should queue the action to be processed by the tick loop
-function handleServerAction(clientId: string, clientMessage: ClientActionMessage) {
+async function handleServerAction(clientId: string, clientMessage: ClientActionMessage) {
     const client = clients.get(clientId)!;
     client.reset();
     if (!client.playerId) return console.error('!!client has no playerId!!', client.playerId);
@@ -131,10 +132,10 @@ function handleServerAction(clientId: string, clientMessage: ClientActionMessage
     }
 
     // 2. update local gamestate
-    const result = applyAction(player, clientMessage); // modify server world player state
+    const result = await applyActionToServerWorld(player, clientMessage); // modify server world player state
 
     switch(result.reason) {
-        case(null): 
+        case(undefined): 
             sendAck(client, {
                 seq: result.seq,
                 authoritativeState: player,

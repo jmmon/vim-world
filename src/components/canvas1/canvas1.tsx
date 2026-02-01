@@ -13,16 +13,11 @@ import {
     ServerInitConfirmMessage,
 } from "~/types/messageTypes";
 import useSeq from "../../hooks/useSeq";
-import useVimFSM from "~/fsm/useVimFSM";
-import {
-    InitializeClientData,
-} from "./types";
+import useVimFSM from "~/hooks/useVimFSM";
+import { InitializeClientData } from "./types";
 import { useNavigate } from "@builder.io/qwik-city";
-import { applyActionToWorld } from "~/fsm/actions";
-import {
-    ClientPhysicsMode,
-    clientPhysicsMode,
-} from "./constants";
+import { applyActionToWorld } from "~/simulation/client/actions";
+import { ClientPhysicsMode, clientPhysicsMode } from "./constants";
 import ChooseUsername from "../choose-username/choose-username";
 import useWebSocket, { dispatch } from "~/hooks/useWebSocket";
 import Menu from "../menu/menu";
@@ -42,10 +37,7 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
     const getNextSeq = useSeq(); // action index
     const initializeSelfData = useSignal<InitializeClientData>();
 
-    console.log(
-        "canvas1 component init: players:",
-        state.ctx.world.players,
-    );
+    console.log("canvas1 component init: players:", state.ctx.world.players);
 
     const lastInit = useSignal(0);
     // eslint-disable-next-line qwik/no-use-visible-task
@@ -77,19 +69,19 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
     // could also use regular Dialog components for popups and menus, instead of drawing everything on the canvas
     // e.g. afk notice
 
-    const onServerAck$ = $((msg: ServerAckMessage<ServerAckType>) => {
+    const onServerAck$ = $(async (msg: ServerAckMessage<ServerAckType>) => {
         const predictionArr = [...state.ctx.client.predictionBuffer];
-        console.log({
-            predictionArr: [...predictionArr],
-            msg: { ...msg },
-            isPlayersDirty: state.ctx.client.isDirty.players,
-        });
+        // console.log({
+        //     predictionArr: [...predictionArr],
+        //     msg: { ...msg },
+        //     isPlayersDirty: state.ctx.client.isDirty.players,
+        // });
         const index = predictionArr.findIndex((p) => p.seq === msg.seq);
         if (index === -1) return;
-        console.log("found prediction by sequence:", {
-            predictionArr: [...predictionArr],
-            index,
-        });
+        // console.log("found prediction by sequence:", {
+        //     predictionArr: [...predictionArr],
+        //     index,
+        // });
 
         // NOTE: skip if results of the changes matched: for full prediction on the client
         // - if no client visual prediction, then the resultState and authState would NOT match since client would be behind
@@ -110,21 +102,21 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
             // do I want to clear everything before it as well?
             // predictionArr.splice(0, index + 1);
             state.ctx.client.predictionBuffer = predictionArr;
-            console.log("~~ results are same: remaining predictions:", {
-                remaining: [...predictionArr],
-                index,
-                resultState: { ...resultState },
-            });
+            // console.log("~~ results are same: remaining predictions:", {
+            //     remaining: [...predictionArr],
+            //     index,
+            //     resultState: { ...resultState },
+            // });
             return;
             // no need to replay anything
         }
 
         // Prediction matched — just drop it
         if (!msg.authoritativeState) {
-            console.log("~~ no authoritative state, do nothing", {
-                predictionArr: [...predictionArr],
-                index,
-            });
+            // console.log("~~ no authoritative state, do nothing", {
+            //     predictionArr: [...predictionArr],
+            //     index,
+            // });
             predictionArr.splice(index, 1);
             state.ctx.client.predictionBuffer = predictionArr;
             return;
@@ -144,7 +136,7 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
             lastSnapshot: { ...state.ctx.client.lastSnapshot },
             currentPlayer: { ...state.ctx.client.player },
         });
-        state.ctx.client.lastSnapshot = {...state.ctx.client.player!};
+        state.ctx.client.lastSnapshot = { ...state.ctx.client.player! };
 
         // 2. Remove confirmed actions up through index
         predictionArr.splice(0, index + 1);
@@ -156,23 +148,36 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
 
         console.log("~~ predictionBuffer replaying:", [...predictionArr]);
 
+        const resultDirty = {
+            players: false,
+            objects: false,
+            map: false,
+        };
         // 3. Replay remaining predictions based on the corrected position
         for (const p of predictionArr) {
-            applyActionToWorld(state.ctx, p.action, {
+            const result = await applyActionToWorld(state.ctx, p.action, {
                 collision:
                     clientPhysicsMode === ClientPhysicsMode.FULL_PREDICTION,
             });
+            if (!result) continue;
+
+            if (result.players) resultDirty.players = true;
+            if (result.objects) resultDirty.objects = true;
+            if (result.map) resultDirty.map = true;
         }
         // snapshot is current visual state of client
         state.ctx.client.lastSnapshot = { ...state.ctx.client.player! };
+        Object.entries(resultDirty).forEach(([k, isDirty]) => {
+            if (!isDirty) return;
+            state.ctx.client.isDirty[
+                k as keyof typeof state.ctx.client.isDirty
+            ] = true;
+        });
     });
 
     const onOtherPlayerMove$ = $((data: ServerOtherPlayerMessage<"MOVE">) => {
         // skip self
-        if (
-            !data.playerId ||
-            data.playerId === state.ctx.client.player?.id
-        ) {
+        if (!data.playerId || data.playerId === state.ctx.client.player?.id) {
             return;
         }
 
@@ -206,13 +211,8 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
                     if (data.subtype === "START") {
                         if (!state.ctx.client.player) break;
 
-                        dispatch.checkpoint(
-                            ws,
-                            state.ctx.client.player,
-                            true,
-                        );
-                        state.ctx.client.timeSinceLastCheckpoint =
-                            Date.now();
+                        dispatch.checkpoint(ws, state.ctx.client.player, true);
+                        state.ctx.client.timeSinceLastCheckpoint = Date.now();
                         break;
                     }
                     nav("/");
@@ -222,18 +222,25 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
                     state.ctx.show.afk = true;
                     break;
                 case "ACK":
-                    if (data?.subtype === "REJECTION") console.log("REJECTION:", data.reason);
+                    if (data?.subtype === "REJECTION")
+                        console.log("REJECTION:", data.reason);
                     if (data?.subtype === "CORRECTION")
                         console.log("CORRECTION:", data.reason);
                     onServerAck$(data);
                     break;
                 case "PLAYER":
                     if (data.subtype === "MOVE") {
-                        onOtherPlayerMove$(data as ServerOtherPlayerMessage<"MOVE">);
+                        onOtherPlayerMove$(
+                            data as ServerOtherPlayerMessage<"MOVE">,
+                        );
                     }
                     break;
                 case "INIT":
-                    console.assert(data.subtype === "CONFIRM", 'EXPECTED subtype "CONFIRM", got', data.subtype);
+                    console.assert(
+                        data.subtype === "CONFIRM",
+                        'EXPECTED subtype "CONFIRM", got',
+                        data.subtype,
+                    );
                     // confirm that playerId has been saved on server
                     onInitConfirm$(data);
                     break;
@@ -279,7 +286,7 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
                 snapshotBefore,
             });
             state.ctx.client.lastSnapshot = snapshotBefore;
-            console.log("onAction:", { snapshotBefore });
+            console.log("onAction:", { snapshotBefore, action, seq });
 
             // 2. Apply local prediction
             // console.log('APPLYING ACTION:', {action, localWorldWrapper});
@@ -289,7 +296,12 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
                 prediction: clientPhysicsMode !== ClientPhysicsMode.NONE,
             });
             // console.log('applyAction result:', result);
-            if (result) state.ctx.client.isDirty.players = true;
+            Object.entries(result).forEach(([k, isDirty]) => {
+                if (!isDirty) return;
+                state.ctx.client.isDirty[
+                    k as keyof typeof state.ctx.client.isDirty
+                ] = true;
+            });
             console.log("afterAction:", { ...state.ctx.client.player });
 
             // 3. Send to server; wipe local and server AFK state
@@ -304,10 +316,7 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
     /** =======================================================
      *                          MAIN LOOP
      * ======================================================= */
-    useRenderLoop(
-        ws,
-        state,
-    );
+    useRenderLoop(ws, state);
 
     const dimensions = state.ctx.world.dimensions;
     return (
@@ -349,5 +358,3 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
 });
 
 export default Canvas1;
-
-

@@ -1,7 +1,8 @@
 import { QRL } from "@builder.io/qwik";
 import { VimAction } from "~/fsm/types";
 import { ServerWorld } from "~/server/types";
-import { Player, Vec2 } from "~/types/worldTypes";
+import { findObjectInRange } from "~/simulation/shared/interact";
+import { MapObjWithItem, MapObject, Player, Vec2 } from "~/types/worldTypes";
 
 export interface Prediction {
     seq: number;
@@ -21,8 +22,8 @@ export type ClientData = {
         players: boolean;
         objects: boolean;
         map: boolean;
-    },
-    predictionBuffer: Prediction[],
+    };
+    predictionBuffer: Prediction[];
     lastSnapshot?: Player;
 };
 export type InitializeClientData = {
@@ -38,7 +39,8 @@ export type InterfaceData = {
         devStats: boolean;
     };
 };
-export type LocalWorldWrapper = {
+
+export type LocalWorldWrapper = InterfaceData & {
     world: ServerWorld & {
         lastScale: number;
     };
@@ -51,6 +53,16 @@ export type LocalWorldWrapper = {
         (desiredScale: number) => { actualScale: number; tileSize: number }
     >;
     rerender: QRL<() => void>;
-} & InterfaceData;
-
-
+    findObjectInRange: QRL<
+        (player: Player) => ReturnType<typeof findObjectInRange>
+    >;
+    pickUpObject: QRL<(obj: MapObject, player: Player) => boolean>;
+    pickUpItem: QRL<(obj: MapObjWithItem, player: Player) => boolean>;
+    placeObject: QRL<
+        (
+            obj: MapObject,
+            player: Player,
+            target: Vec2,
+        ) => boolean | Promise<boolean>
+    >;
+};

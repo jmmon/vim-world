@@ -55,7 +55,6 @@ export enum ClientPhysicsMode {
 export const clientPhysicsMode: ClientPhysicsMode = ClientPhysicsMode.VISUAL_ONLY;
 
 export const API_PORT = import.meta.env.PROD 
-
     ? 3000 
     : import.meta.env.DEV 
         ? 5173 

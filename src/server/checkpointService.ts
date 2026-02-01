@@ -6,6 +6,7 @@ import { getRandomHSLColor } from "~/components/canvas1/utils";
 import { Direction, Player, SessionAggregate } from "~/types/worldTypes";
 
 export type PlayerCheckpoint = {
+    level: number;
     playerId: string;
     name: string;
     zone: string;
@@ -21,6 +22,7 @@ export type PlayerCheckpoint = {
 // & SessionAggregate;
 
 export const DEFAULT_CHECKPOINT: PlayerCheckpoint = {
+    level: 1,
     playerId: '',
     name: '',
     zone: 'default',
@@ -79,6 +81,7 @@ function update(checkpointData: PlayerCheckpoint): boolean {
 
 function toPlayer(data: PlayerCheckpoint) {
     const player: Player = {
+        level: 1,
         name: data.name,
         id: data.playerId,
         pos: {
@@ -95,6 +98,7 @@ function toPlayer(data: PlayerCheckpoint) {
 }
 function toCheckpoint(data: Player) {
     const checkpoint: PlayerCheckpoint = {
+        level: data.level,
         lastSeenAt: Date.now(),
         name: data.name,
         playerId: data.id,

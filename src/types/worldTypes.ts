@@ -4,13 +4,21 @@ export type ObjectType = "tree" | "box" | "chest" | "stone" | "cliff" | "item";
 export type ItemQuality = "common" | "uncommon" | "rare" | "epic" | "legendary";
 
 export interface MapObject {
+    id: string;
     type: ObjectType;
-    target?: string;
-    pos: Vec2;
+    key?: string;
+    pos?: Vec2;
     walkable: boolean;
     itemIds?: string[]; // lootable
     liftable: boolean;
 };
+export interface MapObjWithItem extends MapObject {
+    itemIds: string[];
+}
+export interface MapObjWithPos extends MapObject {
+    pos: Vec2;
+}
+
 
 export type Item = {
     id: string;
@@ -29,6 +37,9 @@ export interface Player {
     zone: string;
     lastProcessedSeq: number;
     session: SessionAggregate;
+    level: number;
+    itemIds?: string[];
+    carryingObjId?: string;
 };
 
 export type SessionAggregate = {
@@ -66,3 +77,26 @@ export type Vec2 = {
 };
 
 
+export type FindObjectsInRange = {
+    modifiedRange: number;
+    dir: Direction;
+    lastPosBeforeObject: Vec2;
+};
+export type FindObjectsInRangeError = FindObjectsInRange & {
+    targetObj?: MapObjWithPos;
+};
+export type FindObjectsInRangeValid = FindObjectsInRange & {
+    targetObj: MapObjWithPos;
+};
+export type FindObjectsInRangeResult = FindObjectsInRangeError | FindObjectsInRangeValid;
+
+
+// export type FindObjectsInRangeResult<T extends MapObjWithPos | undefined = MapObjWithPos> = {
+//     modifiedRange: number;
+//     dir: Direction;
+//     lastPosBeforeObject: Vec2;
+// } & T extends MapObjWithPos ? {
+//     targetObj: T;
+// } : {
+//     targetObj?: T;
+// };

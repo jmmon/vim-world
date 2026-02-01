@@ -1,9 +1,10 @@
 import { DIMENSIONS } from "~/components/canvas1/constants";
 import { MAP } from "~/server/map";
-import { isWalkable, isWithinBounds } from "~/fsm/movement";
 import { WALKABLE, objects } from "./objects";
 import { ClientData, ServerWorld, ServerWorldWrapper } from "./types";
 import { Player, Vec2 } from "~/types/worldTypes";
+import { isWalkable, isWithinBounds } from "~/simulation/client/helpers";
+import { findObjectInRange, pickUpItem, pickUpObject, placeObject } from "~/simulation/shared/interact";
 
 
 export const clients = new Map<string, ClientData<undefined | 'withPlayerId'>>();
@@ -31,6 +32,7 @@ export const WORLD_WRAPPER: ServerWorldWrapper = {
     addPlayer(player: Player) {
         if (!player) return false;
         try {
+            // shift pos if not walkable
             const pos = player.pos;
             while (!this.isWalkable(pos) || (
                 !this.isWalkable({ x: pos.x, y: pos.y + 1 })
@@ -58,39 +60,21 @@ export const WORLD_WRAPPER: ServerWorldWrapper = {
             console.error('addPlayer error:', err);
             return false;
         }
-    }
+    },
+
+    findObjectInRange: findObjectInRange,
+
+    // ya: maybe need a "carry" slot on player; put the itemId in the "carry" slot, remove its position while carried?
+    pickUpObject: pickUpObject,
+    // yi: I guess remove the itemId from the object and add it to the player's items
+    pickUpItem: pickUpItem,
+    // later: pa" pi"
+    placeObject: placeObject,
 };
 
 
 
 
-
-
-
-
-
-
-
-// export const WORLD: World & {
-//     isWithinBounds(target: Vec2): boolean;
-//     isWalkable(target: Vec2): boolean;
-// } = {
-//     dimensions: DIMENSIONS,
-//     map: MAP,
-//     player: player,
-//     players: [...otherPlayers],
-//     objects,
-//     walkable: WALKABLE, // dont really like this here, but there are also other changes for server worldstate
-//     help: { // not needed on server state, client only
-//         isOpen: false,
-//     },
-//     isWithinBounds(target: Vec2) {
-//         return isWithinBounds(this, target);
-//     },
-//     isWalkable(target: Vec2) {
-//         return isWalkable(this, target);
-//     },
-// };
 
 
 

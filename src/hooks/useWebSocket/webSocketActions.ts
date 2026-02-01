@@ -47,6 +47,7 @@ function checkpoint(
     if (!ws || ws?.readyState !== WebSocket.OPEN) return;
     // create player checkpoint
     const checkpoint: PlayerCheckpoint = {
+        level: player.level,
         name: player.name,
         playerId: player.id,
         zone: "default",

@@ -1,9 +1,13 @@
 import { $, useSignal, useStore } from "@builder.io/qwik";
 import { ServerWorld } from "~/server/types";
-import { InitializeClientData, LocalWorldWrapper } from "../components/canvas1/types";
-import { isWalkable, isWithinBounds } from "~/fsm/movement";
+import {
+    InitializeClientData,
+    LocalWorldWrapper,
+} from "../components/canvas1/types";
 import { Player, Vec2 } from "~/types/worldTypes";
 import { getScaledTileSize } from "../components/canvas1/constants";
+import { findObjectInRange, pickUpItem, pickUpObject, placeObject } from "~/simulation/shared/interact";
+import { isWalkable, isWithinBounds } from "~/simulation/client/helpers";
 
 function useState(world: ServerWorld) {
     const mapRef = useSignal<HTMLCanvasElement>();
@@ -61,7 +65,9 @@ function useState(world: ServerWorld) {
             data: InitializeClientData,
         ) {
             try {
-                this.client.lastSnapshot = this.client.player && {...this.client.player};
+                this.client.lastSnapshot = this.client.player && {
+                    ...this.client.player,
+                };
 
                 this.client.player = data.player;
                 this.client.username = data.username;
@@ -75,14 +81,25 @@ function useState(world: ServerWorld) {
                 return false;
             }
         }),
+        // client only
         getScaledTileSize: $(function (this: LocalWorldWrapper, scale: number) {
             return getScaledTileSize(scale);
         }),
+        // client only
         rerender: $(function (this: LocalWorldWrapper) {
             this.client.isDirty.map = true;
             this.client.isDirty.objects = true;
             this.client.isDirty.players = true;
         }),
+
+        findObjectInRange: $(findObjectInRange),
+
+        // ya: maybe need a "carry" slot on player; put the itemId in the "carry" slot, remove its position while carried?
+        pickUpObject: $(pickUpObject),
+        // yi: I guess remove the itemId from the object and add it to the player's items
+        pickUpItem: $(pickUpItem),
+        // later: pa" pi"
+        placeObject: $(placeObject),
     });
 
     return {
@@ -99,5 +116,3 @@ function useState(world: ServerWorld) {
 
 export type GameState = ReturnType<typeof useState>;
 export default useState;
-
-

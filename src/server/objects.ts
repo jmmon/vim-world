@@ -1,5 +1,5 @@
 import { MAP } from "~/server/map";
-import { Item, MapObject, TileType } from "~/types/worldTypes";
+import { Item, MapObjWithPos, MapObject, TileType, Vec2 } from "~/types/worldTypes";
 
 export const items: Item[] = [
     { quality: 'rare', id: "123", type: "item", name: "item", description: "description" },
@@ -8,6 +8,7 @@ export const items: Item[] = [
 
 const objectsList: MapObject[] = [
     {
+        id: 'abc',
         type: "tree",
         pos: {
             x: 0,
@@ -16,8 +17,9 @@ const objectsList: MapObject[] = [
         walkable: false,
         liftable: false,
     }, {
+        id: 'def',
         type: "chest",
-        target: '"',
+        key: '"',
         pos: {
             x: 0,
             y: 0
@@ -26,8 +28,9 @@ const objectsList: MapObject[] = [
         liftable: true,
         itemIds: ['123']
     }, {
+        id: 'ghi',
         type: "item",
-        target: '[',
+        key: '[',
         pos: {
             x: 0,
             y: 0
@@ -41,7 +44,7 @@ const objectsList: MapObject[] = [
 export const WALKABLE: TileType[] = ["grass", "dirt"];
 // const WALKABLE_MAP_TILES = map.
 // want to get a list of all coordinates that are walkable:
-const WALKABLE_MAP_TILES = MAP.reduce(
+const WALKABLE_MAP_TILES = MAP.reduce<Vec2[]>(
     (accum, row, y) => {
         row.forEach((tile, x) => {
             if (WALKABLE.includes(tile)) {
@@ -50,7 +53,7 @@ const WALKABLE_MAP_TILES = MAP.reduce(
         });
         return accum;
     },
-    [] as { x: number; y: number }[],
+    [],
 );
 
 // randomizing positions
@@ -61,13 +64,14 @@ export const objects = objectsList.map((obj) => {
         !!WALKABLE_MAP_TILES[random],
         "error indexing walkable map tiles!",
     );
-    return {
+    const positionedObj: MapObjWithPos = {
         ...obj,
         pos: {
             x,
             y,
         },
     };
+    return positionedObj;
 });
 
 
