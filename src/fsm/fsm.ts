@@ -29,6 +29,7 @@ export class VimFSM {
     keyPress(event: KeyboardEvent, initialized = false) {
         if (!initialized) return;
         const { key, shiftKey, ctrlKey, altKey } = event;
+        // console.log('look for f12!:', {key});
 
         const ALLOW_BROWSER_HOTKEYS = [
             /** refresh */
@@ -36,7 +37,7 @@ export class VimFSM {
             /** hard refresh */
             ctrlKey && shiftKey && key === 'r' || key === 'R',
             /** function keys */
-            ...(Array.from({length: 12}, (_, i) => key === `<F${i + 1}>`)),
+            ...(Array.from({length: 12}, (_, i) => key === `F${i + 1}`)),
         ];
         if (ALLOW_BROWSER_HOTKEYS.some(Boolean)) return; // completely ignore these
 
