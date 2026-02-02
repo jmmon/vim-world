@@ -86,10 +86,18 @@ function useState(world: ServerWorld) {
             return getScaledTileSize(scale);
         }),
         // client only
-        rerender: $(function (this: LocalWorldWrapper) {
+        markAllDirty: $(function (this: LocalWorldWrapper) {
             this.client.isDirty.map = true;
             this.client.isDirty.objects = true;
             this.client.isDirty.players = true;
+        }),
+        updateScale: $(function (this: LocalWorldWrapper, newScale: number, newTileSize: number) {
+            this.world.dimensions.scale = newScale;
+            this.world.dimensions.tileSize = newTileSize;
+            this.world.dimensions.canvasWidth =
+                newTileSize * this.world.dimensions.width;
+            this.world.dimensions.canvasHeight =
+                newTileSize * this.world.dimensions.height;
         }),
 
         findObjectInRange: $(findObjectInRange),

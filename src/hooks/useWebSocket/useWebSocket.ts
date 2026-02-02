@@ -3,13 +3,13 @@ import { API_PORT } from "../../components/canvas1/constants";
 
 export const useWebSocket = (
     initializeTrigger: Signal<any>,
-    onMessage: QRL<(ws: NoSerialize<WebSocket>, data: any) => any>, 
-    onOpen: QRL<(ws: NoSerialize<WebSocket>) => any>,
+    onMessage: QRL<(data: any) => any>, 
+    onOpen: QRL<() => any>,
+    ws: Signal<NoSerialize<WebSocket>>,
     opts = {
         url: `ws://localhost:${API_PORT}/ws`,
     }
 ) => {
-    const ws = useSignal<NoSerialize<WebSocket>>();
     const isStartingInBrowser = useSignal(false);
 
     const cleanup$ = $(() => {
@@ -37,19 +37,17 @@ export const useWebSocket = (
         isStartingInBrowser.value = false;
         ws.value!.onopen = () => {
             console.log("Connected via websocket!")
-            onOpen(ws.value!);
+            onOpen();
         };
         ws.value!.onmessage = (event) => {
             // Update player or other players
-            onMessage(ws.value!, event);
+            onMessage(event);
         };
         cleanup(() => {
             console.log('useWebSocket cleanup!!');
             cleanup$();
         })
     });
-
-    return ws;
 }
 
 

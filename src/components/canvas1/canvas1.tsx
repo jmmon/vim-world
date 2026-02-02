@@ -19,23 +19,26 @@ import { useNavigate } from "@builder.io/qwik-city";
 import { applyActionToWorld } from "~/simulation/client/actions";
 import { ClientPhysicsMode, clientPhysicsMode } from "./constants";
 import ChooseUsername from "../choose-username/choose-username";
-import useWebSocket, { dispatch } from "~/hooks/useWebSocket";
+import useWebSocket from "~/hooks/useWebSocket";
 import Menu from "../menu/menu";
 import useRenderLoop from "~/hooks/useRenderLoop";
 import { ServerWorld } from "~/server/types";
 import useState from "../../hooks/useState";
+import useDispatch from "~/hooks/useDispatch";
 
 type Canvas1Props = {
     worldState: ServerWorld;
 };
 const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
     const isReady = useSignal(false);
+    const initializeSelfData = useSignal<InitializeClientData>();
     const nav = useNavigate();
 
     const state = useState(worldState);
+    const ws = useSignal<NoSerialize<WebSocket>>(undefined);
+    const dispatch = useDispatch(ws);
 
     const getNextSeq = useSeq(); // action index
-    const initializeSelfData = useSignal<InitializeClientData>();
 
     console.log("canvas1 component init: players:", state.ctx.world.players);
 
@@ -199,59 +202,57 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
         );
     });
 
-    const onMessage$ = $(
-        (ws: NoSerialize<WebSocket>, event: MessageEvent<string>) => {
-            // console.log("onMessage data:", event.data);
-            const data = JSON.parse(event.data) as ServerMessage;
-            console.assert(!!ws, "!!websocket not open!! in onMessage$");
-            console.log("onMessage:", data);
+    const onMessage$ = $((event: MessageEvent<string>) => {
+        // console.log("onMessage data:", event.data);
+        const data = JSON.parse(event.data) as ServerMessage;
+        console.log("onMessage:", data);
 
-            switch (data.type) {
-                case "CLOSE":
-                    if (data.subtype === "START") {
-                        if (!state.ctx.client.player) break;
+        switch (data.type) {
+            case "CLOSE":
+                if (data.subtype === "START") {
+                    if (!state.ctx.client.player) break;
 
-                        dispatch.checkpoint(ws, state.ctx.client.player, true);
-                        state.ctx.client.timeSinceLastCheckpoint = Date.now();
-                        break;
-                    }
-                    nav("/");
+                    dispatch.checkpoint(state.ctx.client.player, true);
+                    state.ctx.client.timeSinceLastCheckpoint = Date.now();
                     break;
-                case "AFK":
-                    state.ctx.client.afkStartTime = Date.now();
-                    state.ctx.show.afk = true;
-                    break;
-                case "ACK":
-                    if (data?.subtype === "REJECTION")
-                        console.log("REJECTION:", data.reason);
-                    if (data?.subtype === "CORRECTION")
-                        console.log("CORRECTION:", data.reason);
-                    onServerAck$(data);
-                    break;
-                case "PLAYER":
-                    if (data.subtype === "MOVE") {
-                        onOtherPlayerMove$(
-                            data as ServerOtherPlayerMessage<"MOVE">,
-                        );
-                    }
-                    break;
-                case "INIT":
-                    console.assert(
-                        data.subtype === "CONFIRM",
-                        'EXPECTED subtype "CONFIRM", got',
-                        data.subtype,
+                }
+                nav("/");
+                break;
+            case "AFK":
+                state.ctx.client.afkStartTime = Date.now();
+                state.ctx.show.afk = true;
+                break;
+            case "ACK":
+                if (data?.subtype === "REJECTION")
+                    console.log("REJECTION:", data.reason);
+                if (data?.subtype === "CORRECTION")
+                    console.log("CORRECTION:", data.reason);
+                // state.ctx.onServerAck(data);
+                onServerAck$(data);
+                break;
+            case "PLAYER":
+                if (data.subtype === "MOVE") {
+                    onOtherPlayerMove$(
+                        data as ServerOtherPlayerMessage<"MOVE">,
                     );
-                    // confirm that playerId has been saved on server
-                    onInitConfirm$(data);
-                    break;
+                }
+                break;
+            case "INIT":
+                console.assert(
+                    data.subtype === "CONFIRM",
+                    'EXPECTED subtype "CONFIRM", got',
+                    data.subtype,
+                );
+                // confirm that playerId has been saved on server
+                onInitConfirm$(data);
+                break;
 
-                default:
-                    console.warn("INVALID MESSAGE TYPE RECEIVED:", data);
-            }
-        },
-    );
+            default:
+                console.warn("INVALID MESSAGE TYPE RECEIVED:", data);
+        }
+    });
 
-    const onConnect$ = $((ws: NoSerialize<WebSocket>) => {
+    const onConnect$ = $(() => {
         state.ctx.client.isDirty.players = true;
         console.assert(
             !!state.ctx.client.player,
@@ -259,7 +260,7 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
             state.ctx.client.player,
         );
 
-        dispatch.init(ws, state.ctx.client.player!.id);
+        dispatch.init(state.ctx.client.player!.id);
 
         // would prefer to do it on /api/player post req, but don't have the clientId yet
         //
@@ -270,7 +271,7 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
         // delete and set
     });
 
-    const ws = useWebSocket(isReady, onMessage$, onConnect$);
+    useWebSocket(isReady, onMessage$, onConnect$, ws);
 
     /** =======================================================
      *          keyboard actions; apply to world
@@ -305,7 +306,7 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
             console.log("afterAction:", { ...state.ctx.client.player });
 
             // 3. Send to server; wipe local and server AFK state
-            dispatch.action(ws.value, seq, action);
+            dispatch.action(seq, action);
             state.ctx.show.afk = false;
             state.ctx.client.afkStartTime = -1;
             state.ctx.client.idleStartTime = Date.now();
