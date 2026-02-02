@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { roundToDecimals } from "~/utils/utils";
 
 const EMA_SMOOTHING = 3; // default: 2; higher prefers more recent
 const EMA_INTERVAL = 5; // e.g seconds
@@ -8,13 +9,13 @@ const getEma = (curFps: number, prevFps: number) =>
     curFps * MULTIPLIER + prevFps * (1 - MULTIPLIER);
 
 
-export function initFpsTest(zero = 0) {
+export function initFpsTest(zero = 0, decimals = 2) {
     let lastTs = zero;
     let frames = 0;
     let prevEma = 0;
     let ema = 0;
 
-    return function coutFps(ts: number) {
+    return function coutFps(ts: number): undefined | { fps: string; ema: string; } {
         frames++;
         if (ts - lastTs > 1000) {
             const normalized = frames * 1000 / (ts - lastTs);
@@ -26,8 +27,8 @@ export function initFpsTest(zero = 0) {
             prevEma = normalized;
 
             return {
-                fps: Number(normalized.toFixed(2)),
-                ema: Number(ema.toFixed(2))
+                fps: roundToDecimals(normalized, decimals).toFixed(decimals),
+                ema: String(roundToDecimals(ema, decimals - 1)), 
             };
         }
     }

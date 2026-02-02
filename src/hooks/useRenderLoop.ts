@@ -29,7 +29,7 @@ export default function useRenderLoop(
     // eslint-disable-next-line qwik/no-use-visible-task
     useVisibleTask$(() => {
         const zero = Number(document.timeline.currentTime);
-        const countFps = initFpsTest(zero);
+        const countFps = initFpsTest(zero, 1);
         state.ctx.client.timeSinceLastCheckpoint = Date.now();
         console.log("starting main loop:");
 
@@ -42,8 +42,8 @@ export default function useRenderLoop(
             draw.helpHint(state);
         }
 
-        let lastFps = 0;
-        let lastEma = 0;
+        let lastFps = "0";
+        let lastEma = "0";
 
         function saveCheckpoint() {
             const now = Date.now();
@@ -106,7 +106,7 @@ export default function useRenderLoop(
             }
 
             // handle rendering
-            draw.fps(state, String(lastFps), String(lastEma));
+            draw.fps(state, lastFps, lastEma);
             if (state.ctx.show.devStats) {
                 draw.devStats(state);
             } else {
