@@ -2,14 +2,11 @@ import {
     component$,
     useSignal,
     $,
-    useVisibleTask$,
     NoSerialize,
 } from "@builder.io/qwik";
 import {
-    ServerAckMessage,
     ServerMessage,
     ServerOtherPlayerMessage,
-    ServerAckType,
     ServerInitConfirmMessage,
 } from "~/types/messageTypes";
 import useSeq from "../../hooks/useSeq";
@@ -34,149 +31,13 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
     const initializeSelfData = useSignal<InitializeClientData>();
     const nav = useNavigate();
 
-    const state = useState(worldState);
     const ws = useSignal<NoSerialize<WebSocket>>(undefined);
     const dispatch = useDispatch(ws);
 
     const getNextSeq = useSeq(); // action index
+    const state = useState(worldState, isReady, initializeSelfData);
 
     console.log("canvas1 component init: players:", state.ctx.world.players);
-
-    const lastInit = useSignal(0);
-    // eslint-disable-next-line qwik/no-use-visible-task
-    useVisibleTask$(async ({ track }) => {
-        const selfData = track(initializeSelfData);
-        if (!selfData) return;
-
-        const success = await state.ctx.initClientData(selfData);
-        if (!success)
-            return console.error("error initializing self!", selfData);
-        state.ctx.client.isDirty.players = true;
-
-        const now = Date.now();
-
-        console.assert(
-            now - lastInit.value > 5000,
-            "!!initializing called many times!!",
-        );
-        console.log(
-            "initialized localWorld with client data, NOW READY::",
-            selfData,
-        );
-
-        lastInit.value = now;
-        initializeSelfData.value = undefined; // reset in case we need to fetch again
-        isReady.value = true;
-    });
-
-    // could also use regular Dialog components for popups and menus, instead of drawing everything on the canvas
-    // e.g. afk notice
-
-    const onServerAck$ = $(async (msg: ServerAckMessage<ServerAckType>) => {
-        const predictionArr = [...state.ctx.client.predictionBuffer];
-        // console.log({
-        //     predictionArr: [...predictionArr],
-        //     msg: { ...msg },
-        //     isPlayersDirty: state.ctx.client.isDirty.players,
-        // });
-        const index = predictionArr.findIndex((p) => p.seq === msg.seq);
-        if (index === -1) return;
-        // console.log("found prediction by sequence:", {
-        //     predictionArr: [...predictionArr],
-        //     index,
-        // });
-
-        // NOTE: skip if results of the changes matched: for full prediction on the client
-        // - if no client visual prediction, then the resultState and authState would NOT match since client would be behind
-        // in case server sends authState while accepted === true
-        const resultState =
-            predictionArr[predictionArr.findIndex((p) => p.seq === msg.seq + 1)]
-                ?.snapshotBefore || state.ctx.client.player;
-        if (
-            msg.authoritativeState?.pos &&
-            resultState.pos.x === msg.authoritativeState.pos.x &&
-            resultState.pos.y === msg.authoritativeState.pos.y &&
-            msg.authoritativeState.dir &&
-            resultState.dir === msg.authoritativeState.dir
-        ) {
-            // results at that point in time matched:
-            // still remove prediction at index from buffer,
-            predictionArr.splice(index, 1);
-            // do I want to clear everything before it as well?
-            // predictionArr.splice(0, index + 1);
-            state.ctx.client.predictionBuffer = predictionArr;
-            // console.log("~~ results are same: remaining predictions:", {
-            //     remaining: [...predictionArr],
-            //     index,
-            //     resultState: { ...resultState },
-            // });
-            return;
-            // no need to replay anything
-        }
-
-        // Prediction matched — just drop it
-        if (!msg.authoritativeState) {
-            // console.log("~~ no authoritative state, do nothing", {
-            //     predictionArr: [...predictionArr],
-            //     index,
-            // });
-            predictionArr.splice(index, 1);
-            state.ctx.client.predictionBuffer = predictionArr;
-            return;
-        }
-
-        // 1. Roll back to authoritative position
-        // roll back to corrected position for that msg
-        state.ctx.client.player = {
-            ...state.ctx.client.player!,
-            ...msg.authoritativeState,
-            pos: {
-                ...state.ctx.client.player!.pos,
-                ...msg.authoritativeState.pos,
-            },
-        };
-        console.log("EXPECT POSITION DIFFERENCE::", {
-            lastSnapshot: { ...state.ctx.client.lastSnapshot },
-            currentPlayer: { ...state.ctx.client.player },
-        });
-        state.ctx.client.lastSnapshot = { ...state.ctx.client.player! };
-
-        // 2. Remove confirmed actions up through index
-        predictionArr.splice(0, index + 1);
-
-        state.ctx.client.predictionBuffer = predictionArr;
-        state.ctx.client.isDirty.players = true;
-
-        if (clientPhysicsMode === ClientPhysicsMode.NONE) return;
-
-        console.log("~~ predictionBuffer replaying:", [...predictionArr]);
-
-        const resultDirty = {
-            players: false,
-            objects: false,
-            map: false,
-        };
-        // 3. Replay remaining predictions based on the corrected position
-        for (const p of predictionArr) {
-            const result = await applyActionToWorld(state.ctx, p.action, {
-                collision:
-                    clientPhysicsMode === ClientPhysicsMode.FULL_PREDICTION,
-            });
-            if (!result) continue;
-
-            if (result.players) resultDirty.players = true;
-            if (result.objects) resultDirty.objects = true;
-            if (result.map) resultDirty.map = true;
-        }
-        // snapshot is current visual state of client
-        state.ctx.client.lastSnapshot = { ...state.ctx.client.player! };
-        Object.entries(resultDirty).forEach(([k, isDirty]) => {
-            if (!isDirty) return;
-            state.ctx.client.isDirty[
-                k as keyof typeof state.ctx.client.isDirty
-            ] = true;
-        });
-    });
 
     const onOtherPlayerMove$ = $((data: ServerOtherPlayerMessage<"MOVE">) => {
         // skip self
@@ -227,8 +88,7 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
                     console.log("REJECTION:", data.reason);
                 if (data?.subtype === "CORRECTION")
                     console.log("CORRECTION:", data.reason);
-                // state.ctx.onServerAck(data);
-                onServerAck$(data);
+                state.ctx.onServerAck(data);
                 break;
             case "PLAYER":
                 if (data.subtype === "MOVE") {
