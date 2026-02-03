@@ -6,7 +6,7 @@ export type ItemQuality = "common" | "uncommon" | "rare" | "epic" | "legendary";
 export interface MapObject {
     id: string;
     type: ObjectType;
-    key?: string;
+    keys?: string;
     pos?: Vec2;
     walkable: boolean;
     itemIds?: string[]; // lootable

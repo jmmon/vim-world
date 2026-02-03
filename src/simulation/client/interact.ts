@@ -1,86 +1,43 @@
-import {
-    MapObject,
-    Player,
-    Vec2,
-    FindObjectsInRangeValid,
-} from "~/types/worldTypes";
 import { LocalWorldWrapper } from "~/components/canvas1/types";
-import { VimAction } from "../../fsm/types";
-import { ServerWorldWrapper } from "~/server/types";
-import {
-    apply,
-    basicInteractValidation,
-    validatePasteCommand,
-} from "~/simulation/shared/interact";
-import { OPTS, Opts } from "./actions";
+import { ModifierKey, OperatorKey, TargetKey, VimAction } from "../../fsm/types";
+import { IsDirty } from "./actions";
+import { ValidatePasteValid, ValidateYankValid } from "../server/types";
+import { basicInteractValidation } from "../shared/validators/interact";
+import applies from "../shared/actions";
+import sharedValidators from "../shared/validators";
 
 // e.g. if ya then pick up the object, if yi then try to get the item inside the object if there is one
 // some objects could be liftable and others not
 // could also allow pushing them?? e.g. if pushing, process movement every 4 ticks or something
 // could allow sliding of the player!!! e.g. from x to x + 1 over some time, and if you stop pressing the key or didn't do high enough count, it will reset yours and the object's positioning
 
-export async function validateYankCommand(
-    state: LocalWorldWrapper | ServerWorldWrapper,
-    player: Player,
-    opts?: Partial<Opts>,
-) {
-    // check in front of player for object matching target type
-    const result = await state.findObjectInRange(player);
-    if (result.targetObj === undefined) {
-        console.warn("no target object found!", result);
-        return false;
-    }
-
-    if (
-        opts?.collision !== false &&
-        !(await state.isWithinBounds(result.targetObj.pos))
-    ) {
-        // probably never happens unless we have objects offmap
-        console.warn("found target object is OUTSIDE BOUNDS!", result);
-        return false;
-    }
-    if (
-        opts?.collision !== false &&
-        !(await state.isWithinBounds(result.lastPosBeforeObject))
-    ) {
-        console.warn("new player position is OUTSIDE BOUNDS!", result);
-        return false;
-    }
-    return result as FindObjectsInRangeValid;
-}
-
-
-const validate = {
-    interact: {
-        y: validateYankCommand,
-        p: validatePasteCommand,
-    },
-};
-
 export async function applyInteraction(
     state: LocalWorldWrapper,
     action: VimAction,
-    opts?: Partial<Opts>,
-) {
-    const { prediction, collision }: Opts = {
-        ...OPTS,
-        ...opts,
-    };
+): Promise<IsDirty> {
+    const prediction = await state.getPhysicsPrediction();
     if (!prediction) return false;
 
     const basicResult = basicInteractValidation(action);
+
     if (!basicResult.ok) return false;
 
-    const actionType = action.command?.[0] as 'p' | 'y';
-    const validationResult = await validate.interact[actionType](state, state.client.player!, {
-        collision,
-    });
-    if (!validationResult) return false;
 
-    const result = (actionType === 'y') 
-        ? await apply.interact[actionType](state, state.client.player!, action, validationResult as FindObjectsInRangeValid)
-        : await apply.interact[actionType](state, state.client.player!, action, validationResult as {targetPos: Vec2, obj: MapObject})
+    const actionType = action.command![0] as OperatorKey;
+    const modifier = action.command![1] as ModifierKey
+    const target = action.command![2] as TargetKey;
 
-    if (result) return {players: true, objects: true};
+    // new:::
+    const r = await sharedValidators.interact[actionType][modifier](state, state.client.player!, target);
+    if (!r || !r?.ok) return false;
+
+    if (actionType === 'p') {
+        await applies.interact[actionType](state, state.client.player!, action, r as ValidatePasteValid)
+    } else {
+        await applies.interact[actionType](state, state.client.player!, action, r as ValidateYankValid)
+    }
+    if (r.ok) return { players: true, objects: true };
     return false;
 }
+
+

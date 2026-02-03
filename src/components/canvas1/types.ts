@@ -1,9 +1,10 @@
 import { QRL } from "@builder.io/qwik";
 import { VimAction } from "~/fsm/types";
 import { ServerWorld } from "~/server/types";
-import { findObjectInRange } from "~/simulation/shared/interact";
-import { MapObjWithItem, MapObject, Player, Vec2 } from "~/types/worldTypes";
 import { ServerAckMessage, ServerAckType } from "~/types/messageTypes";
+import { MapObjWithItem, MapObjWithPos, Player, Vec2 } from "~/types/worldTypes";
+import { ClientPhysicsMode } from "./constants";
+import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact";
 
 export interface Prediction {
     seq: number;
@@ -45,6 +46,7 @@ export type LocalWorldWrapper = InterfaceData & {
     world: ServerWorld & {
         lastScale: number;
     };
+    physics: ClientPhysicsMode;
     client: ClientData;
     isWithinBounds: QRL<(target: Vec2) => boolean>;
     isWalkable: QRL<(target: Vec2) => boolean>;
@@ -54,17 +56,27 @@ export type LocalWorldWrapper = InterfaceData & {
         (desiredScale: number) => { actualScale: number; tileSize: number }
     >;
     rerender: QRL<() => void>;
-    findObjectInRange: QRL<
-        (player: Player) => ReturnType<typeof findObjectInRange>
+    findObjectInRangeByKey: QRL<
+        (player: Player, key: string) => ReturnType<typeof findObjectInRangeByKey>
     >;
-    pickUpObject: QRL<(obj: MapObject, player: Player) => boolean>;
+    pickUpObject: QRL<(obj: MapObjWithPos, player: Player) => boolean>;
     pickUpItem: QRL<(obj: MapObjWithItem, player: Player) => boolean>;
-    placeObject: QRL<
-        (
-            obj: MapObject,
-            player: Player,
-            target: Vec2,
-        ) => boolean | Promise<boolean>
-    >;
+
+    // placeObject: QRL<
+    //     (
+    //         obj: MapObject,
+    //         player: Player,
+    //         target: Vec2,
+    //     ) => boolean | Promise<boolean>
+    // >;
+    // placeItem: QRL<
+    //     (
+    //         obj: MapObjWithPos,
+    //         player: Player
+    //     ) => boolean | Promise<boolean>
+    // >;
+
     onServerAck: QRL<(msg: ServerAckMessage<ServerAckType>) => void>; 
+    getPhysicsCollision: QRL<() => boolean>; 
+    getPhysicsPrediction: QRL<() => boolean>; 
 };

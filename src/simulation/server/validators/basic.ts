@@ -47,7 +47,7 @@ function validateActionSchema(action: VimAction): boolean {
     }
 }
 
-export function basicValidation(client: ClientData, player: Player, msg: ClientActionMessage) {
+export default function basicValidation(client: ClientData, player: Player, msg: ClientActionMessage) {
     if (!validateActionSequence(client, player, msg)) {
         console.log('invalid action sequence! at:', player.lastProcessedSeq, 'msg:', msg.seq);
         return "INVALID_SEQUENCE";

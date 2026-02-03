@@ -6,16 +6,7 @@ import { applyMoveAction } from "./movement";
 import { applyCommandAction } from "./command";
 import { applyInteraction } from "./interact";
 
-export type Opts = {
-    collision: boolean;
-    prediction: boolean;
-};
-export const OPTS = {
-    collision: true,
-    prediction: true,
-};
-
-type IsDirty = {
+export type IsDirty = {
     players?: boolean,
     objects?: boolean,
     map?: boolean,
@@ -26,15 +17,14 @@ type IsDirty = {
 export function applyActionToWorld(
     localWorldWrapper: LocalWorldWrapper,
     action: VimAction,
-    opts?: Partial<Opts>,
 ): Promise<IsDirty> | IsDirty {
     switch (action.type) {
         case "MOVE":
-            return applyMoveAction(localWorldWrapper, action, opts);
+            return applyMoveAction(localWorldWrapper, action);
         case "COMMAND":
             return applyCommandAction(localWorldWrapper, action);
         case "INTERACT":
-            return applyInteraction(localWorldWrapper, action, opts);
+            return applyInteraction(localWorldWrapper, action);
         default:
             return false;
     }

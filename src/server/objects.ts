@@ -19,7 +19,7 @@ const objectsList: MapObject[] = [
     }, {
         id: 'def',
         type: "chest",
-        key: '"',
+        keys: '[]',
         pos: {
             x: 0,
             y: 0
@@ -30,7 +30,7 @@ const objectsList: MapObject[] = [
     }, {
         id: 'ghi',
         type: "item",
-        key: '[',
+        keys: '[]',
         pos: {
             x: 0,
             y: 0
