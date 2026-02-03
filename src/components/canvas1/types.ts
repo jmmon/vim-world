@@ -3,6 +3,7 @@ import { VimAction } from "~/fsm/types";
 import { ServerWorld } from "~/server/types";
 import { findObjectInRange } from "~/simulation/shared/interact";
 import { MapObjWithItem, MapObject, Player, Vec2 } from "~/types/worldTypes";
+import { ServerAckMessage, ServerAckType } from "~/types/messageTypes";
 
 export interface Prediction {
     seq: number;
@@ -65,4 +66,5 @@ export type LocalWorldWrapper = InterfaceData & {
             target: Vec2,
         ) => boolean | Promise<boolean>
     >;
+    onServerAck: QRL<(msg: ServerAckMessage<ServerAckType>) => void>; 
 };
