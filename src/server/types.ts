@@ -1,4 +1,5 @@
-import { findObjectInRange } from "~/simulation/shared/interact";
+import { ClientPhysicsMode } from "~/components/canvas1/constants";
+import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact";
 import { MapDimensions, MapObjWithItem, MapObject, Player, TileType, Vec2 } from "~/types/worldTypes";
 
 export type ServerWorld = {
@@ -11,13 +12,17 @@ export type ServerWorld = {
 
 export type ServerWorldWrapper = {
     world: ServerWorld,
+    physics: ClientPhysicsMode;
     isWithinBounds(target: Vec2): boolean;
     isWalkable(target: Vec2): boolean;
     addPlayer(player: Player): boolean;
-    findObjectInRange(player: Player): ReturnType<typeof findObjectInRange>;
+    findObjectInRangeByKey(player: Player, key: string): ReturnType<typeof findObjectInRangeByKey>;
     pickUpObject(obj: MapObject, player: Player): boolean;
     pickUpItem(obj: MapObjWithItem, player: Player): boolean;
-    placeObject(obj: MapObject, player: Player, target: Vec2): boolean | Promise<boolean>;
+    // placeObject(obj: MapObject, player: Player, target: Vec2): boolean | Promise<boolean>;
+    // placeItem(obj: MapObjWithPos, player: Player): boolean | Promise<boolean>;
+    getPhysicsCollision(): boolean;
+    getPhysicsPrediction(): boolean;
 }
 
 export type ClientData<T extends undefined | 'withPlayerId' = undefined> = {

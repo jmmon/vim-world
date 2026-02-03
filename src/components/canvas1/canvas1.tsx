@@ -14,7 +14,6 @@ import useVimFSM from "~/hooks/useVimFSM";
 import { InitializeClientData } from "./types";
 import { useNavigate } from "@builder.io/qwik-city";
 import { applyActionToWorld } from "~/simulation/client/actions";
-import { ClientPhysicsMode, clientPhysicsMode } from "./constants";
 import ChooseUsername from "../choose-username/choose-username";
 import useWebSocket from "~/hooks/useWebSocket";
 import Menu from "../menu/menu";
@@ -30,7 +29,6 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
     const isReady = useSignal(false);
     const initializeSelfData = useSignal<InitializeClientData>();
     const nav = useNavigate();
-
     const ws = useSignal<NoSerialize<WebSocket>>(undefined);
     const dispatch = useDispatch(ws);
 
@@ -151,11 +149,7 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
 
             // 2. Apply local prediction
             // console.log('APPLYING ACTION:', {action, localWorldWrapper});
-            const result = await applyActionToWorld(state.ctx, action, {
-                collision:
-                    clientPhysicsMode === ClientPhysicsMode.FULL_PREDICTION,
-                prediction: clientPhysicsMode !== ClientPhysicsMode.NONE,
-            });
+            const result = await applyActionToWorld(state.ctx, action);
             // console.log('applyAction result:', result);
             Object.entries(result).forEach(([k, isDirty]) => {
                 if (!isDirty) return;

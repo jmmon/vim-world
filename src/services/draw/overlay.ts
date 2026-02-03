@@ -117,14 +117,14 @@ export function drawDevStats(state: GameState) {
             : roundToDecimals(
                   (Date.now() - state.ctx.client.afkStartTime) / 1000,
                   1,
-              );
+              ).toFixed(1);
     const idleTime =
         state.ctx.client.idleStartTime === -1
             ? "?"
             : roundToDecimals(
                   (Date.now() - state.ctx.client.idleStartTime) / 1000,
                   1,
-              );
+              ).toFixed(1);
 
     // draw stats
     d.ctx.font = `bold ${d.fontSize}px mono`;

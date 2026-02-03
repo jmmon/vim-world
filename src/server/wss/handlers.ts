@@ -14,8 +14,8 @@ import { Player } from "~/types/worldTypes";
 import { ReasonCorrection, ReasonRejected } from "~/simulation/server/types";
 import { closeAfkPlayer } from "./handleAfkDisconnect";
 import { ClientData } from "../types";
-import { basicValidation } from "~/simulation/server/serverBasicValidation";
-import { applyActionToServerWorld } from "~/simulation/server/applyAction";
+import applyActionToServerWorld from "~/simulation/server/applyAction";
+import serverValidators from "~/simulation/server/validators";
 
 const initializeClientData = (ws: WebSocket, id: string) => ({
     clientId: id,
@@ -118,7 +118,7 @@ async function handleServerAction(clientId: string, clientMessage: ClientActionM
     // TODO: find this player and apply to this player
 
     // 1. confirm the action is valid
-    const reason = basicValidation(client, player, clientMessage);
+    const reason = serverValidators.basic(client, player, clientMessage);
     if (reason !== null) {
         return sendRejection(
             client,

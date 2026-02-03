@@ -1,10 +1,11 @@
-import { DIMENSIONS } from "~/components/canvas1/constants";
+import { DIMENSIONS, clientPhysicsMode } from "~/components/canvas1/constants";
 import { MAP } from "~/server/map";
 import { WALKABLE, objects } from "./objects";
 import { ClientData, ServerWorld, ServerWorldWrapper } from "./types";
 import { Player, Vec2 } from "~/types/worldTypes";
 import { isWalkable, isWithinBounds } from "~/simulation/client/helpers";
-import { findObjectInRange, pickUpItem, pickUpObject, placeObject } from "~/simulation/shared/interact";
+import { pickUpItem, pickUpObject } from "~/simulation/shared/actions/interact";
+import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact";
 
 
 export const clients = new Map<string, ClientData<undefined | 'withPlayerId'>>();
@@ -20,6 +21,7 @@ export const SERVER_WORLD: ServerWorld = {
 }
 export const WORLD_WRAPPER: ServerWorldWrapper = {
     world: SERVER_WORLD,
+    physics: clientPhysicsMode,
     isWithinBounds(target: Vec2) {
         return isWithinBounds(this.world.map, target);
     },
@@ -62,14 +64,18 @@ export const WORLD_WRAPPER: ServerWorldWrapper = {
         }
     },
 
-    findObjectInRange: findObjectInRange,
+    findObjectInRangeByKey: findObjectInRangeByKey,
 
     // ya: maybe need a "carry" slot on player; put the itemId in the "carry" slot, remove its position while carried?
     pickUpObject: pickUpObject,
     // yi: I guess remove the itemId from the object and add it to the player's items
     pickUpItem: pickUpItem,
-    // later: pa" pi"
-    placeObject: placeObject,
+    // pa
+    // placeObject: placeObject,
+    // pi
+    // placeItem: placeItem,
+    getPhysicsCollision: function(this: ServerWorldWrapper) {return true;}, 
+    getPhysicsPrediction: (function(this: ServerWorldWrapper) {return true;}), 
 };
 
 
@@ -234,6 +240,18 @@ export const WORLD_WRAPPER: ServerWorldWrapper = {
 //
 //
 //
+//
+//
+// throwing some more ideas...
+// inventory:: flow:
+//
+// maybe :vs[plit] to open inventory??? ctrl+w ctrl+l/h to switch focus
+//
+// picking up items would just append it to the inventory's next slot
+// to place an item, open inventory and navigate to it and delete it `da(` or something, which saves it to the register
+// then switch focus to the world and `pa(` to paste
+//
+// ~~ letters as items? rarity based on dvorak layout (e.g. most used letters rank highest)
 //
 //
 //

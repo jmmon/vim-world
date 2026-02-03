@@ -54,10 +54,6 @@ export type ValidatePasteError = {
 export type ValidatePasteResult = Expand<ValidatePasteValid | ValidatePasteError>; 
 
 
-export type ValidateInteractResult = {
-    ok: boolean;
-    reason?: ReasonCorrection | ReasonInvalid;
-    targetObj?: any;
-    lastPosBeforeObject?: Vec2;
-};
+export type ValidateInteractResult = ValidatePasteResult | ValidateYankResult;
+export type ValidateInteractValid = ValidatePasteValid | ValidateYankValid;
 

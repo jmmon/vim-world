@@ -5,11 +5,15 @@ import {
     LocalWorldWrapper,
 } from "../components/canvas1/types";
 import { Player, Vec2 } from "~/types/worldTypes";
-import { getScaledTileSize } from "../components/canvas1/constants";
-import { findObjectInRange, pickUpItem, pickUpObject, placeObject } from "~/simulation/shared/interact";
+import { ClientPhysicsMode, clientPhysicsMode, getScaledTileSize } from "../components/canvas1/constants";
+import { pickUpItem, pickUpObject } from "~/simulation/shared/actions/interact";
 import { isWalkable, isWithinBounds } from "~/simulation/client/helpers";
 import { ServerAckMessage, ServerAckType } from "~/types/messageTypes";
 import { applyActionToWorld } from "~/simulation/client/actions";
+import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact";
+// import { VimAction } from "~/fsm/types";
+// import useSeq from "./useSeq";
+// import { dispatch } from "./useWebSocket";
 
 function useState(world: ServerWorld, isReady: Signal<boolean>, initializeSelfData: Signal<InitializeClientData | undefined>) {
     const mapRef = useSignal<HTMLCanvasElement>();
@@ -18,11 +22,14 @@ function useState(world: ServerWorld, isReady: Signal<boolean>, initializeSelfDa
     const overlayRef = useSignal<HTMLCanvasElement>();
     const offscreenMapRef = useSignal<HTMLCanvasElement>();
 
+    // const getNextSeq = useSeq(); // action index
+
     const state = useStore<LocalWorldWrapper>({
         world: {
             ...world,
             lastScale: 0,
         },
+        physics: clientPhysicsMode,
         client: {
             player: undefined,
             username: undefined,
@@ -102,14 +109,17 @@ function useState(world: ServerWorld, isReady: Signal<boolean>, initializeSelfDa
                 newTileSize * this.world.dimensions.height;
         }),
 
-        findObjectInRange: $(findObjectInRange),
+        findObjectInRangeByKey: $(findObjectInRangeByKey),
 
         // ya: maybe need a "carry" slot on player; put the itemId in the "carry" slot, remove its position while carried?
         pickUpObject: $(pickUpObject),
         // yi: I guess remove the itemId from the object and add it to the player's items
         pickUpItem: $(pickUpItem),
         // later: pa" pi"
-        placeObject: $(placeObject),
+        // placeObject: $(placeObject),
+        // placeItem: $(placeItem),
+        // placeItem: $(placeItem),
+
         onServerAck: $(async function (this: LocalWorldWrapper, msg: ServerAckMessage<ServerAckType>) {
             const predictionArr = [...this.client.predictionBuffer];
             // console.log({(566)

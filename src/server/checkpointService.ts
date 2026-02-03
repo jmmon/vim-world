@@ -7,6 +7,8 @@ import { Direction, Player, SessionAggregate } from "~/types/worldTypes";
 
 export type PlayerCheckpoint = {
     level: number;
+    itemIds?: string[]; // inventory
+    carryingObjId?: string; // picked up object
     playerId: string;
     name: string;
     zone: string;
