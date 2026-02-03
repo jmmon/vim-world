@@ -1,4 +1,13 @@
-import { VimFSMState, VimMode, TransitionFn } from "./types";
+import {
+    VimFSMState,
+    VimMode,
+    TransitionFn,
+    OperatorKey,
+    AwaitingCharKey,
+    MovementKey,
+    ModifierKey,
+    TargetKey,
+} from "./types";
 
 export function resetCtx(): VimFSMState {
     return {
@@ -8,26 +17,43 @@ export function resetCtx(): VimFSMState {
     };
 }
 
+export const MOVEMENT_KEYS: MovementKey[] = ["h", "j", "k", "l", "w", "b"];
+export const AWAITING_CHAR_KEYS: AwaitingCharKey[] = ["f", "F", "t", "T", "g"];
+export const OPERATOR_KEYS: OperatorKey[] = ["y", "d", "c", "p"];
+export const MODIFIER_KEYS: ModifierKey[] = ["a", "i"];
+export const VALID_YANK_PASTE_TARGETS: TargetKey[] = [
+    "[",
+    "]",
+    "{",
+    "}",
+    "(",
+    ")",
+    "<",
+    ">",
+    '"',
+    "'",
+    "`",
+];
+
 export const transitionTable: Record<VimMode, TransitionFn> = {
     /* ---------------- NORMAL MODE ---------------- */
     normal(state, event, lastAction) {
         const key = event.key;
-        if (key === '[' && event.ctrlKey) {
+        if (key === "[" && event.ctrlKey) {
             // TODO: show some menu
             if (state.buffer.length > 0 || state.count !== null) {
                 return {
-                    state: 'reset',
+                    state: "reset",
                 };
             }
             return {
                 state,
                 emit: {
-                    type: 'COMMAND',
-                    command: 'ctrl+[',
-                }
+                    type: "COMMAND",
+                    command: "ctrl+[",
+                },
             };
         }
-
 
         // Handle counts
         if (/^[0-9]$/.test(key)) {
@@ -51,7 +77,7 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
             };
         }
 
-        if (["h", "j", "k", "l", "w", "b"].includes(key)) {
+        if (MOVEMENT_KEYS.includes(key as MovementKey)) {
             const count = state.count ?? 1;
             return {
                 state: "reset",
@@ -63,18 +89,18 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
             };
         }
 
-        if (key === "y" || key === "d" || key === "c") {
+        if (OPERATOR_KEYS.includes(key as OperatorKey)) {
             return {
                 state: {
                     mode: "operator",
-                    operator: key,
-                    buffer: [],
                     count: state.count,
+                    buffer: [],
+                    operator: key as OperatorKey,
                 },
             };
         }
 
-        if (key === "f" || key === "F" || key === "t" || key === "T" || key === 'g') {
+        if (AWAITING_CHAR_KEYS.includes(key as AwaitingCharKey)) {
             return {
                 state: {
                     mode: "awaitingChar",
@@ -101,18 +127,18 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
     /* ---------------- OPERATOR MODE ---------------- */
     operator(state, event) {
         const key = event.key;
-        if (key === '[' && event.ctrlKey) {
+        if (key === "[" && event.ctrlKey) {
             // cancel current command
             return {
-                state: 'reset',
-            }
+                state: "reset",
+            };
         }
 
-        if (key === "a" || key === "i") {
+        if (MODIFIER_KEYS.includes(key as ModifierKey)) {
             return { state: { ...state, buffer: [...state.buffer, key] } };
         }
 
-        if (key === "(" || key === `"`) {
+        if (VALID_YANK_PASTE_TARGETS.includes(key as TargetKey)) {
             const cmd = `${state.operator}${state.buffer.join("")}${key}`;
             return {
                 state: "reset",
@@ -130,14 +156,14 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
     /* ---------------- AWAITING CHAR ---------------- */
     awaitingChar(state, event) {
         const key = event.key;
-        if (key === '[' && event.ctrlKey) {
+        if (key === "[" && event.ctrlKey) {
             // cancel current command
             return {
-                state: 'reset',
-            }
+                state: "reset",
+            };
         }
         const cmd = `${state.motion}${key}`;
-        if (key === '?') {
+        if (key === "?") {
             return {
                 state: "reset",
                 emit: {
@@ -160,11 +186,11 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
     /* ---------------- COMMAND MODE ---------------- */
     command(state, event) {
         const key = event.key;
-        if (key === '[' && event.ctrlKey) {
+        if (key === "[" && event.ctrlKey) {
             // cancel current command
             return {
-                state: 'reset',
-            }
+                state: "reset",
+            };
         }
 
         if (key === "Enter") {
@@ -183,5 +209,3 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
         };
     },
 };
-
-
