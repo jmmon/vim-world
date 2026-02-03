@@ -10,19 +10,23 @@ export default function serverLoop() {
         // TODO: some other loop to process actions...
         // // e.g. process one move action per tick from the player's action queue
 
+        connectionLoop(ticks);
 
-        // every 5 seconds
-        if (ticks % 100 === 0) {
-            Array.from(clients.entries()).forEach(([key, { isAfk }]) => {
-                if (!isAfk) {
-                    markAfkPlayer(key);
-                } else {
-                    startCloseAfkPlayer(key);
-                    terminateAfkPlayer(key);
-                }
-            });
-        }
     }, 50);
 }
 
+
+function connectionLoop(ticks: number) {
+    // every 5 seconds
+    if (ticks % 100 === 0) {
+        Array.from(clients.entries()).forEach(([key, { isAfk }]) => {
+            if (!isAfk) {
+                markAfkPlayer(key);
+            } else {
+                startCloseAfkPlayer(key);
+                terminateAfkPlayer(key);
+            }
+        });
+    }
+}
 
