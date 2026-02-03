@@ -50,6 +50,7 @@ export const onMessage = (clientId: string) => (message: WebSocket.RawData) => {
             handleInit(clientId, clientMessage);
             break;
         case('ACTION'):
+            // later: queue action
             handleServerAction(clientId, clientMessage);
             break;
         case('CHECKPOINT'):
@@ -131,7 +132,7 @@ async function handleServerAction(clientId: string, clientMessage: ClientActionM
         );
     }
 
-    // 2. update local gamestate
+    // 2. validate specific action and update local gamestate
     const result = await applyActionToServerWorld(player, clientMessage); // modify server world player state
 
     switch(result.reason) {
