@@ -1,4 +1,4 @@
-import { Direction, MapObject, Player, TileType, Vec2 } from "~/types/worldTypes";
+import { Direction, Player, TileType, Vec2, WorldEntity } from "~/types/worldTypes";
 
 export function keyToDelta(key?: string): Vec2 | null {
     switch (key) {
@@ -64,8 +64,8 @@ export const isWithinBounds = (map: TileType[][], next: Vec2): boolean =>
 
 export function isWalkable(
     world: {
-        objects: MapObject[];
         map: TileType[][];
+        entities: Map<string, WorldEntity>;
         players: Map<string, Player>;
         walkable: TileType[];
     },
@@ -79,11 +79,11 @@ export function isWalkable(
     }
 
     // object collision
-    const obj = world.objects.find(
+    const entity = Array.from(world.entities.values()).find(
         ({pos}) => pos && pos.x === next.x && pos.y === next.y,
     );
-    if (obj?.walkable === false) {
-        console.error("reached unwalkable object:", obj);
+    if (entity?.collision?.solid) {
+        console.error("reached unwalkable object:", entity);
         return false;
     }
 

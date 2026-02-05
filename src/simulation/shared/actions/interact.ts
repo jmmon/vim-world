@@ -1,52 +1,51 @@
 import { LocalWorldWrapper } from "~/components/canvas1/types";
 import { ModifierKey, VimAction } from "~/fsm/types";
 import { ServerWorldWrapper } from "~/server/types";
-import { objHasItem } from "~/services/draw/utils";
-import { ValidatePasteValid, ValidateYankValid } from "~/simulation/server/types";
+import { entityHasItem } from "~/services/draw/utils";
+import { ValidateInteractValid, ValidatePasteValid, ValidateYankValid } from "~/simulation/server/types";
 import {
-    MapObjWithItem,
-    MapObjWithPos,
-    MapObject,
+    WorldEntity,
     Player,
     Vec2,
 } from "~/types/worldTypes";
 
-export function pickUpObject(obj: MapObject, player: Player) {
-    player.carryingObjId = obj.id;
-    obj.pos = undefined;
+export function pickUpObject(entity: WorldEntity, player: Player) {
+    player.carryingObjId = entity.id;
+    entity.pos = undefined;
     return true;
 }
 
-export function pickUpItem(obj: MapObjWithItem, player: Player) {
-    const TEST_objItemsBefore = obj.itemIds?.length;
-    const firstItem = obj.itemIds.shift();
-    const TEST_objItemsAfter = obj.itemIds?.length;
+// TODO: if object is an item-wrapper, remove the object; it will get placed when placing the item
+export function pickUpItem(entity: WorldEntity, player: Player) {
+    const isItemWrapper = entity.type === 'ITEM_ENTITY';
+
+    const firstItem = entity.container!.itemIds.shift();
     player.itemIds ??= [];
-    const TEST_playerItemsBefore = player.itemIds.length;
     player.itemIds.push(firstItem!);
-    const TEST_playerItemsAfter = player.itemIds.length;
-    console.assert(
-        TEST_objItemsBefore - TEST_objItemsAfter === 1,
-        "EXPECT obj items to DECREASE by 1!",
-        { before: TEST_objItemsBefore, after: TEST_objItemsAfter },
-    );
-    console.assert(
-        TEST_playerItemsAfter - TEST_playerItemsBefore === 1,
-        "EXPECT player items to INCREASE by 1!",
-        { before: TEST_playerItemsBefore, after: TEST_playerItemsAfter },
-    );
+    if (isItemWrapper) {
+        entity.pos = undefined; // remove from board
+    }
     return true;
 }
 
-function placeObject(obj: MapObject, player: Player, target: Vec2) {
-    obj.pos = target;
+
+
+function placeObject(entity: WorldEntity, player: Player, target: Vec2) {
+    entity.pos = target;
     player.carryingObjId = undefined;
     return true;
 }
 
-function placeItem(obj: MapObject, player: Player) {
-    console.log("placeItem:", { obj, player });
+// TODO: placing an item with item-wrapper: no need to find an object, it places and re-creates the wrapper
+// how to handle this???
+// - different validation: paste inside:
+// > - if item should be wrapped (how to tell???) then create/find wrapper and place it, then place item inside
+// > - 
+// > - (done) else if item should NOT be wrapped, have to find the nearby object and put inside
+function placeItem(entity: WorldEntity, player: Player) {
+    console.log("placeItem:", { obj: entity, player });
     if (!player.itemIds || player.itemIds.length === 0) return false;
+    if (!entity.container) return false;
 
     const prevLength = player.itemIds?.length;
     console.assert(
@@ -54,9 +53,9 @@ function placeItem(obj: MapObject, player: Player) {
         "player should have items!",
         player.itemIds,
     );
-    if (obj.itemIds === undefined) obj.itemIds = [];
+    
     const itemId = player.itemIds.shift()!; // remove first item from player
-    obj.itemIds.push(itemId); // add to object
+    entity.container.itemIds.push(itemId); // add to object
 
     console.assert(
         prevLength - player.itemIds?.length === 1,
@@ -73,7 +72,7 @@ async function applyYankCommand(
     player: Player,
     action: VimAction,
     target: {
-        targetObj: MapObject;
+        targetObj: WorldEntity;
         lastPosBeforeObject: Vec2;
     },
 ) {
@@ -86,14 +85,14 @@ async function applyYankCommand(
         case "a":
             // "around" e.g. pick up the object??
             if (player.carryingObjId) return false; // already carrying
-            if (!target.targetObj.liftable) return false; // not liftable
+            if (!target.targetObj.liftable?.canCarry) return false; // not liftable
             return state.pickUpObject(
-                target.targetObj as MapObjWithPos,
+                target.targetObj,
                 player,
             );
         case "i":
             // "inside" e.g. pick up the item within the object
-            if (!objHasItem(target.targetObj)) return false;
+            if (!entityHasItem(target.targetObj)) return false;
             return state.pickUpItem(target.targetObj, player);
         default:
             return false;
@@ -101,28 +100,34 @@ async function applyYankCommand(
 }
 
 
+function isPasteValid(result: ValidateInteractValid): result is ValidatePasteValid {
+    return (result as ValidatePasteValid).obj !== undefined;
+}
+function isYankValid(result: ValidateInteractValid): result is ValidateYankValid {
+    return (result as ValidateYankValid).targetObj !== undefined;
+}
 
 async function applyPasteCommand(
     state: ServerWorldWrapper | LocalWorldWrapper,
     player: Player,
     action: VimAction,
-    result: ValidatePasteValid | ValidateYankValid,
+    result: ValidateInteractValid,
 ) {
     const modifier = action.command![1] as ModifierKey;
     console.log(result);
     switch (modifier) {
         case "a":
-            if ((result as ValidatePasteValid).targetPos === undefined) return false;
+            if (!isPasteValid(result)) return false;
             return placeObject(
-                (result as ValidatePasteValid).obj,
+                result.obj,
                 player,
-                (result as ValidatePasteValid).targetPos!,
+                result.targetPos!,
             );
         case "i":
-            if ((result as ValidateYankValid).lastPosBeforeObject === undefined) return false;
-            console.assert((result as ValidateYankValid).targetObj !== undefined, "missing object!!!", result);
+            if (!isYankValid(result)) return false;
+            console.assert(result.targetObj !== undefined, "missing object!!!", result);
             return placeItem(
-                (result as ValidateYankValid).targetObj,
+                result.targetObj,
                 player,
             );
         default:

@@ -1,50 +1,106 @@
 import { MAP } from "~/server/map";
-import { Item, MapObjWithPos, MapObject, TileType, Vec2 } from "~/types/worldTypes";
+import { Item, Vec2, WorldEntity, TileType } from "~/types/worldTypes";
 
 export const items: Item[] = [
     { quality: 'rare', id: "123", type: "item", name: "item", description: "description" },
     { quality: 'common', id: "456", type: "item", name: "item2", description: "description2" },
 ];
 
-const objectsList: MapObject[] = [
+const entitiesList: WorldEntity[] = [
     {
-        id: 'abc',
-        type: "tree",
+        id: "abc",
+        type: "TREE",
         pos: {
             x: 0,
             y: 0
         },
-        walkable: false,
-        liftable: false,
-    }, {
-        id: 'def',
-        type: "chest",
-        keys: '[]',
+        collision: { solid: true },
+    },
+
+    {
+        id: "def",
+        type: "BOX",
         pos: {
             x: 0,
             y: 0
         },
-        walkable: false,
-        liftable: true,
-        itemIds: ['123']
-    }, {
-        id: 'ghi',
-        type: "item",
-        keys: '[]',
+        collision: { solid: true },
+        liftable: {
+            weight: 8,
+            canCarry: true,
+        },
+        container: {
+            capacity: 10,
+            itemIds: ["789"],
+            behavior: "PERSIST",
+        },
+        interactable: {
+            selectors: ["[", "]"],
+            actions: [
+                { type: "OPEN" },
+                { type: "PICK_UP"},
+            ],
+        },
+    },
+
+    {
+        id: "ghi",
+        type: "CHEST",
         pos: {
             x: 0,
             y: 0
         },
-        walkable: true,
-        liftable: true,
-        itemIds: ['456']
+        collision: { solid: true },
+        liftable: {
+            weight: 8,
+            canCarry: true,
+        },
+        container: {
+            capacity: 10,
+            itemIds: ["123"],
+            behavior: "PERSIST"
+        },
+        interactable: {
+            selectors: ["[", "]"],
+            actions: [
+                { type: "OPEN" },
+                { type: "PICK_UP" },
+            ]
+        },
+    },
+
+    {
+        id: "jkl",
+        type: "ITEM_ENTITY",
+        pos: {
+            x: 0,
+            y: 0
+        },
+        collision: { solid: false },
+        liftable: {
+            weight: 1,
+            canCarry: true,
+        },
+        container: {
+            capacity: 1,
+            itemIds: ["456"],
+            behavior: "PERSIST"
+        },
+        interactable: {
+            selectors: ["[", "]"],
+            actions: [
+                { type: "OPEN" },
+                { type: "PICK_UP" }
+            ]
+        },
+
     },
 ];
 
 export const WALKABLE: TileType[] = ["grass", "dirt"];
 // const WALKABLE_MAP_TILES = map.
 // want to get a list of all coordinates that are walkable:
-const WALKABLE_MAP_TILES = MAP.reduce<Vec2[]>(
+const WALKABLE_MAP_TILES_VEC2_ARRAY = MAP.reduce<Vec2[]>(
     (accum, row, y) => {
         row.forEach((tile, x) => {
             if (WALKABLE.includes(tile)) {
@@ -57,21 +113,24 @@ const WALKABLE_MAP_TILES = MAP.reduce<Vec2[]>(
 );
 
 // randomizing positions
-export const objects = objectsList.map((obj) => {
-    const random = Math.floor(Math.random() * WALKABLE_MAP_TILES.length);
-    const { x, y } = WALKABLE_MAP_TILES[random];
+const objects = entitiesList.map((entity) => {
+    const random = Math.floor(Math.random() * WALKABLE_MAP_TILES_VEC2_ARRAY.length);
+    const { x, y } = WALKABLE_MAP_TILES_VEC2_ARRAY[random];
     console.assert(
-        !!WALKABLE_MAP_TILES[random],
+        !!WALKABLE_MAP_TILES_VEC2_ARRAY[random],
         "error indexing walkable map tiles!",
     );
-    const positionedObj: MapObjWithPos = {
-        ...obj,
+    WALKABLE_MAP_TILES_VEC2_ARRAY.splice(random, 1);
+    const positionedEntity = {
+        ...entity,
         pos: {
             x,
             y,
         },
     };
-    return positionedObj;
+    return positionedEntity;
 });
+
+export const entities = new Map<string, WorldEntity>(objects.map((o) => [o.id, o]));
 
 

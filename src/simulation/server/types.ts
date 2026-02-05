@@ -1,4 +1,4 @@
-import { Direction, MapObject, Vec2 } from "~/types/worldTypes";
+import { Direction, Vec2, WorldEntity } from "~/types/worldTypes";
 
 export type ReasonInvalid = 'INVALID_KEY' | 'INVALID_ACTION';
 export type ReasonRejected =  ReasonInvalid | 'INVALID_SEQUENCE';
@@ -27,13 +27,13 @@ export type ApplyActionResult = Expand<ApplyMoveResult | ApplyInteractResult>;
 export type ValidateYankValid = {
     ok: true;
     reason: undefined;
-    targetObj: MapObject;
+    targetObj: WorldEntity;
     lastPosBeforeObject: Vec2;
 }
 export type ValidateYankError = {
     ok: false;
     reason: ReasonCorrection | ReasonInvalid;
-    targetObj?: MapObject;
+    targetObj?: WorldEntity;
     lastPosBeforeObject?: Vec2;
 }
 export type ValidateYankResult = Expand<ValidateYankValid | ValidateYankError>; 
@@ -42,13 +42,13 @@ export type ValidateYankResult = Expand<ValidateYankValid | ValidateYankError>;
 export type ValidatePasteValid = {
     ok: true;
     reason: undefined;
-    obj: MapObject;
+    obj: WorldEntity;
     targetPos: Vec2;
 }
 export type ValidatePasteError = {
     ok: false;
     reason: ReasonCorrection | ReasonInvalid;
-    obj?: MapObject;
+    obj?: WorldEntity;
     targetPos?: Vec2;
 }
 export type ValidatePasteResult = Expand<ValidatePasteValid | ValidatePasteError>; 
