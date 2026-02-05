@@ -8,6 +8,8 @@ import {
     ServerMessage,
     ServerOtherPlayerMessage,
     ServerInitConfirmMessage,
+    ServerAckRejectionMessage,
+    ServerAckCorrectionMessage,
 } from "~/types/messageTypes";
 import useSeq from "../../hooks/useSeq";
 import useVimFSM from "~/hooks/useVimFSM";
@@ -35,7 +37,7 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
     const getNextSeq = useSeq(); // action index
     const state = useState(worldState, isReady, initializeSelfData);
 
-    console.log("canvas1 component init: players:", state.ctx.world.players);
+    console.log("canvas1 component init: players:", state.ctx.world.players, ' entities::', state.ctx.world.entities);
 
     const onOtherPlayerMove$ = $((data: ServerOtherPlayerMessage<"MOVE">) => {
         // skip self
@@ -82,10 +84,10 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
                 state.ctx.show.afk = true;
                 break;
             case "ACK":
-                if (data?.subtype === "REJECTION")
-                    console.log("REJECTION:", data.reason);
-                if (data?.subtype === "CORRECTION")
-                    console.log("CORRECTION:", data.reason);
+                if ((data as ServerAckRejectionMessage)?.subtype === "REJECTION")
+                    console.log("REJECTION:", (data as ServerAckRejectionMessage).reason);
+                if ((data as ServerAckCorrectionMessage)?.subtype === "CORRECTION")
+                    console.log("CORRECTION:", (data as ServerAckCorrectionMessage).reason);
                 state.ctx.onServerAck(data);
                 break;
             case "PLAYER":

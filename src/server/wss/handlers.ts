@@ -75,7 +75,7 @@ export const onClose = (clientId: string) => () => {
 };
 
 export function sendRejection(client: ClientData, {seq, authoritativeState, reason}: {seq: number; reason: ReasonRejected, authoritativeState: Player}) {
-    const reject: ServerAckMessage<"ACK"> = {
+    const reject: ServerAckMessage<"REJECTION"> = {
         type: "ACK",
         subtype: "REJECTION",
         reason,
@@ -87,7 +87,7 @@ export function sendRejection(client: ClientData, {seq, authoritativeState, reas
 }
 
 export function sendCorrection(client: ClientData, {seq, authoritativeState, reason}: {seq: number, reason: ReasonCorrection, authoritativeState: Player}) {
-    const correction: ServerAckMessage<"ACK"> = {
+    const correction: ServerAckMessage<"CORRECTION"> = {
         type: "ACK",
         subtype: "CORRECTION",
         reason,
@@ -99,7 +99,7 @@ export function sendCorrection(client: ClientData, {seq, authoritativeState, rea
 }
 
 export function sendAck(client: ClientData, {seq, authoritativeState}: {seq: number, authoritativeState: Player}) {
-    const ack: ServerAckMessage<"ACK"> = {
+    const ack: ServerAckMessage = {
         type: "ACK",
         seq,
         accepted: true,
