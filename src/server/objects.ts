@@ -1,5 +1,5 @@
 import { MAP } from "~/server/map";
-import { Item, Vec2, WorldEntity, TileType } from "~/types/worldTypes";
+import { Item, Vec2, WorldEntity } from "~/types/worldTypes";
 
 export const items: Item[] = [
     { id: "123", quality: "rare", kind: "SWORD", meta: {name: "Sword", description: "description"} },
@@ -98,13 +98,14 @@ const entitiesList: WorldEntity[] = [
     },
 ];
 
-export const WALKABLE: TileType[] = ["grass", "dirt"];
+
+
 // const WALKABLE_MAP_TILES = map.
 // want to get a list of all coordinates that are walkable:
 const WALKABLE_MAP_TILES_VEC2_ARRAY = MAP.reduce<Vec2[]>(
     (accum, row, y) => {
         row.forEach((tile, x) => {
-            if (WALKABLE.includes(tile)) {
+            if (!tile.collision?.solid) {
                 accum.push({ x, y });
             }
         });

@@ -1,4 +1,4 @@
-import { Direction, Player, TileType, Vec2, WorldEntity } from "~/types/worldTypes";
+import { Direction, Player, Tile, Vec2, WorldEntity } from "~/types/worldTypes";
 
 export function keyToDelta(key?: string): Vec2 | null {
     switch (key) {
@@ -59,21 +59,20 @@ export const combinePos = (pos: Vec2, delta: Vec2): Vec2 => ({
     y: pos.y + delta.y,
 });
 
-export const isWithinBounds = (map: TileType[][], next: Vec2): boolean =>
+export const isWithinBounds = (map: Tile[][], next: Vec2): boolean =>
     !!map[next.y]?.[next.x];
 
 export function isWalkable(
     world: {
-        map: TileType[][];
         entities: Map<string, WorldEntity>;
+        map: Tile[][];
         players: Map<string, Player>;
-        walkable: TileType[];
     },
     next: Vec2,
 ) {
     // tile collision
     const tile = world.map[next.y]?.[next.x];
-    if (!tile || !world.walkable.includes(tile)) {
+    if (!tile || tile.collision?.solid) {
         console.error("unwalkable tile:", { tile });
         return false;
     }
