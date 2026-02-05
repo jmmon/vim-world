@@ -41,10 +41,9 @@ interface Liftable {
 
 export type Item = {
     id: string;
-    type: string;
+    kind: "SWORD" | "POTION" | "KEY";
     quality: ItemQuality;
-    name: string;
-    description: string;
+    meta?: Record<"name" | "description" | string, any>;
 };
 
 export interface Player {

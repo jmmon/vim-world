@@ -2,8 +2,9 @@ import { MAP } from "~/server/map";
 import { Item, Vec2, WorldEntity, TileType } from "~/types/worldTypes";
 
 export const items: Item[] = [
-    { quality: 'rare', id: "123", type: "item", name: "item", description: "description" },
-    { quality: 'common', id: "456", type: "item", name: "item2", description: "description2" },
+    { id: "123", quality: "rare", kind: "SWORD", meta: {name: "Sword", description: "description"} },
+    { id: "456", quality: "common", kind: "POTION", meta: {name: "Potion", description: "Drink me"} },
+    { id: "789", quality: "epic", kind: "KEY", meta: {name: "Key", description: "description3"} },
 ];
 
 const entitiesList: WorldEntity[] = [
