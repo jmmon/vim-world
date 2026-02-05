@@ -1,7 +1,15 @@
 export type Direction = "N" | "S" | "E" | "W";
-export type TileType = "grass" | "water" | "dirt" | "cliff";
 export type ObjectType = "tree" | "box" | "chest" | "stone" | "cliff" | "item";
 export type ItemQuality = "common" | "uncommon" | "rare" | "epic" | "legendary";
+
+export type TileType = "grass" | "water" | "dirt" | "cliff";
+export type Tile = {
+    type: TileType;
+    collision?: Collision;
+}
+
+
+
 
 // e.g. this would replace MapObject so objects may contain things in the container
 //   other ideas: "STATIC" | "ITEM" | "ACTOR" | "PROP";

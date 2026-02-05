@@ -13,7 +13,7 @@ export function drawOffscreenMap(state: LocalWorldWrapper) {
 
     for (let y = 0; y < dimensions.height; y++) {
         for (let x = 0; x < dimensions.width; x++) {
-            ctx.fillStyle = TILE_COLOR_MAP[state.world.map[y][x]];
+            ctx.fillStyle = TILE_COLOR_MAP[state.world.map[y][x].type];
             ctx.fillRect(
                 x * dimensions.tileSize,
                 y * dimensions.tileSize,

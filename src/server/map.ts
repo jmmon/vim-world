@@ -1,4 +1,4 @@
-import { Direction, TileType } from "~/types/worldTypes";
+import { Direction, Tile, TileType } from "~/types/worldTypes";
 import { DIMENSIONS } from "../components/canvas1/constants";
 
 const CHANCE = {
@@ -6,16 +6,24 @@ const CHANCE = {
     cliff: 0.05,
     water: 0.1,
 }
-const INITIAL_MAP: TileType[][] = Array.from({ length: DIMENSIONS.height }, () =>
+
+function buildTile(type: TileType): Tile {
+    return {
+        type,
+        collision: { solid: !WALKABLE.includes(type) },
+    };
+}
+export const WALKABLE: TileType[] = ["grass", "dirt"];
+const INITIAL_MAP: Tile[][] = Array.from({ length: DIMENSIONS.height }, () =>
     Array.from({ length: DIMENSIONS.width }, () => {
         const random = Math.random();
         let chance = CHANCE.cliff;
-        if (random < chance) return "cliff";
+        if (random < chance) return buildTile("cliff");
         chance += CHANCE.dirt;
-        if (random < chance) return "dirt";
+        if (random < chance) return buildTile("dirt");
         chance += CHANCE.water;
-        if (random < chance) return "water";
-        return "grass";
+        if (random < chance) return buildTile("water");
+        return buildTile("grass");
     }),
 ); 
 
@@ -32,21 +40,18 @@ type Data = {
 function spread() {
     for (let y = 0; y < DIMENSIONS.height; y++) {
         for (let x = 0; x < DIMENSIONS.width; x++) {
-            const types = {
-                up: INITIAL_MAP[y - 1]?.[x] || undefined,
-                right: INITIAL_MAP[y][x + 1] || undefined,
-                left: INITIAL_MAP[y][x - 1] || undefined,
-                down: INITIAL_MAP[y + 1]?.[x] || undefined,
+            const nearbyTiles = {
+                N: INITIAL_MAP[y - 1]?.[x] || undefined,
+                W: INITIAL_MAP[y][x + 1] || undefined,
+                E: INITIAL_MAP[y][x - 1] || undefined,
+                S: INITIAL_MAP[y + 1]?.[x] || undefined,
             }
 
-            const typesValues = Object.values(types);
-            // const filtered = typesValues.filter((v) => v !== undefined);
-            const nearbyTypes = typesValues.reduce((accum, cur, i) => {
+            const nearbyTypes = Object.entries(nearbyTiles).reduce((accum, [dir, cur]) => {
                 if (!cur) return accum;
-                const dir = i === 0 ? 'N' : i === 1 ? 'E' : i === 2 ? 'W' : 'S';
-                accum[cur] = {
-                    count: (accum[cur]?.count || 0) + 1,
-                    dir: [...(accum[cur]?.dir || []), dir ],
+                accum[cur.type] = {
+                    count: (accum[cur.type]?.count || 0) + 1,
+                    dir: [...(accum[cur.type]?.dir || []), dir as Direction ],
                 };
                 return accum;
             }, {} as Record<TileType, Data>);
@@ -76,23 +81,25 @@ function spread() {
             const random = Math.random();
             const spreadChance = SPREAD_CHANCE[highest[0]]
 
+            const highestTile = buildTile(highest[0]);
             if (random < spreadChance) {
-                INITIAL_MAP[y][x] = highest[0];
-                console.assert(INITIAL_MAP[y][x] === highest[0], 'Spread failed:', {highest, current: INITIAL_MAP[y][x]});
+                INITIAL_MAP[y][x] = highestTile;
+                console.assert(INITIAL_MAP[y][x].type === highestTile.type, 'Spread failed:', {highest, current: INITIAL_MAP[y][x]});
             }
 
+            const avgTile = buildTile(avg[0]);
 
             // TODO: attempt to reduce the number of stragglers
             const random2 = Math.random();
             if (random2 > 0.95) {
                 if (lowest[1].dir.includes('N')) {
-                    INITIAL_MAP[y - 1][x] = avg[0];
+                    INITIAL_MAP[y - 1][x] = avgTile;
                 } else if (lowest[1].dir.includes('E')) {
-                    INITIAL_MAP[y][x + 1] = avg[0];
+                    INITIAL_MAP[y][x + 1] = avgTile;
                 } else if (lowest[1].dir.includes('W')) {
-                    INITIAL_MAP[y][x - 1] = avg[0];
+                    INITIAL_MAP[y][x - 1] = avgTile;
                 } else if (lowest[1].dir.includes('S')) {
-                    INITIAL_MAP[y + 1][x] = avg[0];
+                    INITIAL_MAP[y + 1][x] = avgTile;
                 }
             }
         }
