@@ -2,7 +2,7 @@ import { QRL } from "@builder.io/qwik";
 import { VimAction } from "~/fsm/types";
 import { ServerWorld } from "~/server/types";
 import { ServerAckMessage, ServerAckType } from "~/types/messageTypes";
-import { MapObjWithItem, MapObjWithPos, Player, Vec2 } from "~/types/worldTypes";
+import { Player, Vec2, WorldEntity } from "~/types/worldTypes";
 import { ClientPhysicsMode } from "./constants";
 import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact";
 
@@ -59,8 +59,8 @@ export type LocalWorldWrapper = InterfaceData & {
     findObjectInRangeByKey: QRL<
         (player: Player, key: string) => ReturnType<typeof findObjectInRangeByKey>
     >;
-    pickUpObject: QRL<(obj: MapObjWithPos, player: Player) => boolean>;
-    pickUpItem: QRL<(obj: MapObjWithItem, player: Player) => boolean>;
+    pickUpObject: QRL<(obj: WorldEntity, player: Player) => boolean>;
+    pickUpItem: QRL<(obj: WorldEntity, player: Player) => boolean>;
 
     // placeObject: QRL<
     //     (

@@ -3,20 +3,39 @@ export type TileType = "grass" | "water" | "dirt" | "cliff";
 export type ObjectType = "tree" | "box" | "chest" | "stone" | "cliff" | "item";
 export type ItemQuality = "common" | "uncommon" | "rare" | "epic" | "legendary";
 
-export interface MapObject {
+// e.g. this would replace MapObject so objects may contain things in the container
+//   other ideas: "STATIC" | "ITEM" | "ACTOR" | "PROP";
+
+type WorldEntityType = "ITEM_ENTITY" | "CHEST" | "NPC" | "PLAYER" | "TREE" | "BOX" | "STONE" | "CLIFF";
+export interface WorldEntity {
     id: string;
-    type: ObjectType;
-    keys?: string;
+    type: WorldEntityType;
     pos?: Vec2;
-    walkable: boolean;
-    itemIds?: string[]; // lootable
-    liftable: boolean;
-};
-export interface MapObjWithItem extends MapObject {
-    itemIds: string[];
+
+    collision?: Collision;
+    container?: Container;
+    liftable?: Liftable;
+    interactable?: Interactable;
 }
-export interface MapObjWithPos extends MapObject {
-    pos: Vec2;
+interface Collision {
+  solid: boolean;
+}
+interface Container {
+  capacity: number;
+  itemIds: string[];
+  behavior: "DESTROY_WHEN_EMPTY" | "PERSIST";
+}
+interface Interactable {
+  selectors: string[]; // e.g. ["[", "]", "f", "F"]
+  actions: InteractableAction[];
+}
+interface InteractableAction {
+  type: "OPEN" | "PICK_UP" | "ACTIVATE" | "READ";
+  condition?: "CONTAINER_NOT_EMPTY" | "CONTAINER_EMPTY";
+}
+interface Liftable {
+  weight: number;
+  canCarry: boolean;
 }
 
 
@@ -59,17 +78,6 @@ export type MapDimensions = {
     canvasHeight: number;
     scale: number;
 }
-export type World = {
-    dimensions: MapDimensions;
-    map: TileType[][];
-    player: Player,
-    players: Map<string, Player>,
-    objects: MapObject[],
-    walkable: TileType[],
-    help: {
-        isOpen: boolean,
-    }
-}
 
 export type Vec2 = {
     x: number;
@@ -83,10 +91,10 @@ export type FindObjectsInRange = {
     lastPosBeforeObject: Vec2;
 };
 export type FindObjectsInRangeError = FindObjectsInRange & {
-    targetObj?: MapObjWithPos;
+    targetObj?: WorldEntity;
 };
 export type FindObjectsInRangeValid = FindObjectsInRange & {
-    targetObj: MapObjWithPos;
+    targetObj: WorldEntity;
 };
 export type FindObjectsInRangeResult = FindObjectsInRangeError | FindObjectsInRangeValid;
 

@@ -15,8 +15,13 @@ import { WORLD_WRAPPER } from "~/server/serverState";
 //
 // or are maps simply going to be hardcoded... would be cool to generate more though
 export const onGet: RequestHandler = async (reqEvent) => {
-    // return just the map tiles?
-    reqEvent.json(200, WORLD_WRAPPER.world);
+    // map objects are not serializable, convert to objects first
+    const prepped = {
+        ...WORLD_WRAPPER.world,
+        entities: Object.fromEntries(WORLD_WRAPPER.world.entities.entries()),
+        players: Object.fromEntries(WORLD_WRAPPER.world.players.entries()),
+    }
+    reqEvent.json(200, prepped);
 }
 
 

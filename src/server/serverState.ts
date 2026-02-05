@@ -1,11 +1,11 @@
 import { DIMENSIONS, clientPhysicsMode } from "~/components/canvas1/constants";
 import { MAP } from "~/server/map";
-import { WALKABLE, objects } from "./objects";
 import { ClientData, ServerWorld, ServerWorldWrapper } from "./types";
 import { Player, Vec2 } from "~/types/worldTypes";
 import { isWalkable, isWithinBounds } from "~/simulation/client/helpers";
 import { pickUpItem, pickUpObject } from "~/simulation/shared/actions/interact";
 import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact";
+import { WALKABLE, entities } from "./objects";
 
 
 export const clients = new Map<string, ClientData<undefined | 'withPlayerId'>>();
@@ -16,8 +16,8 @@ export const SERVER_WORLD: ServerWorld = {
     dimensions: DIMENSIONS,
     map: MAP,
     players,
-    objects,
     walkable: WALKABLE, // for collision
+    entities: entities,
 }
 export const WORLD_WRAPPER: ServerWorldWrapper = {
     world: SERVER_WORLD,

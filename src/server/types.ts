@@ -1,13 +1,13 @@
 import { ClientPhysicsMode } from "~/components/canvas1/constants";
 import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact";
-import { MapDimensions, MapObjWithItem, MapObject, Player, TileType, Vec2 } from "~/types/worldTypes";
+import { MapDimensions, Player, TileType, Vec2, WorldEntity } from "~/types/worldTypes";
 
 export type ServerWorld = {
     dimensions: MapDimensions;
     map: TileType[][];
     walkable: TileType[]; // for collision
     players: Map<string, Player>;
-    objects: MapObject[],
+    entities: Map<string, WorldEntity>,
 };
 
 export type ServerWorldWrapper = {
@@ -17,8 +17,8 @@ export type ServerWorldWrapper = {
     isWalkable(target: Vec2): boolean;
     addPlayer(player: Player): boolean;
     findObjectInRangeByKey(player: Player, key: string): ReturnType<typeof findObjectInRangeByKey>;
-    pickUpObject(obj: MapObject, player: Player): boolean;
-    pickUpItem(obj: MapObjWithItem, player: Player): boolean;
+    pickUpObject(obj: WorldEntity, player: Player): boolean;
+    pickUpItem(obj: WorldEntity, player: Player): boolean;
     // placeObject(obj: MapObject, player: Player, target: Vec2): boolean | Promise<boolean>;
     // placeItem(obj: MapObjWithPos, player: Player): boolean | Promise<boolean>;
     getPhysicsCollision(): boolean;

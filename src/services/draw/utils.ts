@@ -1,4 +1,4 @@
-import { MapDimensions, MapObjWithItem, MapObjWithPos, MapObject } from "~/types/worldTypes";
+import { MapDimensions, WorldEntity } from "~/types/worldTypes";
 import { LocalWorldWrapper } from "../../components/canvas1/types";
 
 const COMPARE_GRANULARITY = 1000;
@@ -40,11 +40,8 @@ export function generateOldDimensions(
     };
 }
 
-export function objHasPos(obj: MapObject): obj is MapObjWithPos {
-    return obj.pos !== undefined;
-}
-export function objHasItem(obj: MapObject | MapObjWithItem): obj is MapObjWithItem {
-    return !!(obj.itemIds && obj.itemIds.length > 0);
+export function entityHasItem(obj: WorldEntity): obj is WorldEntity {
+    return !!(obj.container && obj.container.itemIds.length > 0);
 }
 
 
