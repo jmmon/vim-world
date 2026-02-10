@@ -1,5 +1,6 @@
 import { Direction, Tile, TileType } from "~/types/worldTypes";
 import { DIMENSIONS } from "../components/canvas1/constants";
+import { MAP_CONFIG, MapConfig, Zone, chunkCache, getChunk, zone } from "~/cookbook/seededMap";
 
 const CHANCE = {
     dirt: 0.05,
@@ -13,25 +14,25 @@ function buildTile(type: TileType): Tile {
         collision: { solid: !WALKABLE.includes(type) },
     };
 }
-export const WALKABLE: TileType[] = ["grass", "dirt"];
+export const WALKABLE: TileType[] = ["GRASS", "DIRT"];
 const INITIAL_MAP: Tile[][] = Array.from({ length: DIMENSIONS.height }, () =>
     Array.from({ length: DIMENSIONS.width }, () => {
         const random = Math.random();
         let chance = CHANCE.cliff;
-        if (random < chance) return buildTile("cliff");
+        if (random < chance) return buildTile("CLIFF");
         chance += CHANCE.dirt;
-        if (random < chance) return buildTile("dirt");
+        if (random < chance) return buildTile("DIRT");
         chance += CHANCE.water;
-        if (random < chance) return buildTile("water");
-        return buildTile("grass");
+        if (random < chance) return buildTile("WATER");
+        return buildTile("GRASS");
     }),
 ); 
 
 const SPREAD_CHANCE = {
-    water: 0.5,
-    dirt: 0.25,
-    cliff: 0.25,
-    grass: 0.05,
+    WATER: 0.5,
+    DIRT: 0.25,
+    CLIFF: 0.25,
+    GRASS: 0.05,
 };
 type Data = {
     count: number;
@@ -114,6 +115,51 @@ export function generateMap(spreadCount: number = 7) {
     return INITIAL_MAP;
 }
 
-export const MAP = generateMap();
+// export const MAP = generateMap();
+
+
+
+// const map = {
+//     map00: getTiles(getChunk(0, 0, zone)),
+//     map01: getTiles(getChunk(0, 1, zone)),
+//     map10: getTiles(getChunk(1, 0, zone)),
+//     map11: getTiles(getChunk(1, 1, zone)),
+// }
+// console.log('test generate maps:', JSON.stringify(map));
+
+function generateBaseMap(zone: Zone, config: MapConfig) {
+    console.log('generating base map...', config, zone);
+    for (let y = 0; y < config.height; y++) {
+        for (let x = 0; x < config.width; x++) {
+            getChunk(x, y, zone);
+        }
+    }
+}
+// function getTiles(chunk: Chunk | Chunk[]) {
+//     if (!Array.isArray(chunk)) chunk = [chunk];
+//     return chunk.map(
+//         (v) => v.tiles.map(
+//             (row) => row.map(
+//                 (t) => t.type
+//             )
+//         )
+//     )
+// }
+
+generateBaseMap(zone, MAP_CONFIG);
+// console.log(
+//     'test generate map_config::',
+//     chunkCache.get('0,0'),
+//     // JSON.stringify(
+//     //     getTiles(Array.from(chunkCache.values()))
+//     // )
+// );
+
+export const MAP = chunkCache.get('0,0')!.tiles;
+// console.log({MAP});
+
+
+
+
 
 

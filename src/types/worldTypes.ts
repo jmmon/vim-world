@@ -2,7 +2,7 @@ export type Direction = "N" | "S" | "E" | "W";
 export type ObjectType = "tree" | "box" | "chest" | "stone" | "cliff" | "item";
 export type ItemQuality = "common" | "uncommon" | "rare" | "epic" | "legendary";
 
-export type TileType = "grass" | "water" | "dirt" | "cliff";
+export type TileType = "GRASS" | "WATER" | "DIRT" | "CLIFF";
 export type Tile = {
     type: TileType;
     collision?: Collision;

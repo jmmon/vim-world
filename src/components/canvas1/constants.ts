@@ -22,10 +22,10 @@ export const DIMENSIONS: MapDimensions = {
 }
 
 export const TILE_COLOR_MAP: Record<TileType, string> = {
-    grass: "#4CAF50",
-    water: "#2196F3",
-    dirt: "#795548",
-    cliff: "#9E9E9E",
+    GRASS: "#4CAF50",
+    WATER: "#2196F3",
+    DIRT: "#795548",
+    CLIFF: "#9E9E9E",
 };
 
 export const OBJECT_COLOR_MAP: Record<WorldEntity["type"], string> = {
