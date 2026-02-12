@@ -87,6 +87,10 @@ export default function useRenderLoop(
                 lastFps = result.fps;
                 lastEma = result.ema;
             }
+            
+            if (state.ctx.world.lastScale !== state.ctx.world.dimensions.scale) {
+                draw.clearAll(state);
+            }
 
             // handle popups
             needsRedrawHelp = wasHelpShowing !== state.ctx.show.help;

@@ -1,5 +1,6 @@
 import { MapDimensions, WorldEntity } from "~/types/worldTypes";
 import { LocalWorldWrapper } from "../../components/canvas1/types";
+import { GameState } from "~/hooks/useState";
 
 const COMPARE_GRANULARITY = 1000;
 export function hasScaleChanged(state: LocalWorldWrapper) {
@@ -64,4 +65,16 @@ export function shadeColor(color: string, percent: number /** 0-100 */) {
     return "#" + RR + GG + BB;
 }
 
+
+export function clearAll(state: GameState) {
+    const { canvasWidth, canvasHeight } = generateOldDimensions(
+        state.ctx.world,
+    );
+    [[canvasWidth, canvasHeight], [state.ctx.world.dimensions.canvasWidth, state.ctx.world.dimensions.canvasHeight]].forEach((canvasSize) => {
+        state.refs.map.value!.getContext("2d")!.clearRect(0, 0, canvasSize[0], canvasSize[1]);
+        state.refs.objects.value!.getContext("2d")!.clearRect(0, 0, canvasSize[0], canvasSize[1]);
+        state.refs.players.value!.getContext("2d")!.clearRect(0, 0, canvasSize[0], canvasSize[1]);
+        state.refs.overlay.value!.getContext("2d")!.clearRect(0, 0, canvasSize[0], canvasSize[1]);
+    });
+}
 
