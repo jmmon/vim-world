@@ -63,9 +63,9 @@ export default function useRenderLoop(
         let needsRedrawHelp = false;
         function renderHelp() {
             if (state.ctx.show.help) {
-                draw.closeHelp(state);
-            } else {
                 draw.help(state);
+            } else {
+                draw.closeHelp(state);
             }
         }
 
@@ -91,7 +91,6 @@ export default function useRenderLoop(
             // handle popups
             needsRedrawHelp = wasHelpShowing !== state.ctx.show.help;
             if (needsRedrawHelp) {
-                console.log("redrawing HELP!");
                 renderHelp();
                 needsRedrawHelp = false;
                 wasHelpShowing = state.ctx.show.help;

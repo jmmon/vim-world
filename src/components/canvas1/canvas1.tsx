@@ -3,6 +3,7 @@ import {
     useSignal,
     $,
     NoSerialize,
+    CSSProperties,
 } from "@builder.io/qwik";
 import {
     ServerMessage,
@@ -168,6 +169,7 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
             state.ctx.client.idleStartTime = Date.now();
         }),
         isReady,
+        state.ctx,
     );
 
     /** =======================================================
@@ -176,6 +178,7 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
     useRenderLoop(ws, state);
 
     const dimensions = state.ctx.world.dimensions;
+    const canvasStyle: CSSProperties = { position: "absolute", top: 0, left: 0, imageRendering: "pixelated" };
     return (
         <div
             style={{
@@ -188,25 +191,29 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
                 ref={state.refs.map}
                 width={dimensions.canvasWidth}
                 height={dimensions.canvasHeight}
-                style={{ position: "absolute", top: 0, left: 0 }}
+                style={canvasStyle}
+                data-name="map"
             />
             <canvas
                 ref={state.refs.objects}
                 width={dimensions.canvasWidth}
                 height={dimensions.canvasHeight}
-                style={{ position: "absolute", top: 0, left: 0 }}
+                style={canvasStyle}
+                data-name="objects"
             />
             <canvas
                 ref={state.refs.players}
                 width={dimensions.canvasWidth}
                 height={dimensions.canvasHeight}
-                style={{ position: "absolute", top: 0, left: 0 }}
+                style={canvasStyle}
+                data-name="players"
             />
             <canvas
                 ref={state.refs.overlay}
                 width={dimensions.canvasWidth}
                 height={dimensions.canvasHeight}
-                style={{ position: "absolute", top: 0, left: 0 }}
+                style={canvasStyle}
+                data-name="overlay"
             />
             <ChooseUsername initializeSelfData={initializeSelfData} />
             <Menu state={state.ctx} />

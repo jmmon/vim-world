@@ -11,8 +11,9 @@ function getFpsStyles(
 ) {
     const lines = ema !== undefined ? 2 : 1;
     const fontSize = 16 * dimensions.scale;
-    const width = 5 * fontSize + fps.length * fontSize * 0.6; // 16 * 4 = 64
+    const width = (5 + fps.length * 0.6) * fontSize; // 16 * 4 = 64
     return {
+        ctx: canvas.getContext("2d")!,
         x: dimensions.canvasWidth - width,
         y: 0,
         width,
@@ -21,19 +22,17 @@ function getFpsStyles(
         fontSize,
         lines,
         textLineYOffset: fontSize + 2 * dimensions.scale,
-        ctx: canvas.getContext("2d")!,
     };
 }
 
-// clear old rect
-function closeFps(state: GameState, fps: string, ema?: string) {
+function closeFps(
+    state: GameState,
+    dimensions: MapDimensions,
+    fps: string,
+    ema?: string,
+) {
     const canvas = state.refs.overlay.value!;
-    const d = getFpsStyles(
-        generateOldDimensions(state.ctx.world),
-        canvas,
-        fps,
-        ema,
-    );
+    const d = getFpsStyles(dimensions, canvas, fps, ema);
     d.ctx.clearRect(d.x, d.y, d.width, d.height);
     return d;
 }
@@ -41,10 +40,10 @@ function closeFps(state: GameState, fps: string, ema?: string) {
 export function drawFps(state: GameState, fps: string, ema?: string) {
     if (hasScaleChanged(state.ctx)) {
         // clear old rect
-        closeFps(state, fps, ema);
+        closeFps(state, generateOldDimensions(state.ctx.world), fps, ema);
     }
     // clear new rect
-    const d = closeFps(state, fps, ema);
+    const d = closeFps(state, state.ctx.world.dimensions, fps, ema);
 
     // background
     d.ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
