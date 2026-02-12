@@ -35,6 +35,36 @@ export const VALID_YANK_PASTE_TARGETS: TargetKey[] = [
     "`",
 ];
 
+export type SpecialKeyValues = 
+    | "<BS>"
+    | "<CR>"
+    | "<Tab>"
+    | "<Esc>"
+    | " "
+    | "<Del>"
+    | "<LEFT>"
+    | "<RIGHT>"
+    | "<UP>"
+    | "<DOWN>"
+
+const SPECIAL_KEY_MAP = {
+    Backspace: "<BS>",
+    Enter: "<CR>",
+    Tab: "<Tab>",
+    Escape: "<Esc>",
+    Space: " ",
+    Delete: "<Del>",
+    ArrowLeft: "<LEFT>",
+    ArrowRight: "<RIGHT>",
+    ArrowUp: "<UP>",
+    ArrowDown: "<DOWN>",
+};
+export const SPECIAL_KEY_VALUES = Object.values(SPECIAL_KEY_MAP);
+
+// TODO: handle modifier keys like control/alt
+// e.g. ctrl+y => <C-y> alt=y => <M-y>
+// shift+y also convert? right now it sends the capital letter which is probably fine
+
 export const transitionTable: Record<VimMode, TransitionFn> = {
     /* ---------------- NORMAL MODE ---------------- */
     normal(state, event, lastAction) {
@@ -117,6 +147,10 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
                     mode: "command",
                     buffer: [],
                     count: null,
+                },
+                emit: {
+                    type: "COMMAND_PROMPT",
+                    command: key,
                 },
             };
         }
@@ -204,8 +238,17 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
         }
 
         // add command keys to buffer
+        // emit each keypress to show in UI
+        const buffer = [
+            ...state.buffer,
+            SPECIAL_KEY_MAP[key as keyof typeof SPECIAL_KEY_MAP] ?? key,
+        ];
         return {
-            state: { ...state, buffer: [...state.buffer, key] },
+            state: { ...state, buffer },
+            emit: {
+                type: "COMMAND_PARTIAL",
+                command: buffer.join(""),
+            },
         };
     },
 };

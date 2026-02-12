@@ -26,6 +26,7 @@ export type ClientData = {
         map: boolean;
     };
     predictionBuffer: Prediction[];
+    commandBuffer: string;
     lastSnapshot?: Player;
 };
 export type InitializeClientData = {

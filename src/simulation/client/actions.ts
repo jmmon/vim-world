@@ -21,10 +21,12 @@ export function applyActionToWorld(
     switch (action.type) {
         case "MOVE":
             return applyMoveAction(localWorldWrapper, action);
-        case "COMMAND":
-            return applyCommandAction(localWorldWrapper, action);
         case "INTERACT":
             return applyInteraction(localWorldWrapper, action);
+        case "COMMAND_PROMPT":
+        case "COMMAND_PARTIAL":
+        case "COMMAND":
+            return applyCommandAction(localWorldWrapper, action);
         default:
             return false;
     }

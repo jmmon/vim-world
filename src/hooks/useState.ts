@@ -44,6 +44,7 @@ function useState(world: ServerWorld, isReady: Signal<boolean>, initializeSelfDa
                 map: true,
             },
             predictionBuffer: [],
+            commandBuffer: '',
             lastSnapshot: undefined,
         },
         show: {

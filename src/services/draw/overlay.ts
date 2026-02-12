@@ -334,4 +334,81 @@ export function drawAfk(state: GameState) {
     );
 }
 
+// maybe draw a statusbar: modes, not sure what else, maybe coords of player (like the rows:cols), maybe a clock for fun
+//
+// and then another lower bar for command entries??
+//
+function getStatusStyles(dimensions: MapDimensions, canvas: HTMLCanvasElement) {
+    const lines = 2;
+    const fontSize = 16 * dimensions.scale;
+    // const width = 5 * fontSize + fps.length * fontSize * 0.6; // 16 * 4 = 64
+    const rowGap = 0 * dimensions.scale;
+    const y =
+        dimensions.canvasHeight - (fontSize * lines + (lines - 1) * rowGap);
+    return {
+        x: 0,
+        y,
+        width: dimensions.canvasWidth,
+        height: dimensions.canvasHeight - y,
+        leftPadding: 10 * dimensions.scale,
+        fontSize,
+        lines,
+        rowGap,
+        ctx: canvas.getContext("2d")!,
+    };
+}
 
+function closeStatus(state: GameState, dimensions: MapDimensions) {
+    const canvas = state.refs.overlay.value!;
+    const d = getStatusStyles(dimensions, canvas);
+    d.ctx.clearRect(d.x, d.y, d.width, d.height);
+    return d;
+}
+
+export function drawStatus(state: GameState) {
+    if (hasScaleChanged(state.ctx)) {
+        // clear old rect
+        closeStatus(state, generateOldDimensions(state.ctx.world));
+    }
+    // clear new rect
+    const d = closeStatus(state, state.ctx.world.dimensions);
+
+    // background
+    d.ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+    d.ctx.fillRect(d.x, d.y, d.width, d.height);
+
+    // top line:
+    // mode:
+    const text = `Mode: Normal`;
+    const width = (0.8 + text.length * 0.6) * d.fontSize; // 16 * 4 = 64
+    d.ctx.fillStyle = "skyblue";
+    d.ctx.fillRect(
+        d.x + d.leftPadding - 0.4 * d.fontSize,
+        d.y,
+        width,
+        d.fontSize,
+    );
+    d.ctx.font = `normal ${d.fontSize}px mono`;
+    d.ctx.textAlign = "left";
+    d.ctx.fillStyle = "black";
+    d.ctx.fillText(text, d.x + d.leftPadding, d.y + d.fontSize - 2);
+
+    // right side: position
+    d.ctx.textAlign = "right";
+    d.ctx.fillStyle = "white";
+    d.ctx.fillText(
+        `${state.ctx.client.player?.pos.y ?? 0}:${state.ctx.client.player?.pos.x ?? 0}`,
+        d.width - d.x - d.leftPadding,
+        d.y + d.fontSize - 2,
+    );
+
+    // lower line: command buffer
+    if (state.ctx.client.commandBuffer.length === 0) return;
+    d.ctx.textAlign = "left";
+    d.ctx.fillStyle = "white";
+    d.ctx.fillText(
+        state.ctx.client.commandBuffer,
+        d.x + d.leftPadding,
+        d.y + d.fontSize * 2 - 2,
+    );
+}

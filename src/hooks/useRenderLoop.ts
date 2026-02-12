@@ -106,6 +106,7 @@ export default function useRenderLoop(
 
             // handle rendering
             draw.fps(state, lastFps, lastEma);
+            draw.statusbar(state);
             if (state.ctx.show.devStats) {
                 draw.devStats(state);
             } else {
