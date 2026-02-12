@@ -1,6 +1,4 @@
 export type Direction = "N" | "S" | "E" | "W";
-export type ObjectType = "tree" | "box" | "chest" | "stone" | "cliff" | "item";
-export type ItemQuality = "common" | "uncommon" | "rare" | "epic" | "legendary";
 
 export type TileType = "GRASS" | "WATER" | "DIRT" | "CLIFF";
 export type Tile = {
@@ -9,16 +7,17 @@ export type Tile = {
 }
 
 
-
-
 // e.g. this would replace MapObject so objects may contain things in the container
-//   other ideas: "STATIC" | "ITEM" | "ACTOR" | "PROP";
+//  other ideas: "STATIC" | "ITEM" | "ACTOR" | "PROP";
+//  | "NPC" | "PLAYER"
 
-type WorldEntityType = "ITEM_ENTITY" | "CHEST" | "NPC" | "PLAYER" | "TREE" | "BOX" | "STONE" | "CLIFF";
+type WorldEntityType = "ITEM_ENTITY" | "CHEST"  | "TREE" | "BOX" | "STONE" | "CLIFF" | "DOOR";
 export interface WorldEntity {
     id: string;
     type: WorldEntityType;
     pos?: Vec2;
+    dir?: Direction;
+    state?: EntityState;
 
     collision?: Collision;
     container?: Container;
@@ -38,19 +37,43 @@ interface Interactable {
   actions: InteractableAction[];
 }
 interface InteractableAction {
-  type: "OPEN" | "PICK_UP" | "ACTIVATE" | "READ";
-  condition?: "CONTAINER_NOT_EMPTY" | "CONTAINER_EMPTY";
+  type: "OPEN" | "CLOSE" | "TOGGLE" | "PICK_UP" | "ACTIVATE" | "READ";
+  conditions?: Array<"CONTAINER_NOT_EMPTY" | "CONTAINER_EMPTY" | "NOT_LOCKED" | "IS_OPEN" | "IS_CLOSED">;
 }
 interface Liftable {
   weight: number;
   canCarry: boolean;
 }
+type EntityState =
+    | DoorState
+    | ChestState
+    | GenericState;
+
+interface DoorState {
+    kind: "DOOR";
+    open: boolean;
+    locked?: boolean;
+}
+interface ChestState {
+    kind: "CHEST";
+    open: boolean;
+    locked?: boolean;
+}
+interface GenericState {
+    kind: "CHEST";
+    open: boolean;
+    locked?: boolean;
+}
 
 
+
+
+export type ItemQualityId = "COMMON" | "UNCOMMON" | "RARE" | "EPIC" | "LEGENDARY";
+export type ItemKindId = "SWORD" | "POTION" | "KEY" | 'SCROLL' ;
 export type Item = {
     id: string;
-    kind: "SWORD" | "POTION" | "KEY";
-    quality: ItemQuality;
+    kind: ItemKindId;
+    quality: ItemQualityId;
     meta?: Record<"name" | "description" | string, any>;
 };
 
@@ -92,26 +115,17 @@ export type Vec2 = {
 };
 
 
-export type FindObjectsInRange = {
+export interface FindObjectsInRange {
     modifiedRange: number;
     dir: Direction;
     lastPosBeforeObject: Vec2;
 };
-export type FindObjectsInRangeError = FindObjectsInRange & {
+export interface FindObjectsInRangeError extends FindObjectsInRange {
     targetObj?: WorldEntity;
 };
-export type FindObjectsInRangeValid = FindObjectsInRange & {
+export interface FindObjectsInRangeValid extends FindObjectsInRange {
     targetObj: WorldEntity;
 };
 export type FindObjectsInRangeResult = FindObjectsInRangeError | FindObjectsInRangeValid;
 
 
-// export type FindObjectsInRangeResult<T extends MapObjWithPos | undefined = MapObjWithPos> = {
-//     modifiedRange: number;
-//     dir: Direction;
-//     lastPosBeforeObject: Vec2;
-// } & T extends MapObjWithPos ? {
-//     targetObj: T;
-// } : {
-//     targetObj?: T;
-// };

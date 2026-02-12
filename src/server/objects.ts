@@ -2,12 +2,30 @@ import { MAP } from "~/server/map";
 import { Item, Vec2, WorldEntity } from "~/types/worldTypes";
 
 export const items: Item[] = [
-    { id: "123", quality: "rare", kind: "SWORD", meta: {name: "Sword", description: "description"} },
-    { id: "456", quality: "common", kind: "POTION", meta: {name: "Potion", description: "Drink me"} },
-    { id: "789", quality: "epic", kind: "KEY", meta: {name: "Key", description: "description3"} },
+    { id: "123", quality: "RARE", kind: "SWORD", meta: {name: "Sword", description: "description"} },
+    { id: "456", quality: "COMMON", kind: "POTION", meta: {name: "Potion", description: "Drink me"} },
+    { id: "789", quality: "EPIC", kind: "KEY", meta: {name: "Key", description: "description3"} },
 ];
 
 const entitiesList: WorldEntity[] = [
+    // {
+    //     id: "abc",
+    //     type: "DOOR",
+    //     pos: {
+    //         x: 0,
+    //         y: 0
+    //     },
+    //     collision: { solid: true },
+    //     interactable: {
+    //         selectors: ["[", "]"],
+    //         actions: [
+    //             {
+    //                 type: 'TOGGLE',
+    //                 conditions: ["NOT_LOCKED"]
+    //             },
+    //         ]
+    //     }
+    // },
     {
         id: "abc",
         type: "TREE",

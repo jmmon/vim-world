@@ -1,4 +1,4 @@
-import { ItemQuality, MapDimensions, TileType, WorldEntity } from "~/types/worldTypes";
+import { ItemQualityId, MapDimensions, TileType, WorldEntity } from "~/types/worldTypes";
 
 const TILE_SIZE = 32;
 const MAP_WIDTH = 32;
@@ -32,18 +32,19 @@ export const OBJECT_COLOR_MAP: Record<WorldEntity["type"], string> = {
     ITEM_ENTITY: "#CCCCCC",
     TREE: "#2E7D32",
     BOX: "#8D6E63",
+    DOOR: "#7D4E53",
     CHEST: "#FFD700",
     STONE: "#BDBDBD",
     CLIFF: "#616161",
-    PLAYER: '',
-    NPC: '',
+    // PLAYER: '',
+    // NPC: '',
 };
-export const ITEM_COLOR_MAP: Record<ItemQuality, string> = {
-    common: "#777777",
-    uncommon: "#2E7D32",
-    rare: "#2131ee",
-    epic: "#aD3Eff",
-    legendary: "#dda700",
+export const ITEM_COLOR_MAP: Record<ItemQualityId, string> = {
+    COMMON: "#777777",
+    UNCOMMON: "#2E7D32",
+    RARE: "#2131ee",
+    EPIC: "#aD3Eff",
+    LEGENDARY: "#dda700",
 };
 
 export const HOT_PINK = "#ff69b4";

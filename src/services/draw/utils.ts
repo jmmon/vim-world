@@ -49,13 +49,13 @@ export function shadeColor(color: string, percent: number /** 0-100 */) {
     let G = parseInt(color.substring(3, 5), 16);
     let B = parseInt(color.substring(5, 7), 16);
 
-    R = parseInt(String((R * (100 + percent)) / 100));
-    G = parseInt(String((G * (100 + percent)) / 100));
-    B = parseInt(String((B * (100 + percent)) / 100));
+    R = (R * (100 + percent)) / 100;
+    G = (G * (100 + percent)) / 100;
+    B = (B * (100 + percent)) / 100;
 
-    R = R < 255 ? Math.round(R) : 255;
-    G = G < 255 ? Math.round(G) : 255;
-    B = B < 255 ? Math.round(B) : 255;
+    R = Math.min(255, Math.round(R));
+    G = Math.min(255, Math.round(G));
+    B = Math.min(255, Math.round(B));
 
     const RR = R.toString(16).padStart(2, '0');
     const GG = G.toString(16).padStart(2, '0');
