@@ -1,10 +1,11 @@
 import { ClientPhysicsMode } from "~/components/canvas1/constants";
 import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact";
-import { MapDimensions, Player, Tile, Vec2, WorldEntity } from "~/types/worldTypes";
+import { MapDimensions, Player, Vec2, WorldEntity } from "~/types/worldTypes";
+import { Zone } from "./map";
 
 export type ServerWorld = {
     dimensions: MapDimensions;
-    map: Tile[][];
+    zone: Zone;
     players: Map<string, Player>;
     entities: Map<string, WorldEntity>,
 };

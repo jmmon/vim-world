@@ -1,4 +1,6 @@
-import { Direction, Player, Tile, Vec2, WorldEntity } from "~/types/worldTypes";
+import { Zone } from "~/server/map";
+import chunkService from "~/services/chunk";
+import { Direction, MapDimensions, Player, Vec2, WorldEntity } from "~/types/worldTypes";
 
 export function keyToDelta(key?: string): Vec2 | null {
     switch (key) {
@@ -59,19 +61,23 @@ export const combinePos = (pos: Vec2, delta: Vec2): Vec2 => ({
     y: pos.y + delta.y,
 });
 
-export const isWithinBounds = (map: Tile[][], next: Vec2): boolean =>
-    !!map[next.y]?.[next.x];
+export const isWithinBounds = (dimensions: MapDimensions, next: Vec2): boolean =>
+    next.x >= 0 &&
+    next.y >= 0 &&
+    next.x < dimensions.width &&
+    next.y < dimensions.height;
 
 export function isWalkable(
     world: {
         entities: Map<string, WorldEntity>;
-        map: Tile[][];
+        zone: Zone;
         players: Map<string, Player>;
     },
     next: Vec2,
 ) {
     // tile collision
-    const tile = world.map[next.y]?.[next.x];
+    const chunk = chunkService.getChunk(next.x, next.y, world.zone);
+    const tile = chunk.tiles[chunk.cx + next.y]?.[chunk.cx + next.x]; // TODO: check this
     if (!tile || tile.collision?.solid) {
         console.error("unwalkable tile:", { tile });
         return false;

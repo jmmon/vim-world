@@ -1,4 +1,5 @@
-import { MAP } from "~/server/map";
+import { zone } from "~/server/map";
+import chunkService from "~/services/chunk";
 import { Item, Vec2, WorldEntity } from "~/types/worldTypes";
 
 export const items: Item[] = [
@@ -120,7 +121,8 @@ const entitiesList: WorldEntity[] = [
 
 // const WALKABLE_MAP_TILES = map.
 // want to get a list of all coordinates that are walkable:
-const WALKABLE_MAP_TILES_VEC2_ARRAY = MAP.reduce<Vec2[]>(
+const MAP = chunkService.getChunk(0, 0, zone);
+const WALKABLE_MAP_TILES_VEC2_ARRAY = MAP.tiles.reduce<Vec2[]>(
     (accum, row, y) => {
         row.forEach((tile, x) => {
             if (!tile.collision?.solid) {

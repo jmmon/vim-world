@@ -1,5 +1,5 @@
 import { DIMENSIONS, clientPhysicsMode } from "~/components/canvas1/constants";
-import { MAP } from "~/server/map";
+import { zone } from "~/server/map";
 import { ClientData, ServerWorld, ServerWorldWrapper } from "./types";
 import { Player, Vec2 } from "~/types/worldTypes";
 import { isWalkable, isWithinBounds } from "~/simulation/client/helpers";
@@ -14,7 +14,7 @@ const players = new Map<string, Player>();
 
 export const SERVER_WORLD: ServerWorld = {
     dimensions: DIMENSIONS,
-    map: MAP,
+    zone: zone,
     players,
     entities: entities,
 }
@@ -22,7 +22,7 @@ export const WORLD_WRAPPER: ServerWorldWrapper = {
     world: SERVER_WORLD,
     physics: clientPhysicsMode,
     isWithinBounds(target: Vec2) {
-        return isWithinBounds(this.world.map, target);
+        return isWithinBounds(this.world.dimensions, target);
     },
     isWalkable(target: Vec2) {
         return isWalkable(this.world, target);
@@ -256,5 +256,33 @@ export const WORLD_WRAPPER: ServerWorldWrapper = {
 //
 //
 //
+
+
+
+
+
+// Okay, about the maps::
+// I should allow an "open" world, or at least multiple chunks e.g. 4x4 chunks +
+// I think I want to be able to walk between chunks smoothly with camera panning as you move to keep you centered??
+// - or might be more vim-like to transition once you get to the edge of the chunk... that way your cols/rows aren't always changing?? maybe doesn't matter
+//
+// and then I do want a first few levels hard-coded as tutorials.
+// e.g. some dungeon where you find the key and unlock the door to escape
+// and then some other stories to progress to some other actions??
+//
+// so I would also want some sort of map object to show which actions are available at which levels
+// perhaps individuals could also unlock extra actions
+//
+// maybe some actions are unlockable if you already know vim
+// and other actions would be restricted until you reach certain checkpoints
+//
+//
+// might want some target glowing object/circle as a destination point
+//
+// still want to do inventory of some sort, open some screen where you can navigate your inventory with vim commands
+// maybe pick up an item from inventory to place or use, or equip??
+//
+
+
 
 

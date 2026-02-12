@@ -3,8 +3,9 @@ import { TILE_COLOR_MAP } from "../../components/canvas1/constants";
 import { closeOldCanvas, shadeColor } from "./utils";
 import { GameState } from "~/hooks/useState";
 import { roundToDecimals } from "~/utils/utils";
-import { getSurroundingTiles } from "~/cookbook/seededMap";
+import { Chunk, getSurroundingTiles } from "~/server/map";
 import { MapDimensions } from "~/types/worldTypes";
+import chunkService from "../chunk";
 
 const LIGHTNESS_OFFSET = {
     range: 6,
@@ -19,10 +20,11 @@ export function drawOffscreenMap(state: LocalWorldWrapper) {
     canvas.height = dimensions.canvasHeight;
     canvas.style.imageRendering = "pixelated";
     const ctx = canvas.getContext("2d")!;
+    const chunk = chunkService.getChunk(state.client.player?.pos.x ?? 0, state.client.player?.pos.y ?? 0, state.world.zone);
 
     for (let y = 0; y < dimensions.height; y++) {
         for (let x = 0; x < dimensions.width; x++) {
-            const baseColor = TILE_COLOR_MAP[state.world.map[y][x].type];
+            const baseColor = TILE_COLOR_MAP[chunk.tiles[y][x].type];
             const lightnessOffset = roundToDecimals((Math.random() * LIGHTNESS_OFFSET.range) - LIGHTNESS_OFFSET.range / 2, LIGHTNESS_OFFSET.decimals);
             const adjusted = shadeColor(baseColor, lightnessOffset);
             ctx.fillStyle = adjusted;
@@ -33,16 +35,16 @@ export function drawOffscreenMap(state: LocalWorldWrapper) {
                 dimensions.tileSize,
             );
 
-            if (state.world.map[y][x].type === 'CLIFF') {
-                drawCliffTile(state, dimensions, ctx, x, y, adjusted);
+            if (chunk.tiles[y][x].type === 'CLIFF') {
+                drawCliffTile(state, dimensions, ctx, x, y, adjusted, chunk);
             }
         }
     }
     return canvas;
 }
 
-function drawCliffTile(state: LocalWorldWrapper, dimensions: MapDimensions, ctx: CanvasRenderingContext2D, x: number, y: number, adjustedColor: string) {
-    const nearbyTiles = getSurroundingTiles(state.world.map, x, y)
+function drawCliffTile(state: LocalWorldWrapper, dimensions: MapDimensions, ctx: CanvasRenderingContext2D, x: number, y: number, adjustedColor: string, chunk: Chunk) {
+    const nearbyTiles = getSurroundingTiles(chunk.tiles, x, y)
     const nearbyCliffDirections = Object.entries(nearbyTiles).reduce<Record<string, "CLIFF" | "OTHER">>((accum, cur) => {
         if (cur[1]?.type === 'CLIFF') accum[cur[0]] = 'CLIFF';
         else if (cur[1] !== undefined) accum[cur[0]] = 'OTHER';

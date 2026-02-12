@@ -54,7 +54,7 @@ function useState(world: ServerWorld, isReady: Signal<boolean>, initializeSelfDa
             devStats: true,
         },
         isWithinBounds: $(function (this: LocalWorldWrapper, target: Vec2) {
-            return isWithinBounds(this.world.map, target);
+            return isWithinBounds(this.world.dimensions, target);
         }),
         isWalkable: $(function (this: LocalWorldWrapper, target: Vec2) {
             return isWalkable(this.world, target);
