@@ -56,7 +56,8 @@ export type LocalWorldWrapper = InterfaceData & {
     getScaledTileSize: QRL<
         (desiredScale: number) => { actualScale: number; tileSize: number }
     >;
-    rerender: QRL<() => void>;
+    markAllDirty: QRL<() => void>;
+    updateScale: QRL<(newScale: number, newTileSize: number) => void>;
     findObjectInRangeByKey: QRL<
         (player: Player, key: string) => ReturnType<typeof findObjectInRangeByKey>
     >;
