@@ -39,6 +39,7 @@ export default function useRenderLoop(
             const offscreenCanvas = draw.offscreenMap(state.ctx);
             state.refs.offscreenMap.value = offscreenCanvas;
             draw.visibleMap(state);
+            if (!state.ctx.show.helpHint) return;
             draw.helpHint(state);
         }
 

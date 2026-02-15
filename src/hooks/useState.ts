@@ -51,6 +51,7 @@ function useState(world: ServerWorld, isReady: Signal<boolean>, initializeSelfDa
         },
         show: {
             help: false,
+            helpHint: false,
             menu: false,
             afk: false,
             devStats: true,

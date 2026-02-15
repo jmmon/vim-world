@@ -38,6 +38,7 @@ export type InitializeClientData = {
 export type InterfaceData = {
     show: {
         help: boolean;
+        helpHint: boolean;
         menu: boolean;
         afk: boolean;
         devStats: boolean;
