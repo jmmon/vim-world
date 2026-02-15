@@ -1,6 +1,7 @@
-import { Zone } from "~/server/map";
+import { getLocalChunkCoords } from "~/server/map";
+import { ServerWorld } from "~/server/types";
 import chunkService from "~/services/chunk";
-import { Direction, MapDimensions, Player, Vec2, WorldEntity } from "~/types/worldTypes";
+import { Direction, MapDimensions, Tile, Vec2 } from "~/types/worldTypes";
 
 export function keyToDelta(key?: string): Vec2 | null {
     switch (key) {
@@ -61,25 +62,30 @@ export const combinePos = (pos: Vec2, delta: Vec2): Vec2 => ({
     y: pos.y + delta.y,
 });
 
+// TODO: take chunks into account
+// 
 export const isWithinBounds = (dimensions: MapDimensions, next: Vec2): boolean =>
     next.x >= 0 &&
     next.y >= 0 &&
-    next.x < dimensions.width &&
-    next.y < dimensions.height;
+    next.x < dimensions.worldWidthBlocks &&
+    next.y < dimensions.worldHeightBlocks;
+
+
+// collision will get the chunk that is needed
+function getWorldTile(world: ServerWorld, pos: Vec2): Tile | undefined {
+    const chunk = chunkService.getChunk(pos.x, pos.y, world.zone);
+    const { localX, localY } = getLocalChunkCoords(pos);
+    return chunk.tiles?.[localY]?.[localX];
+}
 
 export function isWalkable(
-    world: {
-        entities: Map<string, WorldEntity>;
-        zone: Zone;
-        players: Map<string, Player>;
-    },
+    world: ServerWorld,
     next: Vec2,
 ) {
     // tile collision
-    const chunk = chunkService.getChunk(next.x, next.y, world.zone);
-    const tile = chunk.tiles[chunk.cx + next.y]?.[chunk.cx + next.x]; // TODO: check this
-    if (!tile || tile.collision?.solid) {
-        console.error("unwalkable tile:", { tile });
+    const tile = getWorldTile(world, next);
+    if (tile?.collision?.solid) {
+        console.error("unwalkable tile!", { tile });
         return false;
     }
 
@@ -95,8 +101,7 @@ export function isWalkable(
     // player collision
     if (world.players.size === 0) return true;
 
-    for (const kvPair of world.players) {
-        const p = kvPair[1];
+    for (const p of world.players.values()) {
         if (p.pos.x === next.x && p.pos.y === next.y) {
             console.error("cannot walk on other players", p);
             return false;

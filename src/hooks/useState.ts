@@ -7,7 +7,7 @@ import {
 import { Player, Vec2 } from "~/types/worldTypes";
 import { ClientPhysicsMode, clientPhysicsMode, getScaledTileSize } from "../components/canvas1/constants";
 import { pickUpItem, pickUpObject } from "~/simulation/shared/actions/interact";
-import { isWalkable, isWithinBounds } from "~/simulation/client/helpers";
+import { isWalkable, isWithinBounds } from "~/simulation/shared/helpers";
 import { ServerAckMessage, ServerAckType } from "~/types/messageTypes";
 import { applyActionToWorld } from "~/simulation/client/actions";
 import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact";

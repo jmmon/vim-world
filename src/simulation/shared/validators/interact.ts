@@ -2,7 +2,7 @@ import {
     applyRangeToDelta,
     combinePos,
     dirToDelta,
-} from "~/simulation/client/helpers";
+} from "~/simulation/shared/helpers";
 import {
     MODIFIER_KEYS,
     OPERATOR_KEYS,

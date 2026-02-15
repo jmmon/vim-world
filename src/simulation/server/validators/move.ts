@@ -1,7 +1,7 @@
 import { Player, Vec2 } from "~/types/worldTypes";
 import { VimAction } from "~/fsm/types";
 import { WORLD_WRAPPER } from "~/server/serverState";
-import { combinePos, deltaToDir, keyToDelta } from "~/simulation/client/helpers";
+import { combinePos, deltaToDir, keyToDelta } from "~/simulation/shared/helpers";
 import { ReasonCorrection, ValidateMoveResult } from "../types";
 
 function validateMove(player: Player, action: VimAction): ValidateMoveResult {

@@ -2,7 +2,7 @@ import { DIMENSIONS, clientPhysicsMode } from "~/components/canvas1/constants";
 import { zone } from "~/server/map";
 import { ClientData, ServerWorld, ServerWorldWrapper } from "./types";
 import { Player, Vec2 } from "~/types/worldTypes";
-import { isWalkable, isWithinBounds } from "~/simulation/client/helpers";
+import { isWalkable, isWithinBounds } from "~/simulation/shared/helpers";
 import { pickUpItem, pickUpObject } from "~/simulation/shared/actions/interact";
 import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact";
 import { entities } from "./objects";

@@ -1,6 +1,6 @@
 import { LocalWorldWrapper } from "~/components/canvas1/types";
 import { VimAction } from "../../fsm/types";
-import { combinePos, keyToDelta, deltaToDir } from "./helpers";
+import { combinePos, keyToDelta, deltaToDir } from "~/simulation/shared/helpers";
 
 
 export async function applyMoveAction(
