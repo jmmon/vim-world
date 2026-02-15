@@ -2,26 +2,66 @@ import { roundToDecimals } from "~/utils/utils";
 import { generateOldDimensions, hasScaleChanged } from "./utils";
 import { MapDimensions } from "~/types/worldTypes";
 import { GameState } from "~/hooks/useState";
+import {
+    ClientPhysicsMode,
+    clientPhysicsMode,
+} from "~/components/canvas1/constants";
 
+// probably should not be using viewportWidthPx, instead use viewportWidthBlocks * tileSize * scale
+
+function getBoxStyles(
+    lines: number,
+    fontSize: number,
+    leftPaddingPx: number,
+    lineHeightPaddingPx: number,
+    widthPx: number,
+    verticalPaddingPx: number,
+    scale: number,
+) {
+    const scaled_fontSize = fontSize * scale;
+    const scaled_lineHeight = (fontSize + lineHeightPaddingPx) * scale;
+    const scaled_width = widthPx * scaled_fontSize; // 16 * 4 = 64
+    const scaled_verticalPadding = verticalPaddingPx * scale;
+
+    return {
+        width: scaled_width,
+        height: lines * scaled_lineHeight + scaled_verticalPadding,
+        leftPadding: leftPaddingPx * scale,
+        fontSize: scaled_fontSize,
+        lineHeight: scaled_lineHeight,
+    };
+}
+
+// ****************************************************************
+//
+//                      FPS styles
+//
+// ****************************************************************
+
+// has about 10 total chars wide + padding
 function getFpsStyles(
     dimensions: MapDimensions,
     canvas: HTMLCanvasElement,
-    fps: string,
+    fps: string, // length of 2-4
     ema?: string,
 ) {
-    const lines = ema !== undefined ? 2 : 1;
-    const fontSize = 16 * dimensions.scale;
-    const width = (5 + fps.length * 0.6) * fontSize; // 16 * 4 = 64
+    const LINES = 1 + Number(ema !== undefined);
+    const FONT_SIZE = 16;
+    const styles = getBoxStyles(
+        LINES,
+        FONT_SIZE,
+        10,
+        2,
+        (6 + fps.length) * 0.9,
+        12,
+        dimensions.scale,
+    );
     return {
         ctx: canvas.getContext("2d")!,
-        x: dimensions.canvasWidth - width,
+        x: dimensions.viewportWidthPx - styles.width,
         y: 0,
-        width,
-        height: lines * fontSize + 12 * dimensions.scale,
-        leftPadding: 10 * dimensions.scale,
-        fontSize,
-        lines,
-        textLineYOffset: fontSize + 2 * dimensions.scale,
+        lines: LINES,
+        ...styles,
     };
 }
 
@@ -53,55 +93,136 @@ export function drawFps(state: GameState, fps: string, ema?: string) {
     d.ctx.font = `bold ${d.fontSize}px mono`;
     d.ctx.textAlign = "left";
     d.ctx.fillStyle = "red";
-    d.ctx.fillText(
-        ` fps: ${fps}`,
-        d.x + d.leftPadding,
-        d.y + d.textLineYOffset,
-    );
+    d.ctx.fillText(` fps: ${fps}`, d.x + d.leftPadding, d.y + d.lineHeight);
 
     // ema
     if (ema !== undefined) {
         d.ctx.fillText(
             `ema5: ${ema}`,
             d.x + d.leftPadding,
-            d.y + d.lines * d.textLineYOffset,
+            d.y + d.lines * d.lineHeight,
         );
     }
 }
 
+// ****************************************************************
+//
+//                      DEV STATS styles
+//
+// ****************************************************************
+
+const collision = clientPhysicsMode === ClientPhysicsMode.FULL_PREDICTION;
+const prediction = clientPhysicsMode !== ClientPhysicsMode.NONE;
+function getFormattedTime(value: number) {
+    return value === -1
+        ? "?"
+        : roundToDecimals((Date.now() - value) / 1000, 1).toFixed(1);
+}
+
+const STAT_MAP = [
+    {
+        name: "x",
+        getValue: (state: GameState) => state.ctx.client.player?.pos.x ?? "?",
+    },
+    {
+        name: "y",
+        getValue: (state: GameState) => state.ctx.client.player?.pos.y ?? "?",
+    },
+    {
+        name: "idle",
+        getValue: (state: GameState) =>
+            getFormattedTime(state.ctx.client.idleStartTime),
+    },
+    {
+        name: "afk",
+        getValue: (state: GameState) =>
+            getFormattedTime(state.ctx.client.afkStartTime),
+    },
+    {
+        name: "collision",
+        getValue: (_?: GameState) => (collision ? "YES" : "NO"),
+    },
+    {
+        name: "prediction",
+        getValue: (_?: GameState) => (prediction ? "YES" : "NO"),
+    },
+];
+
+const STAT_NAME_LONGEST = STAT_MAP.sort(
+    (a, b) => b.name.length - a.name.length,
+)[0].name.length;
+
+
+
+function statText(
+    text: string,
+    value: string | number,
+    maxWordLength = STAT_NAME_LONGEST,
+) {
+    const s = String(value);
+    return text.padStart(maxWordLength - Math.max(0, s.length - 3)) + `: ` + s;
+}
+
+function fillStatLine(d: D, name: string, value: string | number, row: number) {
+    d.ctx.fillText(
+        statText(name, value),
+        d.x + d.leftPadding,
+        d.y + row * d.lineHeight,
+    );
+}
+
+type D = {
+    width: number;
+    height: number;
+    leftPadding: number;
+    fontSize: number;
+    lineHeight: number;
+    ctx: CanvasRenderingContext2D;
+    x: number;
+    y: number;
+    lines: number;
+};
 function getDevStatsStyles(
     dimensions: MapDimensions,
     canvas: HTMLCanvasElement,
-) {
-    const lines = 4;
-    const fontSize = 16 * dimensions.scale;
-    const width = 5 * fontSize + 3 * fontSize * 0.6;
+): D {
+    const LINES = 6;
+    const FONT_SIZE = 16;
+
+    const styles = getBoxStyles(
+        LINES,
+        FONT_SIZE,
+        10,
+        2,
+        (STAT_NAME_LONGEST + 2) * 0.9,
+        12,
+        dimensions.scale,
+    );
+    const fpsYEnd = 2 * styles.fontSize + 12 * dimensions.scale;
+
     return {
-        x: dimensions.canvasWidth - width,
-        y: 2 * fontSize + 12 * dimensions.scale + 10, // slight gap from the fps window
-        width,
-        height: lines * fontSize + 12 * dimensions.scale,
-        leftPadding: 10 * dimensions.scale,
-        fontSize,
-        lines,
-        textYOffset: fontSize + 2 * dimensions.scale,
         ctx: canvas.getContext("2d")!,
+        x: dimensions.viewportWidthPx - styles.width,
+        y: fpsYEnd + 10 * dimensions.scale, // slight gap from the fps window
+        lines: LINES,
+        ...styles,
     };
 }
 
-export function closeDevStats(state: GameState) {
+export function closeDevStats(state: GameState, dimensions?: MapDimensions) {
     const canvas = state.refs.overlay.value!;
-    const d = getDevStatsStyles(generateOldDimensions(state.ctx.world), canvas);
+    const d = getDevStatsStyles(
+        dimensions ?? state.ctx.world.dimensions,
+        canvas,
+    );
     d.ctx.clearRect(d.x, d.y, d.width, d.height);
     return d;
 }
 
-export function drawDevStats(state: GameState) {
-    // idea: draw player pos, afk timer, anything else?
-    //
+export async function drawDevStats(state: GameState) {
     if (hasScaleChanged(state.ctx)) {
         // clear old rect
-        closeDevStats(state);
+        closeDevStats(state, generateOldDimensions(state.ctx.world));
     }
     // clear new rect
     const d = closeDevStats(state);
@@ -110,56 +231,23 @@ export function drawDevStats(state: GameState) {
     d.ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
     d.ctx.fillRect(d.x, d.y, d.width, d.height);
 
-    const afkTime =
-        state.ctx.client.afkStartTime === -1
-            ? "?"
-            : roundToDecimals(
-                  (Date.now() - state.ctx.client.afkStartTime) / 1000,
-                  1,
-              ).toFixed(1);
-    const idleTime =
-        state.ctx.client.idleStartTime === -1
-            ? "?"
-            : roundToDecimals(
-                  (Date.now() - state.ctx.client.idleStartTime) / 1000,
-                  1,
-              ).toFixed(1);
-
     // draw stats
     d.ctx.font = `bold ${d.fontSize}px mono`;
     d.ctx.textAlign = "left";
     d.ctx.fillStyle = "red";
-    d.ctx.fillText(
-        `   x: ${state.ctx.client.player?.pos.x ?? "?"}`,
-        d.x + d.leftPadding,
-        d.y + d.textYOffset,
-    );
-    d.ctx.fillText(
-        `   y: ${state.ctx.client.player?.pos.y ?? "?"}`,
-        d.x + d.leftPadding,
-        d.y + 2 * d.textYOffset,
-    );
-    d.ctx.fillText(
-        `idle: ${idleTime}`,
-        d.x + d.leftPadding,
-        d.y + 3 * d.textYOffset,
-    );
-    d.ctx.fillText(
-        ` afk: ${afkTime}`,
-        d.x + d.leftPadding,
-        d.y + 4 * d.textYOffset,
-    );
-}
 
-type RectDimensions = { left: number; top: number; w: number; h: number };
-function closeOldHelp(state: GameState, ctx: CanvasRenderingContext2D) {
-    if (hasScaleChanged(state.ctx)) {
-        const HELP = generateHelpDimensions(
-            generateOldDimensions(state.ctx.world),
-        );
-        ctx.clearRect(HELP.left, HELP.top, HELP.w, HELP.h);
+    for (let i = 0; i < STAT_MAP.length; i++) {
+        fillStatLine(d, STAT_MAP[i].name, STAT_MAP[i].getValue(state), i + 1);
     }
 }
+
+// ****************************************************************
+//
+//                      FULL HELP styles
+//
+// ****************************************************************
+
+type RectDimensions = { left: number; top: number; w: number; h: number };
 function generateHelpDimensions(dimensions: MapDimensions): RectDimensions {
     const heightTiles = 8;
     const bottomPaddingTiles = 0.5;
@@ -168,21 +256,33 @@ function generateHelpDimensions(dimensions: MapDimensions): RectDimensions {
         left: dimensions.tileSize * xPaddingTiles,
         top:
             dimensions.tileSize *
-            (dimensions.height - heightTiles - bottomPaddingTiles), // 6 tiles up from bottom
+            (dimensions.viewportHeightBlocks -
+                heightTiles -
+                bottomPaddingTiles), // 6 tiles up from bottom
         w:
-            dimensions.width * dimensions.tileSize -
-            dimensions.tileSize * (2 * xPaddingTiles),
+            dimensions.tileSize *
+            (dimensions.viewportWidthBlocks - 2 * xPaddingTiles),
         h: dimensions.tileSize * heightTiles,
     };
 }
 
-// let HELP_DIMENSIONS: RectDimensions | undefined;
-// const getHelpDimensions = (dimensions: MapDimensions) => {
-//     if (!HELP_DIMENSIONS) {
-//         HELP_DIMENSIONS = generateHelpDimensions(dimensions);
-//     }
-//     return HELP_DIMENSIONS;
-// };
+function closeOldHelp(state: GameState, ctx: CanvasRenderingContext2D) {
+    if (hasScaleChanged(state.ctx)) {
+        const HELP = generateHelpDimensions(
+            generateOldDimensions(state.ctx.world),
+        );
+        ctx.clearRect(HELP.left, HELP.top, HELP.w, HELP.h);
+    }
+}
+
+const HELP_DIMENSIONS: Record<string, RectDimensions> = {};
+const getHelpDimensions = (dimensions: MapDimensions) => {
+    if (!HELP_DIMENSIONS[dimensions.tileSize]) {
+        HELP_DIMENSIONS[dimensions.tileSize] =
+            generateHelpDimensions(dimensions);
+    }
+    return HELP_DIMENSIONS[dimensions.tileSize];
+};
 const HELP_TEXT = [
     "h - Move left",
     "l - Move right",
@@ -201,7 +301,7 @@ export function drawHelp(state: GameState) {
     const ctx = state.refs.overlay.value!.getContext("2d")!;
     closeOldHelp(state, ctx);
 
-    const HELP = generateHelpDimensions(state.ctx.world.dimensions);
+    const HELP = getHelpDimensions(state.ctx.world.dimensions);
     ctx.clearRect(HELP.left, HELP.top, HELP.w, HELP.h);
     ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
     ctx.fillRect(HELP.left, HELP.top, HELP.w, HELP.h);
@@ -212,18 +312,18 @@ export function drawHelp(state: GameState) {
         x: 1,
         y: 1,
     };
+    const leftPadding =
+        HELP.left + state.ctx.world.dimensions.tileSize * helpTextPadding.x;
+    const topPadding = HELP.top + 20 * state.ctx.world.dimensions.scale;
+    const columnPadding = 224 * state.ctx.world.dimensions.scale;
     for (let i = 0; i < HELP_TEXT.length; i++) {
         const col = Math.floor(i / ROWS);
         const row = i % ROWS;
         ctx.fillText(
             HELP_TEXT[i],
-            HELP.left +
-                state.ctx.world.dimensions.tileSize * helpTextPadding.x +
-                col * (224 * state.ctx.world.dimensions.scale),
-            HELP.top +
-                state.ctx.world.dimensions.tileSize *
-                    (helpTextPadding.y + row) +
-                20 * state.ctx.world.dimensions.scale,
+            leftPadding + col * columnPadding,
+            topPadding +
+                state.ctx.world.dimensions.tileSize * (helpTextPadding.y + row),
         );
     }
 }
@@ -235,6 +335,12 @@ export function closeHelp(state: GameState) {
     const HELP = generateHelpDimensions(state.ctx.world.dimensions);
     ctx.clearRect(HELP.left, HELP.top, HELP.w, HELP.h);
 }
+
+// ****************************************************************
+//
+//                      HELP HINT styles
+//
+// ****************************************************************
 
 const TEXT_HELP_HINT = [
     { text: "Hint: type", color: "white" },
@@ -279,88 +385,87 @@ export function drawHelpHint(state: GameState) {
     }
 }
 
-function closeOldAfk(state: GameState) {
-    if (hasScaleChanged(state.ctx)) {
-        const dimensions = generateOldDimensions(state.ctx.world);
-        state.refs.overlay
-            .value!.getContext("2d")!
-            .clearRect(
-                dimensions.tileSize * 6.5,
-                dimensions.tileSize / 2,
-                dimensions.canvasWidth - dimensions.tileSize * 13,
-                dimensions.tileSize * 5,
-            );
-    }
+// ****************************************************************
+//
+//                      AFK styles
+//
+// ****************************************************************
+
+/** @returns [x, y, width, height] array */
+function getAfkRect(dimensions: MapDimensions) {
+    return [
+        dimensions.tileSize * 6.5,
+        dimensions.tileSize / 2,
+        dimensions.viewportWidthPx - dimensions.tileSize * 13,
+        dimensions.tileSize * 5,
+    ] as const;
 }
+
+function clearAfkRect(
+    dimensions: MapDimensions,
+    ctx: CanvasRenderingContext2D,
+) {
+    ctx.clearRect(...getAfkRect(dimensions));
+}
+// generateOldDimensions(state.ctx.world)
 export function closeAfk(state: GameState) {
     const ctx = state.refs.overlay.value!.getContext("2d")!;
-    closeOldAfk(state);
-    ctx.clearRect(
-        state.ctx.world.dimensions.tileSize * 6.5,
-        state.ctx.world.dimensions.tileSize / 2,
-        state.ctx.world.dimensions.canvasWidth -
-            state.ctx.world.dimensions.tileSize * 13,
-        state.ctx.world.dimensions.tileSize * 5,
-    );
+    clearAfkRect(state.ctx.world.dimensions, ctx);
+    if (!hasScaleChanged(state.ctx)) return;
+    clearAfkRect(generateOldDimensions(state.ctx.world), ctx);
 }
 
 export function drawAfk(state: GameState) {
+    closeAfk(state);
+
     const ctx = state.refs.overlay.value!.getContext("2d")!;
 
-    closeOldAfk(state);
-    const panelWidth =
-        state.ctx.world.dimensions.canvasWidth -
-        state.ctx.world.dimensions.tileSize * 13;
-    ctx.clearRect(
-        state.ctx.world.dimensions.tileSize * 6.5,
-        state.ctx.world.dimensions.tileSize / 2,
-        panelWidth,
-        state.ctx.world.dimensions.tileSize * 4,
-    );
+    const dimensions = getAfkRect(state.ctx.world.dimensions);
+
     ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
-    ctx.fillRect(
-        state.ctx.world.dimensions.tileSize * 6.5,
-        state.ctx.world.dimensions.tileSize / 2,
-        panelWidth,
-        state.ctx.world.dimensions.tileSize * 4,
-    );
+    ctx.fillRect(...dimensions);
+
     ctx.font = `bold ${24 * state.ctx.world.dimensions.scale}px mono`;
     ctx.textAlign = "center";
     ctx.fillStyle = "red";
     ctx.fillText(
         `You are AFK!`,
-        state.ctx.world.dimensions.tileSize * 6.5 + panelWidth / 2,
-        state.ctx.world.dimensions.tileSize * 2.5,
+        dimensions[0] + dimensions[2] / 2,
+        dimensions[3] / 2,
     );
 }
 
-// maybe draw a statusbar: modes, not sure what else, maybe coords of player (like the rows:cols), maybe a clock for fun
+// ****************************************************************
 //
-// and then another lower bar for command entries??
+//                      statusbar styles
 //
+// ****************************************************************
+
 function getStatusStyles(dimensions: MapDimensions, canvas: HTMLCanvasElement) {
-    const lines = 2;
-    const fontSize = 16 * dimensions.scale;
-    // const width = 5 * fontSize + fps.length * fontSize * 0.6; // 16 * 4 = 64
-    const rowGap = 0 * dimensions.scale;
-    const y =
-        dimensions.canvasHeight - (fontSize * lines + (lines - 1) * rowGap);
+    const LINES = 2;
+    const FONT_SIZE = 16;
+    const styles = getBoxStyles(
+        LINES,
+        FONT_SIZE,
+        10,
+        0,
+        0,
+        0,
+        dimensions.scale,
+    );
     return {
-        x: 0,
-        y,
-        width: dimensions.canvasWidth,
-        height: dimensions.canvasHeight - y,
-        leftPadding: 10 * dimensions.scale,
-        fontSize,
-        lines,
-        rowGap,
         ctx: canvas.getContext("2d")!,
+        x: 0,
+        y: dimensions.viewportHeightPx - styles.height,
+        rowGap: 0,
+        ...styles,
+        width: dimensions.viewportWidthPx,
     };
 }
 
-function closeStatus(state: GameState, dimensions: MapDimensions) {
+function closeStatus(state: GameState, dimensions?: MapDimensions) {
     const canvas = state.refs.overlay.value!;
-    const d = getStatusStyles(dimensions, canvas);
+    const d = getStatusStyles(dimensions ?? state.ctx.world.dimensions, canvas);
     d.ctx.clearRect(d.x, d.y, d.width, d.height);
     return d;
 }
@@ -371,7 +476,7 @@ export function drawStatus(state: GameState) {
         closeStatus(state, generateOldDimensions(state.ctx.world));
     }
     // clear new rect
-    const d = closeStatus(state, state.ctx.world.dimensions);
+    const d = closeStatus(state);
 
     // background
     d.ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
