@@ -7,17 +7,19 @@ import {
 import { closeOldCanvas, shadeColor } from "./utils";
 import { GameState } from "~/hooks/useState";
 import { items } from "~/server/objects";
+import { getChunkSlot, getLocalChunkCoords } from "~/server/map";
 
 export function drawObject(
     dimensions: MapDimensions,
     ctx: CanvasRenderingContext2D,
     obj: WorldEntity,
 ) {
+    const { localX: x, localY: y } = getLocalChunkCoords(obj.pos!);
     const baseColor = OBJECT_COLOR_MAP[obj.type];
-    const lightnessOffset = (Math.random() * 20) - 10;
+    const lightnessOffset = Math.random() * 20 - 10;
     const adjusted = shadeColor(baseColor, lightnessOffset);
     ctx.fillStyle = adjusted;
-    console.log({baseColor, adjusted});
+    console.log({ baseColor, adjusted });
 
     ctx.strokeStyle = HOT_PINK;
     const LINE_WIDTH = 2 * dimensions.scale;
@@ -25,24 +27,24 @@ export function drawObject(
 
     ctx.beginPath();
     ctx.rect(
-        obj.pos!.x * dimensions.tileSize,
-        obj.pos!.y * dimensions.tileSize,
+        x * dimensions.tileSize,
+        y * dimensions.tileSize,
         dimensions.tileSize,
         dimensions.tileSize,
     );
     ctx.fill();
     ctx.rect(
-        obj.pos!.x * dimensions.tileSize + LINE_WIDTH / 2,
-        obj.pos!.y * dimensions.tileSize + LINE_WIDTH / 2,
+        x * dimensions.tileSize + LINE_WIDTH / 2,
+        y * dimensions.tileSize + LINE_WIDTH / 2,
         dimensions.tileSize - LINE_WIDTH,
         dimensions.tileSize - LINE_WIDTH,
     );
     ctx.stroke();
 
     if (obj?.interactable?.selectors.length)
-        drawObjectKeys(dimensions, ctx, obj);
+        drawObjectKeys(dimensions, ctx, obj, x, y);
     if (obj?.container?.itemIds.length)
-        drawObjectItems(dimensions, ctx, obj, LINE_WIDTH);
+        drawObjectItems(dimensions, ctx, obj, x, y, LINE_WIDTH);
 }
 
 const KEY_OFFSET_PERCENT = 0.05;
@@ -50,12 +52,14 @@ function drawObjectKeys(
     dimensions: MapDimensions,
     ctx: CanvasRenderingContext2D,
     obj: WorldEntity,
+    x: number,
+    y: number,
 ) {
     const keyOffetRight = 1 - KEY_OFFSET_PERCENT * 2;
     ctx.fillStyle = "#00000020";
     ctx.fillRect(
-        (obj.pos!.x + KEY_OFFSET_PERCENT) * dimensions.tileSize,
-        (obj.pos!.y + KEY_OFFSET_PERCENT) * dimensions.tileSize,
+        (x + KEY_OFFSET_PERCENT) * dimensions.tileSize,
+        (y + KEY_OFFSET_PERCENT) * dimensions.tileSize,
         dimensions.tileSize * keyOffetRight,
         dimensions.tileSize * keyOffetRight,
     );
@@ -64,14 +68,14 @@ function drawObjectKeys(
     ctx.font = `bold ${12 * dimensions.scale}px mono`;
     ctx.fillText(
         obj!.interactable!.selectors![0],
-        (obj.pos!.x + KEY_OFFSET_PERCENT) * dimensions.tileSize,
-        (obj.pos!.y + 0.75) * dimensions.tileSize,
+        (x + KEY_OFFSET_PERCENT) * dimensions.tileSize,
+        (y + 0.75) * dimensions.tileSize,
     );
     ctx.textAlign = "right";
     ctx.fillText(
         obj!.interactable!.selectors![1],
-        (obj.pos!.x + keyOffetRight) * dimensions.tileSize,
-        (obj.pos!.y + 0.75) * dimensions.tileSize,
+        (x + keyOffetRight) * dimensions.tileSize,
+        (y + 0.75) * dimensions.tileSize,
     );
 }
 
@@ -80,6 +84,8 @@ function drawObjectItems(
     dimensions: MapDimensions,
     ctx: CanvasRenderingContext2D,
     obj: WorldEntity,
+    x: number,
+    y: number,
     LINE_WIDTH: number,
 ) {
     const item = items.find((i) => i.id === obj!.container!.itemIds[0])!;
@@ -87,8 +93,8 @@ function drawObjectItems(
     ctx.lineWidth = LINE_WIDTH * 1.2;
     ctx.beginPath();
     ctx.ellipse(
-        (obj.pos!.x + 0.5) * dimensions.tileSize,
-        (obj.pos!.y + 0.25) * dimensions.tileSize,
+        (x + 0.5) * dimensions.tileSize,
+        (y + 0.25) * dimensions.tileSize,
         dimensions.tileSize / 5,
         dimensions.tileSize / 8,
         0,
@@ -102,6 +108,9 @@ export function drawObjects(state: GameState) {
     const ctx = state.refs.objects.value!.getContext("2d")!;
     // clear old rect
     closeOldCanvas(state.ctx, ctx);
+    const cameraChunk = getChunkSlot(
+        state.ctx.client.player?.pos || { x: 0, y: 0 },
+    );
 
     ctx.clearRect(
         0,
@@ -112,6 +121,15 @@ export function drawObjects(state: GameState) {
     Array.from(state.ctx.world.entities.values()).forEach((entity) => {
         if (entity.pos === undefined) {
             console.log("skipping object with id:", entity.id);
+            return;
+        }
+
+        const entityChunk = getChunkSlot(entity.pos);
+        const isInDifferentChunk =
+            entityChunk.chunkX - cameraChunk.chunkX !== 0 ||
+            entityChunk.chunkY - cameraChunk.chunkY !== 0;
+        if (isInDifferentChunk) {
+            console.log("outside chunk:", entity.id);
             return;
         }
         drawObject(state.ctx.world.dimensions, ctx, entity);

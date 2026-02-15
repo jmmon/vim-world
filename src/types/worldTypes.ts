@@ -4,15 +4,22 @@ export type TileType = "GRASS" | "WATER" | "DIRT" | "CLIFF";
 export type Tile = {
     type: TileType;
     collision?: Collision;
-}
-
+};
 
 // e.g. this would replace MapObject so objects may contain things in the container
 //  other ideas: "STATIC" | "ITEM" | "ACTOR" | "PROP";
 //  | "NPC" | "PLAYER"
 
-type WorldEntityType = "ITEM_ENTITY" | "CHEST"  | "TREE" | "BOX" | "STONE" | "CLIFF" | "DOOR";
+type WorldEntityType =
+    | "ITEM_ENTITY"
+    | "CHEST"
+    | "TREE"
+    | "BOX"
+    | "STONE"
+    | "CLIFF"
+    | "DOOR";
 export interface WorldEntity {
+    /** e.g. `${type}-abcdefghijk` base58 11 chars */
     id: string;
     type: WorldEntityType;
     pos?: Vec2;
@@ -25,29 +32,32 @@ export interface WorldEntity {
     interactable?: Interactable;
 }
 interface Collision {
-  solid: boolean;
+    solid: boolean;
 }
 interface Container {
-  capacity: number;
-  itemIds: string[];
-  behavior: "DESTROY_WHEN_EMPTY" | "PERSIST";
+    capacity: number;
+    itemIds: string[];
+    behavior: "DESTROY_WHEN_EMPTY" | "PERSIST";
 }
 interface Interactable {
-  selectors: string[]; // e.g. ["[", "]", "f", "F"]
-  actions: InteractableAction[];
+    selectors: string[]; // e.g. ["[", "]", "f", "F"]
+    actions: InteractableAction[];
 }
 interface InteractableAction {
-  type: "OPEN" | "CLOSE" | "TOGGLE" | "PICK_UP" | "ACTIVATE" | "READ";
-  conditions?: Array<"CONTAINER_NOT_EMPTY" | "CONTAINER_EMPTY" | "NOT_LOCKED" | "IS_OPEN" | "IS_CLOSED">;
+    type: "OPEN" | "CLOSE" | "TOGGLE" | "PICK_UP" | "ACTIVATE" | "READ";
+    conditions?: Array<
+        | "CONTAINER_NOT_EMPTY"
+        | "CONTAINER_EMPTY"
+        | "NOT_LOCKED"
+        | "IS_OPEN"
+        | "IS_CLOSED"
+    >;
 }
 interface Liftable {
-  weight: number;
-  canCarry: boolean;
+    weight: number;
+    canCarry: boolean;
 }
-type EntityState =
-    | DoorState
-    | ChestState
-    | GenericState;
+type EntityState = DoorState | ChestState | GenericState;
 
 interface DoorState {
     kind: "DOOR";
@@ -65,12 +75,15 @@ interface GenericState {
     locked?: boolean;
 }
 
-
-
-
-export type ItemQualityId = "COMMON" | "UNCOMMON" | "RARE" | "EPIC" | "LEGENDARY";
-export type ItemKindId = "SWORD" | "POTION" | "KEY" | 'SCROLL' ;
+export type ItemQualityId =
+    | "COMMON"
+    | "UNCOMMON"
+    | "RARE"
+    | "EPIC"
+    | "LEGENDARY";
+export type ItemKindId = "SWORD" | "POTION" | "KEY" | "SCROLL";
 export type Item = {
+    /** e.g. `${kind}-abcdefghijk` base58 11 chars */
     id: string;
     kind: ItemKindId;
     quality: ItemQualityId;
@@ -89,7 +102,7 @@ export interface Player {
     level: number;
     itemIds?: string[];
     carryingObjId?: string;
-};
+}
 
 export type SessionAggregate = {
     xpGained: number;
@@ -97,8 +110,7 @@ export type SessionAggregate = {
     itemsAdded: string[];
     itemsRemoved: string[];
     achievementsUnlocked: string[];
-}
-
+};
 
 export type MapDimensions = {
     worldWidthBlocks: number;
@@ -130,13 +142,13 @@ export interface FindObjectsInRange {
     modifiedRange: number;
     dir: Direction;
     lastPosBeforeObject: Vec2;
-};
+}
 export interface FindObjectsInRangeError extends FindObjectsInRange {
     targetObj?: WorldEntity;
-};
+}
 export interface FindObjectsInRangeValid extends FindObjectsInRange {
     targetObj: WorldEntity;
-};
-export type FindObjectsInRangeResult = FindObjectsInRangeError | FindObjectsInRangeValid;
-
-
+}
+export type FindObjectsInRangeResult =
+    | FindObjectsInRangeError
+    | FindObjectsInRangeValid;
