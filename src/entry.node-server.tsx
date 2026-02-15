@@ -16,7 +16,7 @@ import serverLoop from "./server/serverLoop";
 
 // Allow for dynamic port
 // applies to production build
-const PORT = process.env.PORT ?? 3000;
+const PORT = import.meta.env.VITE_API_PORT ?? 3000;
 
 
 // Create the Qwik City express middleware
@@ -33,6 +33,7 @@ const wss = initializeWss(); // initialize websocket server
 serverLoop(); // start loop (to detect afk) // TODO: implement ticks and tick gating
 
 server.on("request", (req, res) => {
+    // console.log('request::', req);
     staticFile(req, res, () => {
         router(req, res, () => {
             notFound(req, res, () => {});
