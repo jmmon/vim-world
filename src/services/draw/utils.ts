@@ -1,6 +1,14 @@
 import { MapDimensions, WorldEntity } from "~/types/worldTypes";
 import { LocalWorldWrapper } from "../../components/canvas1/types";
 import { GameState } from "~/hooks/useState";
+import { CHUNK_SIZE } from "~/components/canvas1/constants";
+
+export const getScaledTileSize = (scaleDecimal: number) => {
+    const tileSize = Math.round(CHUNK_SIZE * scaleDecimal);
+    const actualScale = tileSize / CHUNK_SIZE;
+
+    return { tileSize, actualScale };
+}
 
 const COMPARE_GRANULARITY = 1000;
 export function hasScaleChanged(state: LocalWorldWrapper) {
@@ -20,10 +28,10 @@ export function closeOldCanvas(
 ) {
     // clear old rect
     if (hasScaleChanged(state)) {
-        const { canvasWidth, canvasHeight } = generateOldDimensions(
+        const { viewportWidthPx, viewportHeightPx } = generateOldDimensions(
             state.world,
         );
-        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+        ctx.clearRect(0, 0, viewportWidthPx, viewportHeightPx);
     }
 }
 
@@ -32,11 +40,13 @@ export function generateOldDimensions(
 ): MapDimensions {
     const tileSize = world.dimensions.tileSize * world.lastScale;
     return {
-        width: world.dimensions.width,
-        height: world.dimensions.height,
+        worldWidthBlocks: world.dimensions.worldWidthBlocks,
+        worldHeightBlocks: world.dimensions.worldHeightBlocks,
         tileSize,
-        canvasWidth: tileSize * world.dimensions.width,
-        canvasHeight: tileSize * world.dimensions.width,
+        viewportWidthPx: tileSize * world.dimensions.worldWidthBlocks,
+        viewportHeightPx: tileSize * world.dimensions.worldWidthBlocks,
+        viewportWidthBlocks: CHUNK_SIZE,
+        viewportHeightBlocks: CHUNK_SIZE,
         scale: world.lastScale,
     };
 }
@@ -67,10 +77,10 @@ export function shadeColor(color: string, percent: number /** 0-100 */) {
 
 
 export function clearAll(state: GameState) {
-    const { canvasWidth, canvasHeight } = generateOldDimensions(
+    const { viewportWidthPx: canvasWidth, viewportHeightPx: canvasHeight } = generateOldDimensions(
         state.ctx.world,
     );
-    [[canvasWidth, canvasHeight], [state.ctx.world.dimensions.canvasWidth, state.ctx.world.dimensions.canvasHeight]].forEach((canvasSize) => {
+    [[canvasWidth, canvasHeight], [state.ctx.world.dimensions.viewportWidthPx, state.ctx.world.dimensions.viewportHeightPx]].forEach((canvasSize) => {
         state.refs.map.value!.getContext("2d")!.clearRect(0, 0, canvasSize[0], canvasSize[1]);
         state.refs.objects.value!.getContext("2d")!.clearRect(0, 0, canvasSize[0], canvasSize[1]);
         state.refs.players.value!.getContext("2d")!.clearRect(0, 0, canvasSize[0], canvasSize[1]);

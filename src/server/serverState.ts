@@ -41,8 +41,8 @@ export const WORLD_WRAPPER: ServerWorldWrapper = {
                 && !this.isWalkable({ x: pos.x + 1, y: pos.y })
                 && !this.isWalkable({ x: pos.x - 1, y: pos.y })
             )) {
-                const isAtRight = pos.x === this.world.dimensions.width - 1;
-                const isAtBottom = pos.y === this.world.dimensions.height - 1;
+                const isAtRight = pos.x === this.world.dimensions.worldWidthBlocks - 1;
+                const isAtBottom = pos.y === this.world.dimensions.worldHeightBlocks - 1;
                 if (isAtBottom && isAtRight) {
                     throw new Error('!!no walkable tiles found!!');
                 }
@@ -283,6 +283,14 @@ export const WORLD_WRAPPER: ServerWorldWrapper = {
 // maybe pick up an item from inventory to place or use, or equip??
 //
 
+
+
+// Ok so i want to have settings for rowOffset and colOffset (set to 8 for example to keep 8 rows and 8 cols on screen before cursor hits edge)
+// - if set to 0, pan one chunk at a time once the user goes past the edge
+// else pan one movement amount once they get to the limit e.g. 8 away from the edge
+//
+// I guess I could render a 9x9 grid of chunks offscreen, then pan across them
+// always keep up to 9 buffered
 
 
 

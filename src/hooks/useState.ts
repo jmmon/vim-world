@@ -2,15 +2,17 @@ import { $, Signal, useSignal, useStore, useVisibleTask$ } from "@builder.io/qwi
 import { ServerWorld } from "~/server/types";
 import {
     InitializeClientData,
+    IsDirty,
     LocalWorldWrapper,
 } from "../components/canvas1/types";
 import { Player, Vec2 } from "~/types/worldTypes";
-import { ClientPhysicsMode, clientPhysicsMode, getScaledTileSize } from "../components/canvas1/constants";
+import { ClientPhysicsMode, clientPhysicsMode } from "../components/canvas1/constants";
 import { pickUpItem, pickUpObject } from "~/simulation/shared/actions/interact";
 import { isWalkable, isWithinBounds } from "~/simulation/shared/helpers";
 import { ServerAckMessage, ServerAckType } from "~/types/messageTypes";
 import { applyActionToWorld } from "~/simulation/client/actions";
 import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact";
+import { getScaledTileSize } from "~/services/draw/utils";
 // import { VimAction } from "~/fsm/types";
 // import useSeq from "./useSeq";
 // import { dispatch } from "./useWebSocket";
@@ -74,22 +76,15 @@ function useState(world: ServerWorld, isReady: Signal<boolean>, initializeSelfDa
             this: LocalWorldWrapper,
             data: InitializeClientData,
         ) {
-            try {
-                this.client.lastSnapshot = this.client.player && {
-                    ...this.client.player,
-                };
+            this.client.lastSnapshot = this.client.player;
 
-                this.client.player = data.player;
-                this.client.username = data.username;
-                this.client.usernameHash = data.usernameHash;
-                this.client.lastProcessedSeq = -1;
+            this.client.player = data.player;
+            this.client.username = data.username;
+            this.client.usernameHash = data.usernameHash;
+            this.client.lastProcessedSeq = -1;
 
-                console.log("initializeSelf complete!:", data);
-                return true;
-            } catch (err) {
-                console.error("initializeSelf error:", err);
-                return false;
-            }
+            console.log("initializeSelf complete!:", data);
+            return true;
         }),
         // client only
         getScaledTileSize: $(function (this: LocalWorldWrapper, scale: number) {
@@ -104,13 +99,15 @@ function useState(world: ServerWorld, isReady: Signal<boolean>, initializeSelfDa
         updateScale: $(function (this: LocalWorldWrapper, newScale: number, newTileSize: number) {
             this.world.dimensions.scale = newScale;
             this.world.dimensions.tileSize = newTileSize;
-            this.world.dimensions.canvasWidth =
-                newTileSize * this.world.dimensions.width;
-            this.world.dimensions.canvasHeight =
-                newTileSize * this.world.dimensions.height;
+            this.world.dimensions.viewportWidthPx =
+                newTileSize * this.world.dimensions.worldWidthBlocks;
+            this.world.dimensions.viewportHeightPx =
+                newTileSize * this.world.dimensions.worldHeightBlocks;
         }),
 
         findObjectInRangeByKey: $(findObjectInRangeByKey),
+
+
 
         // ya: maybe need a "carry" slot on player; put the itemId in the "carry" slot, remove its position while carried?
         pickUpObject: $(pickUpObject),
@@ -121,110 +118,101 @@ function useState(world: ServerWorld, isReady: Signal<boolean>, initializeSelfDa
         // placeItem: $(placeItem),
         // placeItem: $(placeItem),
 
-        onServerAck: $(async function (this: LocalWorldWrapper, msg: ServerAckMessage<ServerAckType>) {
+        onServerAck: $(async function (this: LocalWorldWrapper, {authoritativeState, seq,}: ServerAckMessage<ServerAckType>) {
+            if (seq < (this.client.lastProcessedSeq ?? -1)) return;
             const predictionArr = [...this.client.predictionBuffer];
-            // console.log({(566)
-            //
-            //     predictionArr: [...predictionArr],
-            //     msg: { ...msg },
-            //     isPlayersDirty: state.ctx.client.isDirty.players,
-            // });
-            const index = predictionArr.findIndex((p) => p.seq === msg.seq);
+
+            const index = predictionArr.findIndex((p) => p.seq === seq);
             if (index === -1) return;
-            // console.log("found prediction by sequence:", {
-            //     predictionArr: [...predictionArr],
-            //     index,
-            // });
+            this.client.lastProcessedSeq = seq;
 
             // NOTE: skip if results of the changes matched: for full prediction on the client
             // - if no client visual prediction, then the resultState and authState would NOT match since client would be behind
-            // in case server sends authState while accepted === true
-            const resultState =
-                predictionArr[predictionArr.findIndex((p) => p.seq === msg.seq + 1)]
+
+            const predicted =
+                predictionArr[predictionArr.findIndex((p) => p.seq === seq + 1)]
                     ?.snapshotBefore || this.client.player;
-            if (
-                msg.authoritativeState?.pos &&
-                resultState.pos.x === msg.authoritativeState.pos.x &&
-                resultState.pos.y === msg.authoritativeState.pos.y &&
-                msg.authoritativeState.dir &&
-                resultState.dir === msg.authoritativeState.dir
-            ) {
-                // results at that point in time matched:
-                // still remove prediction at index from buffer,
-                predictionArr.splice(index, 1);
-                // do I want to clear everything before it as well?
-                // predictionArr.splice(0, index + 1);
-                this.client.predictionBuffer = predictionArr;
-                // console.log("~~ results are same: remaining predictions:", {
-                //     remaining: [...predictionArr],
-                //     index,
-                //     resultState: { ...resultState },
-                // });
-                return;
-                // no need to replay anything
-            }
+
+            const isPredictedMatchingAuthoritative = 
+                authoritativeState?.pos &&
+                authoritativeState.dir &&
+                predicted.pos.x === authoritativeState.pos.x &&
+                predicted.pos.y === authoritativeState.pos.y &&
+                predicted.dir === authoritativeState.dir;
+
 
             // Prediction matched — just drop it
-            if (!msg.authoritativeState) {
-                // console.log("~~ no authoritative state, do nothing", {
-                //     predictionArr: [...predictionArr],
-                //     index,
-                // });
-                predictionArr.splice(index, 1);
+            if (!authoritativeState || isPredictedMatchingAuthoritative) {
+                // clear everything before it as well
+                predictionArr.splice(0, index + 1);
                 this.client.predictionBuffer = predictionArr;
+                console.log("~~ results are same: remaining predictions:", {
+                    remaining: [...predictionArr],
+                    index,
+                    resultState: { ...predicted },
+                });
                 return;
+                // no need to replay anything since there was no correction
             }
 
-            // 1. Roll back to authoritative position
-            // roll back to corrected position for that msg
+            // Prediction not matched, roll back player
+            const newPos = {
+                ...this.client.player!.pos,
+                ...authoritativeState.pos,
+            };
             this.client.player = {
                 ...this.client.player!,
-                ...msg.authoritativeState,
-                pos: {
-                    ...this.client.player!.pos,
-                    ...msg.authoritativeState.pos,
-                },
+                ...authoritativeState,
+                pos: newPos,
             };
-            console.log("EXPECT POSITION DIFFERENCE::", {
-                lastSnapshot: { ...this.client.lastSnapshot },
-                currentPlayer: { ...this.client.player },
-            });
+
+            const anyDirty: IsDirty = {
+                players: true,
+                objects: false,
+                map: true, // have to "roll back" map as well; easier to just rerender
+                // map: chunkBefore.chunkX - chunkAfter.chunkX !== 0 || chunkBefore.chunkY - chunkAfter.chunkY !== 0,
+            };
+            console.log('EXPECT MAP DIRTY:', anyDirty);
+
+            // console.log("EXPECT POSITION DIFFERENCE::", {
+            //     lastAckedSnapshot: { ...this.client.lastSnapshot },
+            //     currentPlayer: { ...this.client.player },
+            // });
+
             this.client.lastSnapshot = { ...this.client.player! };
 
-            // 2. Remove confirmed actions up through index
+
+            // Remove confirmed actions including this seq
             predictionArr.splice(0, index + 1);
 
             this.client.predictionBuffer = predictionArr;
-            this.client.isDirty.players = true;
+            console.log("~~ predictionBuffer remaining:", [...predictionArr]);
 
-            if (clientPhysicsMode === ClientPhysicsMode.NONE) return;
+            // NOTE: after moving to a client tick model, no need to applyActionToWorld here!
+            // just reset the predictionArr and then the game tick will apply and set to dirty.
+            // Everything below will be moved to tick
 
-            console.log("~~ predictionBuffer replaying:", [...predictionArr]);
+            if (!(await this.getPhysicsPrediction())) {
+                this.client.isDirty = {...anyDirty};
+                return;
+            }
 
-            const resultDirty = {
-                players: false,
-                objects: false,
-                map: false,
-            };
             // 3. Replay remaining predictions based on the corrected position
             for (const p of predictionArr) {
-                const result = await applyActionToWorld(this, p.action);
-                if (!result) continue;
+                const isDirty = await applyActionToWorld(this, p.action);
+                if (!isDirty) continue;
 
-                if (result.players) resultDirty.players = true;
-                if (result.objects) resultDirty.objects = true;
-                if (result.map) resultDirty.map = true;
+                anyDirty.players = isDirty.players || anyDirty.players;
+                anyDirty.objects = isDirty.objects || anyDirty.objects;
+                anyDirty.map = isDirty.map || anyDirty.map;
             }
-            // snapshot is current visual state of client
-            this.client.lastSnapshot = { ...this.client.player! };
-            Object.entries(resultDirty).forEach(([k, isDirty]) => {
-                if (!isDirty) return;
-                this.client.isDirty[
-                    k as keyof typeof this.client.isDirty
-                ] = true;
-            });
+            this.client.isDirty = {...anyDirty};
+
+            // save last snapshot received from server - should maybe happen before replaying??
+            // this.client.lastSnapshot = { ...this.client.player! };
         }),
 
+        // TODO: change this to be more of a rule structure for server and for client
         getPhysicsCollision: $(function(this: LocalWorldWrapper) {return this.physics === ClientPhysicsMode.FULL_PREDICTION}), 
         getPhysicsPrediction: $(function(this: LocalWorldWrapper) {return this.physics !== ClientPhysicsMode.NONE}), 
     });

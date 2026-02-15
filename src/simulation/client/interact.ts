@@ -1,6 +1,5 @@
-import { LocalWorldWrapper } from "~/components/canvas1/types";
+import { IsDirty, LocalWorldWrapper } from "~/components/canvas1/types";
 import { ModifierKey, OperatorKey, TargetKey, VimAction } from "../../fsm/types";
-import { IsDirty } from "./actions";
 import { ValidatePasteValid, ValidateYankValid } from "../server/types";
 import { basicInteractValidation } from "../shared/validators/interact";
 import applies from "../shared/actions";
@@ -14,7 +13,7 @@ import sharedValidators from "../shared/validators";
 export async function applyInteraction(
     state: LocalWorldWrapper,
     action: VimAction,
-): Promise<IsDirty> {
+): Promise<Partial<IsDirty> | false> {
     const prediction = await state.getPhysicsPrediction();
     if (!prediction) return false;
 

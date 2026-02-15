@@ -117,10 +117,6 @@ export default function useRenderLoop(
                 draw.closeDevStats(state);
             }
 
-            if (state.ctx.client.isDirty.map) {
-                state.ctx.client.isDirty.map = false;
-                renderMap();
-            }
 
             if (state.ctx.client.isDirty.objects) {
                 state.ctx.client.isDirty.objects = false;
@@ -130,6 +126,11 @@ export default function useRenderLoop(
             if (state.ctx.client.isDirty.players) {
                 state.ctx.client.isDirty.players = false;
                 draw.players(state);
+            }
+
+            if (state.ctx.client.isDirty.map) {
+                state.ctx.client.isDirty.map = false;
+                renderMap();
             }
 
             state.ctx.world.lastScale = state.ctx.world.dimensions.scale;

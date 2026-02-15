@@ -1,23 +1,21 @@
+import { MAP_CONFIG } from "~/server/map";
 import { ItemQualityId, MapDimensions, TileType, WorldEntity } from "~/types/worldTypes";
 
-const TILE_SIZE = 32;
-const MAP_WIDTH = 32;
-const MAP_HEIGHT = 32;
+const TILE_SIZE_PX = 32; // px
+export const CHUNK_SIZE = 32; // tiles
 const SCALE_DEFAULT = 1;
-export const getScaledTileSize = (scaleDecimal: number) => {
-    const tileSize = Math.round(TILE_SIZE * scaleDecimal);
-    const actualScale = tileSize / TILE_SIZE;
 
-    return { tileSize, actualScale };
-}
-export const CHUNK_SIZE = MAP_WIDTH;
+const WORLD_WIDTH_BLOCKS = CHUNK_SIZE * MAP_CONFIG.width;
+const WORLD_HEIGHT_BLOCKS = CHUNK_SIZE * MAP_CONFIG.height;
 
 export const DIMENSIONS: MapDimensions = {
-    width: MAP_WIDTH,
-    height: MAP_HEIGHT,
-    tileSize: TILE_SIZE,
-    canvasWidth: MAP_WIDTH * TILE_SIZE,
-    canvasHeight: MAP_HEIGHT * TILE_SIZE,
+    worldWidthBlocks: WORLD_WIDTH_BLOCKS,
+    worldHeightBlocks: WORLD_HEIGHT_BLOCKS,
+    tileSize: TILE_SIZE_PX,
+    viewportWidthPx: CHUNK_SIZE * TILE_SIZE_PX,
+    viewportHeightPx: CHUNK_SIZE * TILE_SIZE_PX,
+    viewportWidthBlocks: CHUNK_SIZE,
+    viewportHeightBlocks: CHUNK_SIZE,
     scale: SCALE_DEFAULT,
 }
 

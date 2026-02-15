@@ -1,6 +1,7 @@
-import { MapDimensions, Player } from "~/types/worldTypes";
+import { Direction, MapDimensions, Player } from "~/types/worldTypes";
 import { closeOldCanvas } from "./utils";
 import { GameState } from "~/hooks/useState";
+import { getLocalChunkCoords } from "~/server/map";
 
 export function drawPlayers(state: GameState) {
     const canvas = state.refs.players.value!;
@@ -25,55 +26,58 @@ export function drawPlayer(
 
     ctx.fillStyle = player.color;
     const tileSize = state.ctx.world.dimensions.tileSize;
-    const x = player.pos.x * tileSize;
-    const y = player.pos.y * tileSize;
+    const { localX, localY } = getLocalChunkCoords(player.pos);
+    const x = localX * tileSize;
+    const y = localY * tileSize;
     ctx.fillRect(x, y, tileSize, tileSize);
 
-    drawPlayerName(state.ctx.world.dimensions, x, y, ctx, player);
-    drawPlayerDirection(state.ctx.world.dimensions, ctx, player);
+    drawPlayerName(state.ctx.world.dimensions, x, y, player.name, ctx);
+    drawPlayerDirection(state.ctx.world.dimensions, x, y, player.dir, ctx);
 }
 
 function drawPlayerName(
     dimensions: MapDimensions,
     x: number,
     y: number,
+    name: string,
     ctx: CanvasRenderingContext2D,
-    player: Player,
 ) {
-    const FONT_SIZE = 12 * dimensions.scale;
+    const DISPLAY_NAME = name.slice(0, 16).trim(); // max 4x4 to display
+    const CHARS_PER_LINE = (DISPLAY_NAME.length > 4 && DISPLAY_NAME.length <= 9) 
+        ? 3  // try for 3x3
+        : 4; // else 4 chars per line
+
+    // 3 will use 12
+    // 4 will use 12 * 4/5 = 9.6
+    const FONT_SIZE = (12 * (3 + 1) / (CHARS_PER_LINE + 1)) * dimensions.scale;
     ctx.font = `bold ${FONT_SIZE}px serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.strokeStyle = "white";
-    ctx.fillStyle = "black";
-    ctx.lineWidth = 1;
-    const CHARS_PER_LINE = 4;
-    let charsPerLine = CHARS_PER_LINE;
-    let name = player.name.slice(0, 20).trim();
-    if (name.length === 4) {
-        charsPerLine = CHARS_PER_LINE;
-    } else if (name.length / 3 <= 3) {
-        charsPerLine = 3;
-    }
 
-    const rows = name.length / charsPerLine;
-    const center = y + dimensions.tileSize / 2 + 3 * dimensions.scale;
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 1;
+
+    ctx.fillStyle = "black";
+
+    const rows = DISPLAY_NAME.length / CHARS_PER_LINE;
+    const center = y + dimensions.tileSize / 2 + 3 * dimensions.scale; // add a little padding to get centered
     const start = center - (rows / 2) * FONT_SIZE;
+
     for (let row = 0; row < rows; row++) {
-        const substr = name.slice(0, charsPerLine);
+        const substr = DISPLAY_NAME.slice(row * CHARS_PER_LINE, (row+1) * CHARS_PER_LINE);
         const y = start + row * FONT_SIZE;
-        ctx.strokeText(substr, x + dimensions.tileSize / 2, y);
-        ctx.fillText(substr, x + dimensions.tileSize / 2, y);
-        name = name.slice(charsPerLine);
+        ctx.strokeText(substr, x + dimensions.tileSize / 2, y); // outline
+        ctx.fillText(substr, x + dimensions.tileSize / 2, y); // fill
     }
 }
 
 /**
  * @returns map of offsets for each move
  * */
-function generatePlayerDirectionPath(dimensions: MapDimensions): {
-    [key: string]: [[number, number], [number, number], [number, number]];
-} {
+type PlayerDirectionPath = Record<string, [[number, number], [number, number], [number, number]]>;
+const tileSizeToplayerDirectionPathMap: Record<number, PlayerDirectionPath> = {};
+
+function genDirPath(dimensions: MapDimensions): PlayerDirectionPath {
     const oneFourth = (dimensions.tileSize * 1) / 4;
     const oneHalf = dimensions.tileSize / 2;
     const threeFourths = (dimensions.tileSize * 3) / 4;
@@ -102,15 +106,24 @@ function generatePlayerDirectionPath(dimensions: MapDimensions): {
     };
 }
 
+
+function getPlayerDirectionPath(dimensions: MapDimensions) {
+    if (!tileSizeToplayerDirectionPathMap[dimensions.tileSize]) {
+        tileSizeToplayerDirectionPathMap[dimensions.tileSize] = genDirPath(dimensions);
+    }
+
+    return tileSizeToplayerDirectionPathMap[dimensions.tileSize];
+}
+
 function drawPlayerDirection(
     dimensions: MapDimensions,
+    x: number,
+    y: number,
+    dir: Direction,
     ctx: CanvasRenderingContext2D,
-    player: Player,
 ) {
-    const x = player.pos.x * dimensions.tileSize;
-    const y = player.pos.y * dimensions.tileSize;
-    const instructions = generatePlayerDirectionPath(dimensions);
-    const instruction = instructions[player.dir];
+    const instructions = getPlayerDirectionPath(dimensions);
+    const instruction = instructions[dir];
 
     // drawing a direction arrow:
     ctx.beginPath();

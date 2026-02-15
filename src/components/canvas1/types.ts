@@ -11,6 +11,11 @@ export interface Prediction {
     action: VimAction;
     snapshotBefore: Player;
 }
+export type IsDirty = {
+    players: boolean,
+    objects: boolean,
+    map: boolean,
+};
 
 export type ClientData = {
     player?: Player; // not really needed??? but might be better to look up once only
@@ -20,11 +25,7 @@ export type ClientData = {
     afkStartTime: number;
     idleStartTime: number;
     timeSinceLastCheckpoint: number;
-    isDirty: {
-        players: boolean;
-        objects: boolean;
-        map: boolean;
-    };
+    isDirty: IsDirty;
     predictionBuffer: Prediction[];
     commandBuffer: string;
     lastSnapshot?: Player;

@@ -101,19 +101,30 @@ export type SessionAggregate = {
 
 
 export type MapDimensions = {
-    width: number;
-    height: number;
+    worldWidthBlocks: number;
+    worldHeightBlocks: number;
     tileSize: number;
-    canvasWidth: number;
-    canvasHeight: number;
+    viewportWidthPx: number;
+    viewportHeightPx: number;
+    viewportWidthBlocks: number;
+    viewportHeightBlocks: number;
     scale: number;
-}
-
-export type Vec2 = {
-    x: number;
-    y: number;
 };
-
+type VecType = "local" | "chunk" | "world";
+export type Vec2<T extends VecType = "world"> = T extends "local"
+    ? {
+          localX: number;
+          localY: number;
+      }
+    : T extends "chunk"
+      ? {
+            chunkX: number;
+            chunkY: number;
+        }
+      : {
+            x: number;
+            y: number;
+        };
 
 export interface FindObjectsInRange {
     modifiedRange: number;

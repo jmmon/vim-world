@@ -151,15 +151,11 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
             console.log("onAction:", { snapshotBefore, action, seq });
 
             // 2. Apply local prediction
-            // console.log('APPLYING ACTION:', {action, localWorldWrapper});
-            const result = await applyActionToWorld(state.ctx, action);
-            // console.log('applyAction result:', result);
-            Object.entries(result).forEach(([k, isDirty]) => {
-                if (!isDirty) return;
-                state.ctx.client.isDirty[
-                    k as keyof typeof state.ctx.client.isDirty
-                ] = true;
-            });
+            const isDirty = await applyActionToWorld(state.ctx, action);
+            state.ctx.client.isDirty = {
+                ...state.ctx.client.isDirty,
+                ...isDirty
+            };
             console.log("afterAction:", { ...state.ctx.client.player });
 
             // 3. Send to server; wipe local and server AFK state
@@ -183,35 +179,35 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
         <div
             style={{
                 position: "relative",
-                width: dimensions.canvasWidth + "px",
-                height: dimensions.canvasHeight + "px",
+                width: dimensions.viewportWidthPx + "px",
+                height: dimensions.viewportHeightPx + "px",
             }}
         >
             <canvas
                 ref={state.refs.map}
-                width={dimensions.canvasWidth}
-                height={dimensions.canvasHeight}
+                width={dimensions.viewportWidthPx}
+                height={dimensions.viewportHeightPx}
                 style={canvasStyle}
                 data-name="map"
             />
             <canvas
                 ref={state.refs.objects}
-                width={dimensions.canvasWidth}
-                height={dimensions.canvasHeight}
+                width={dimensions.viewportWidthPx}
+                height={dimensions.viewportHeightPx}
                 style={canvasStyle}
                 data-name="objects"
             />
             <canvas
                 ref={state.refs.players}
-                width={dimensions.canvasWidth}
-                height={dimensions.canvasHeight}
+                width={dimensions.viewportWidthPx}
+                height={dimensions.viewportHeightPx}
                 style={canvasStyle}
                 data-name="players"
             />
             <canvas
                 ref={state.refs.overlay}
-                width={dimensions.canvasWidth}
-                height={dimensions.canvasHeight}
+                width={dimensions.viewportWidthPx}
+                height={dimensions.viewportHeightPx}
                 style={canvasStyle}
                 data-name="overlay"
             />

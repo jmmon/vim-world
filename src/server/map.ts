@@ -1,5 +1,5 @@
 import { CHUNK_SIZE } from "~/components/canvas1/constants";
-import { Tile } from "~/types/worldTypes";
+import { Tile, Vec2 } from "~/types/worldTypes";
 
 export const zone: Zone = {
     seed: 1234567,
@@ -9,10 +9,8 @@ export const MAP_CONFIG: MapConfig = {
     width: 4,
     height: 4,
 };
-// server AND client: chunk cache
-export const chunkCache = new Map<string, Chunk>();
 
-function mulberry32(seed: number) {
+export function mulberry32(seed: number) {
     return function () {
         let t = (seed += 0x6d2b79f5);
         t = Math.imul(t ^ (t >>> 15), t | 1);
@@ -28,6 +26,26 @@ function hash32(a: number, b: number, c: number) {
 function chunkSeed(worldSeed: number, cx: number, cy: number) {
     return hash32(worldSeed, cx, cy);
 }
+
+/** @returns the chunk's slot coords
+ * @example: world coords: 0, 0 => chunk slot: 0, 0
+ * @example: world coords: 32, 0 => chunk slot: 1, 0
+ * @example: world coords: 64, 0 => chunk slot: 2, 0
+ * */
+export const getChunkSlot = (worldPos: Vec2): Vec2<'chunk'> => ({
+    chunkX: Math.floor(worldPos.x / CHUNK_SIZE),
+    chunkY: Math.floor(worldPos.y / CHUNK_SIZE)
+});
+
+/** @returns coords within a chunk 
+ * @example: world coords: 1, 1 => chunk coords: 1, 1
+ * @example: world coords: 33, 1 => chunk coords: 1, 1
+ * @example: world coords: 65, 1 => chunk coords: 1, 1
+ * */
+export const getLocalChunkCoords = (worldPos: Vec2): Vec2<'local'> => ({
+    localX: worldPos.x % CHUNK_SIZE,
+    localY: worldPos.y % CHUNK_SIZE,
+});
 
 // chunk numbers
 export interface MapConfig {
@@ -91,6 +109,7 @@ const RULESETS: Record<RuleSetId, Ruleset> = {
 };
 
 // use on chunk.tiles
+// could refactor to border the map instead of the chunk??
 function addBorders(rng: () => number, chunk: Chunk, rulesetId: RuleSetId) {
     const h = chunk.tiles.length;
 
@@ -115,6 +134,12 @@ function addBorders(rng: () => number, chunk: Chunk, rulesetId: RuleSetId) {
     }
 }
 addBorders(() => 1, { cx: 0, cy: 0, tiles: [[]] }, "dungeon-v1");
+
+// TODO: addWorldBorders
+
+
+
+
 
 // function carveRoom(map: Tile[][], x: number, y: number, w: number, h: number) {
 //     for (let dy = 0; dy < h; dy++) {
@@ -419,16 +444,14 @@ function generateBorderTile(rulesetId: RuleSetId): Tile {
 /* ============== CHUNKS ================ */
 /* ====================================== */
 
+// generateBaseTile: world coords matter later for biomes & paths
 export function generateChunk(
     worldSeed: number,
     worldX: number,
     worldY: number,
     rulesetId: RuleSetId,
 ): Chunk {
-    const chunkX = Math.floor(worldX / CHUNK_SIZE);
-    const chunkY = Math.floor(worldY / CHUNK_SIZE);
-    // const localX = worldX % CHUNK_SIZE;
-    // const localY = worldY % CHUNK_SIZE;
+    const { chunkX, chunkY } = getChunkSlot({ x: worldX, y: worldY });
 
     const seed = chunkSeed(worldSeed, chunkX, chunkY);
     const rng = mulberry32(seed);
@@ -446,76 +469,11 @@ export function generateChunk(
 
     const chunk = { cx: chunkX, cy: chunkY, tiles };
     // addBorders(rng, chunk, rulesetId);
+    // TODO: addWorldBorders
     spreadMap(rng, chunk, rulesetId, 5, { ignoreEdges: ["N", "S", "E", "W"] });
     reduceMapOrphans(rng, chunk, rulesetId, 2, { ignoreEdges: ["N", "S", "E", "W"] });
     return chunk;
 }
-
-// generateBaseTile: world coords matter later for biomes & paths
-
-// export function getChunk(worldX: number, worldY: number, zone: Zone): Chunk {
-//     const cx = Math.floor(worldX / CHUNK_SIZE);
-//     const cy = Math.floor(worldY / CHUNK_SIZE);
-//     const key = `${cx},${cy}`;
-//     console.log("getting chunk:", key);
-//     if (!chunkCache.has(key)) {
-//         const chunk = generateChunk(zone.seed, worldX, worldY, zone.ruleset);
-//         chunkCache.set(key, chunk);
-//     }
-//     return chunkCache.get(key)!;
-// }
-
-
-
-
-
-
-// const map = {
-//     map00: getTiles(getChunk(0, 0, zone)),
-//     map01: getTiles(getChunk(0, 1, zone)),
-//     map10: getTiles(getChunk(1, 0, zone)),
-//     map11: getTiles(getChunk(1, 1, zone)),
-// }
-// console.log('test generate maps:', JSON.stringify(map));
-
-// function generateBaseMap(zone: Zone, config: MapConfig) {
-//     console.log('generating base map...', config, zone);
-//     for (let y = 0; y < config.height; y++) {
-//         for (let x = 0; x < config.width; x++) {
-//             getChunk(x, y, zone);
-//         }
-//     }
-// }
-// generateBaseMap(zone, MAP_CONFIG);
-
-// function getTileTypes(chunk: Chunk | Chunk[]) {
-//     if (!Array.isArray(chunk)) chunk = [chunk];
-//     return chunk.map(
-//         (v) => v.tiles.map(
-//             (row) => row.map(
-//                 (t) => t.type
-//             )
-//         )
-//     )
-// }
-
-// console.log(
-//     'test generate map_config::',
-//     chunkCache.get('0,0'),
-//     // JSON.stringify(
-//     //     getTileTypes(Array.from(chunkCache.values()))
-//     // )
-// );
-
-// export const chunkService = {
-//     getChunk: getChunk,
-// };
-
-// export const MAP = chunkService.getChunk(0, 0, zone)
-// console.log({MAP});
-
-
-
 
 
 
