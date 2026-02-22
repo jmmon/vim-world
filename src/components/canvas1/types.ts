@@ -1,6 +1,6 @@
 import { QRL } from "@builder.io/qwik";
 import { VimAction } from "~/fsm/types";
-import { ServerWorld } from "~/server/types";
+import { World } from "~/server/types";
 import { ServerAckMessage, ServerAckType } from "~/types/messageTypes";
 import { Player, Vec2, WorldEntity } from "~/types/worldTypes";
 import { ClientPhysicsMode } from "./constants";
@@ -46,7 +46,7 @@ export type InterfaceData = {
 };
 
 export type LocalWorldWrapper = InterfaceData & {
-    world: ServerWorld & {
+    world: World & {
         lastScale: number;
     };
     physics: ClientPhysicsMode;

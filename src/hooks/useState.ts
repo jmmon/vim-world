@@ -1,5 +1,5 @@
 import { $, Signal, useSignal, useStore, useVisibleTask$ } from "@builder.io/qwik";
-import { ServerWorld } from "~/server/types";
+import { World } from "~/server/types";
 import {
     InitializeClientData,
     IsDirty,
@@ -17,7 +17,7 @@ import { getScaledTileSize } from "~/services/draw/utils";
 // import useSeq from "./useSeq";
 // import { dispatch } from "./useWebSocket";
 
-function useState(world: ServerWorld, isReady: Signal<boolean>, initializeSelfData: Signal<InitializeClientData | undefined>) {
+function useState(world: World, isReady: Signal<boolean>, initializeSelfData: Signal<InitializeClientData | undefined>) {
     const mapRef = useSignal<HTMLCanvasElement>();
     const objectsRef = useSignal<HTMLCanvasElement>();
     const playersRef = useSignal<HTMLCanvasElement>();
@@ -119,7 +119,7 @@ function useState(world: ServerWorld, isReady: Signal<boolean>, initializeSelfDa
         // placeItem: $(placeItem),
         // placeItem: $(placeItem),
 
-        onServerAck: $(async function (this: LocalWorldWrapper, {authoritativeState, seq,}: ServerAckMessage<ServerAckType>) {
+        onServerAck: $(async function (this: LocalWorldWrapper, { authoritativeState, seq }: ServerAckMessage<ServerAckType>) {
             if (seq < (this.client.lastProcessedSeq ?? -1)) return;
             const predictionArr = [...this.client.predictionBuffer];
 

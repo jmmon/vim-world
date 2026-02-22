@@ -21,12 +21,12 @@ import ChooseUsername from "../choose-username/choose-username";
 import useWebSocket from "~/hooks/useWebSocket";
 import Menu from "../menu/menu";
 import useRenderLoop from "~/hooks/useRenderLoop";
-import { ServerWorld } from "~/server/types";
+import { World } from "~/server/types";
 import useState from "../../hooks/useState";
 import useDispatch from "~/hooks/useDispatch";
 
 type Canvas1Props = {
-    worldState: ServerWorld;
+    worldState: World;
 };
 const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
     const isReady = useSignal(false);

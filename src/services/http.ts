@@ -1,5 +1,5 @@
 import { API_PORT } from "~/components/canvas1/constants";
-import { ServerWorld } from "~/server/types";
+import { World } from "~/server/types";
 import { Player, WorldEntity } from "~/types/worldTypes";
 
 const httpService = {
@@ -21,7 +21,7 @@ const httpService = {
             const response = await fetch(
                 `http://localhost:${API_PORT}/api/map`,
             );
-            return (await response.json()) as Omit<ServerWorld, "players" | "entities"> & {
+            return (await response.json()) as Omit<World, "players" | "entities"> & {
                 players: Record<string, Player>;
                 entities: Record<string, WorldEntity>;
             };

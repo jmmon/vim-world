@@ -43,3 +43,4 @@ export type TransitionFn = (
     event: KeyboardEvent,
     lastAction: null | VimAction,
 ) => TransitionResult;
+

@@ -1,16 +1,16 @@
 import { Resource, component$, useResource$ } from "@builder.io/qwik";
 import Canvas1 from "~/components/canvas1/canvas1";
 import { Player, WorldEntity } from "~/types/worldTypes";
-import { ServerWorld } from "~/server/types";
+import { World } from "~/server/types";
 import httpService from "~/services/http";
 
 export default component$(() => {
     // fetch world from server
-    const worldResource = useResource$<ServerWorld>(async () => {
+    const worldResource = useResource$<World>(async () => {
         const serverWorld = await httpService.api.map();
 
         console.assert((!serverWorld.players.has), "serverWorld:", serverWorld, '\ntypeof players:', typeof serverWorld.players);
-        const rebuiltWorld: ServerWorld = {
+        const rebuiltWorld: World = {
             ...serverWorld,
             players: new Map<string, Player>(
                 Object.entries(serverWorld.players),

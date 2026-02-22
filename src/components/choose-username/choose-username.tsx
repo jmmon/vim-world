@@ -66,7 +66,6 @@ export default component$(
                     username: username.value,
                     usernameHash: hash,
                 };
-                // player.value = loadedPlayer;
 
                 dialogRef.value!.close();
             } catch (err) {

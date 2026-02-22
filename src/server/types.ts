@@ -3,16 +3,16 @@ import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact"
 import { MapDimensions, Player, Vec2, WorldEntity } from "~/types/worldTypes";
 import { Zone } from "./map";
 
-export type ServerWorld = {
-    dimensions: MapDimensions;
-    zone: Zone;
+export type World = {
     players: Map<string, Player>;
     entities: Map<string, WorldEntity>,
+    zone: Zone;
+    dimensions: MapDimensions;  // derived/merged with MapConfig?
 };
 
 export type ServerWorldWrapper = {
-    world: ServerWorld,
     physics: ClientPhysicsMode;
+    world: World,
     isWithinBounds(target: Vec2): boolean;
     isWalkable(target: Vec2): boolean;
     addPlayer(player: Player): boolean;

@@ -23,14 +23,22 @@ export type ApplyMoveResult = {
 }
 export type ApplyActionResult = Expand<ApplyMoveResult | ApplyInteractResult>;
 
+interface ValidateInteractBase {
+    ok: boolean;
+    reason: ReasonCorrection | ReasonInvalid | undefined;
+}
 
-export type ValidateYankValid = {
+interface ValidateYankBase extends ValidateInteractBase {
+    targetObj?: WorldEntity;
+    lastPosBeforeObject?: Vec2;
+}
+export interface ValidateYankValid extends ValidateYankBase {
     ok: true;
     reason: undefined;
     targetObj: WorldEntity;
     lastPosBeforeObject: Vec2;
 }
-export type ValidateYankError = {
+export interface ValidateYankError extends ValidateYankBase { 
     ok: false;
     reason: ReasonCorrection | ReasonInvalid;
     targetObj?: WorldEntity;
@@ -38,14 +46,17 @@ export type ValidateYankError = {
 }
 export type ValidateYankResult = Expand<ValidateYankValid | ValidateYankError>; 
 
-
-export type ValidatePasteValid = {
+interface ValidatePasteBase extends ValidateInteractBase {
+    obj?: WorldEntity;
+    targetPos?: Vec2;
+}
+export interface ValidatePasteValid extends ValidatePasteBase {
     ok: true;
     reason: undefined;
     obj: WorldEntity;
     targetPos: Vec2;
 }
-export type ValidatePasteError = {
+export interface ValidatePasteError extends ValidatePasteBase {
     ok: false;
     reason: ReasonCorrection | ReasonInvalid;
     obj?: WorldEntity;
@@ -54,6 +65,9 @@ export type ValidatePasteError = {
 export type ValidatePasteResult = Expand<ValidatePasteValid | ValidatePasteError>; 
 
 
+
+// export type ValidateInteractResult<T extends OperatorKey> = 'p' extends T ? ValidatePasteResult : ValidateYankResult;
 export type ValidateInteractResult = ValidatePasteResult | ValidateYankResult;
+// export type ValidateInteractValid<T extends OperatorKey> = 'p' extends T ? ValidatePasteValid : ValidateYankValid;
 export type ValidateInteractValid = ValidatePasteValid | ValidateYankValid;
 

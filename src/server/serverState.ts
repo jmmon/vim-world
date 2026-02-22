@@ -1,6 +1,6 @@
 import { DIMENSIONS, clientPhysicsMode } from "~/components/canvas1/constants";
 import { zone } from "~/server/map";
-import { ClientData, ServerWorld, ServerWorldWrapper } from "./types";
+import { ClientData, World, ServerWorldWrapper } from "./types";
 import { Player, Vec2 } from "~/types/worldTypes";
 import { isWalkable, isWithinBounds } from "~/simulation/shared/helpers";
 import { pickUpItem, pickUpObject } from "~/simulation/shared/actions/interact";
@@ -12,7 +12,7 @@ export const clients = new Map<string, ClientData<undefined | 'withPlayerId'>>()
 
 const players = new Map<string, Player>();
 
-export const SERVER_WORLD: ServerWorld = {
+export const SERVER_WORLD: World = {
     dimensions: DIMENSIONS,
     zone: zone,
     players,

@@ -1,5 +1,5 @@
 import { getLocalChunkCoords } from "~/server/map";
-import { ServerWorld } from "~/server/types";
+import { World } from "~/server/types";
 import chunkService from "~/services/chunk";
 import { Direction, MapDimensions, Tile, Vec2 } from "~/types/worldTypes";
 
@@ -72,14 +72,14 @@ export const isWithinBounds = (dimensions: MapDimensions, next: Vec2): boolean =
 
 
 // collision will get the chunk that is needed
-function getWorldTile(world: ServerWorld, pos: Vec2): Tile | undefined {
+function getWorldTile(world: World, pos: Vec2): Tile | undefined {
     const chunk = chunkService.getChunk(pos.x, pos.y, world.zone);
     const { localX, localY } = getLocalChunkCoords(pos);
     return chunk.tiles?.[localY]?.[localX];
 }
 
 export function isWalkable(
-    world: ServerWorld,
+    world: World,
     next: Vec2,
 ) {
     // tile collision
