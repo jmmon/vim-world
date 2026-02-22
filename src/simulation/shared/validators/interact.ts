@@ -1,6 +1,6 @@
 import {
     applyRangeToDelta,
-    combinePos,
+    addPos,
     dirToDelta,
 } from "~/simulation/shared/helpers";
 import {
@@ -50,7 +50,7 @@ export function findObjectInRangeByKey(
     for (let i = 1; i <= modifiedRange; i++) {
         // check each range level, return object if it finds it
         const ranged = applyRangeToDelta(i, delta);
-        const targetPos = combinePos(ranged, player!.pos);
+        const targetPos = addPos(ranged, player!.pos);
         // instead of finding each loop, could filter to find in a straight line and loop over those
         // but items are just a list, maybe i could make it an array of arrays and insert them at coordinates
         // then it could be searched easier
@@ -90,13 +90,12 @@ export async function validateCarryingObjectAndEmptyInFront(
     state: LocalWorldWrapper | ServerWorldWrapper,
     player: Player,
 ): Promise<ValidatePasteObjectResult | false> {
-    const collision = await state.getPhysicsCollision();
 
     if (!player?.carryingObjId) return false;
 
     const delta = dirToDelta(player.dir);
-    const targetPos = combinePos(delta, player.pos);
-    if (collision !== false) {
+    const targetPos = addPos(delta, player.pos);
+    if (state.physics.collision !== false) {
         if (!(await state.isWithinBounds(targetPos))) return false;
 
         const entitiesArray = Array.from(state.world.entities.values());
@@ -152,7 +151,6 @@ async function validateFindObjectInRangeByKey(
     player: Player,
     key: string,
 ): Promise<ValidateYankResult> {
-    const collision = await state.getPhysicsCollision();
     const result = await state.findObjectInRangeByKey(player, key);
     console.log("validateYank result:", result);
     if (!result.targetObj) {
@@ -161,7 +159,7 @@ async function validateFindObjectInRangeByKey(
     }
 
     // hopefully work for both client and server: server has no opts, client might have opts
-    if (collision !== false) {
+    if (state.physics.collision !== false) {
         if (!state.isWithinBounds(result.targetObj.pos!)) {
             // probably never happens unless we have objects offmap
             console.warn("found target object is OUTSIDE BOUNDS!", result);

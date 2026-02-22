@@ -2,10 +2,6 @@ import { roundToDecimals } from "~/utils/utils";
 import { generateOldDimensions, hasScaleChanged } from "./utils";
 import { MapDimensions } from "~/types/worldTypes";
 import { GameState } from "~/hooks/useState";
-import {
-    ClientPhysicsMode,
-    clientPhysicsMode,
-} from "~/components/canvas1/constants";
 
 // probably should not be using viewportWidthPx, instead use viewportWidthBlocks * tileSize * scale
 
@@ -111,8 +107,6 @@ export function drawFps(state: GameState, fps: string, ema?: string) {
 //
 // ****************************************************************
 
-const collision = clientPhysicsMode === ClientPhysicsMode.FULL_PREDICTION;
-const prediction = clientPhysicsMode !== ClientPhysicsMode.NONE;
 function getFormattedTime(value: number) {
     return value === -1
         ? "?"
@@ -120,14 +114,14 @@ function getFormattedTime(value: number) {
 }
 
 const STAT_MAP = [
-    {
-        name: "x",
-        getValue: (state: GameState) => state.ctx.client.player?.pos.x ?? "?",
-    },
-    {
-        name: "y",
-        getValue: (state: GameState) => state.ctx.client.player?.pos.y ?? "?",
-    },
+    // {
+    //     name: "x",
+    //     getValue: (state: GameState) => state.ctx.client.player?.pos.x ?? "?",
+    // },
+    // {
+    //     name: "y",
+    //     getValue: (state: GameState) => state.ctx.client.player?.pos.y ?? "?",
+    // },
     {
         name: "idle",
         getValue: (state: GameState) =>
@@ -140,11 +134,11 @@ const STAT_MAP = [
     },
     {
         name: "collision",
-        getValue: (_?: GameState) => (collision ? "YES" : "NO"),
+        getValue: (state: GameState) => (state.ctx.physics.collision ? "YES" : "NO"),
     },
     {
         name: "prediction",
-        getValue: (_?: GameState) => (prediction ? "YES" : "NO"),
+        getValue: (state: GameState) => (state.ctx.physics.prediction ? "YES" : "NO"),
     },
 ];
 
@@ -186,7 +180,7 @@ function getDevStatsStyles(
     dimensions: MapDimensions,
     canvas: HTMLCanvasElement,
 ): D {
-    const LINES = 6;
+    const LINES = STAT_MAP.length;
     const FONT_SIZE = 16;
 
     const styles = getBoxStyles(

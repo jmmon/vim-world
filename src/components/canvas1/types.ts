@@ -3,8 +3,8 @@ import { VimAction } from "~/fsm/types";
 import { World } from "~/server/types";
 import { ServerAckMessage, ServerAckType } from "~/types/messageTypes";
 import { Player, Vec2, WorldEntity } from "~/types/worldTypes";
-import { ClientPhysicsMode } from "./constants";
 import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact";
+import { PhysicsMode } from "~/server/physics";
 
 export interface Prediction {
     seq: number;
@@ -49,7 +49,7 @@ export type LocalWorldWrapper = InterfaceData & {
     world: World & {
         lastScale: number;
     };
-    physics: ClientPhysicsMode;
+    physics: PhysicsMode;
     client: ClientData;
     isWithinBounds: QRL<(target: Vec2) => boolean>;
     isWalkable: QRL<(target: Vec2) => boolean>;
@@ -81,6 +81,4 @@ export type LocalWorldWrapper = InterfaceData & {
     // >;
 
     onServerAck: QRL<(msg: ServerAckMessage<ServerAckType>) => void>; 
-    getPhysicsCollision: QRL<() => boolean>; 
-    getPhysicsPrediction: QRL<() => boolean>; 
 };

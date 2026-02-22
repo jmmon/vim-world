@@ -28,12 +28,3 @@ export const ITEM_COLOR_MAP: Record<ItemQualityId, string> = {
 
 export const HOT_PINK = "#ff69b4";
 
-export enum ClientPhysicsMode {
-  FULL_PREDICTION, // (default) collision checks on client, movement predictions before ACK (turn on collision and prediction)
-  VISUAL_ONLY, // turn off collision checks on client, keep only movement predictions; use server to validate and correct (turn off collision, turn on prediction)
-  NONE, // server-controlled, wait for ACK before rendering anything (turn off collision and prediction)
-};
-
-export const clientPhysicsMode: ClientPhysicsMode = ClientPhysicsMode.VISUAL_ONLY;
-
-

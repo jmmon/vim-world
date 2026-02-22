@@ -1,4 +1,3 @@
-import { clientPhysicsMode } from "~/components/canvas1/constants"
 import { DIMENSIONS, zone } from "~/server/map";
 import { ClientData, World, ServerWorldWrapper } from "./types";
 import { Player, Vec2 } from "~/types/worldTypes";
@@ -6,10 +5,9 @@ import { isWalkable, isWithinBounds } from "~/simulation/shared/helpers";
 import { pickUpItem, pickUpObject } from "~/simulation/shared/actions/interact";
 import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact";
 import { entities } from "./objects";
-
+import { SERVER_PHYSICS } from "./physics";
 
 export const clients = new Map<string, ClientData<undefined | 'withPlayerId'>>();
-
 const players = new Map<string, Player>();
 
 export const SERVER_WORLD: World = {
@@ -20,12 +18,12 @@ export const SERVER_WORLD: World = {
 }
 export const WORLD_WRAPPER: ServerWorldWrapper = {
     world: SERVER_WORLD,
-    physics: clientPhysicsMode,
+    physics: SERVER_PHYSICS,
     isWithinBounds(target: Vec2) {
-        return isWithinBounds(this.world.dimensions, target);
+        return isWithinBounds(this, target);
     },
     isWalkable(target: Vec2) {
-        return isWalkable(this.world, target);
+        return isWalkable(this, target);
     },
     /**
      * set player into world.players
@@ -73,8 +71,6 @@ export const WORLD_WRAPPER: ServerWorldWrapper = {
     // placeObject: placeObject,
     // pi
     // placeItem: placeItem,
-    getPhysicsCollision: function(this: ServerWorldWrapper) {return true;}, 
-    getPhysicsPrediction: (function(this: ServerWorldWrapper) {return true;}), 
 };
 
 

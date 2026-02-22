@@ -6,13 +6,13 @@ import {
     LocalWorldWrapper,
 } from "../components/canvas1/types";
 import { Player, Vec2 } from "~/types/worldTypes";
-import { ClientPhysicsMode, clientPhysicsMode } from "../components/canvas1/constants";
 import { pickUpItem, pickUpObject } from "~/simulation/shared/actions/interact";
 import { isWalkable, isWithinBounds } from "~/simulation/shared/helpers";
 import { ServerAckMessage, ServerAckType } from "~/types/messageTypes";
 import { applyActionToWorld } from "~/simulation/client/actions";
 import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact";
 import { getScaledTileSize } from "~/services/draw/utils";
+import { CLIENT_PHYSICS } from "~/server/physics";
 // import { VimAction } from "~/fsm/types";
 // import useSeq from "./useSeq";
 // import { dispatch } from "./useWebSocket";
@@ -31,7 +31,7 @@ function useState(world: World, isReady: Signal<boolean>, initializeSelfData: Si
             ...world,
             lastScale: 0,
         },
-        physics: clientPhysicsMode,
+        physics: CLIENT_PHYSICS,
         client: {
             player: undefined,
             username: undefined,
@@ -57,10 +57,10 @@ function useState(world: World, isReady: Signal<boolean>, initializeSelfData: Si
             devStats: true,
         },
         isWithinBounds: $(function (this: LocalWorldWrapper, target: Vec2) {
-            return isWithinBounds(this.world.dimensions, target);
+            return isWithinBounds(this, target);
         }),
         isWalkable: $(function (this: LocalWorldWrapper, target: Vec2) {
-            return isWalkable(this.world, target);
+            return isWalkable(this, target);
         }),
         addPlayer: $(function (this: LocalWorldWrapper, player: Player) {
             if (!player) return false;
@@ -173,7 +173,7 @@ function useState(world: World, isReady: Signal<boolean>, initializeSelfData: Si
                 map: true, // have to "roll back" map as well; easier to just rerender
                 // map: chunkBefore.chunkX - chunkAfter.chunkX !== 0 || chunkBefore.chunkY - chunkAfter.chunkY !== 0,
             };
-            console.log('EXPECT MAP DIRTY:', anyDirty);
+            console.log('EXPECT MAP DIRTY if prediction is running:', anyDirty);
 
             // console.log("EXPECT POSITION DIFFERENCE::", {
             //     lastAckedSnapshot: { ...this.client.lastSnapshot },
@@ -193,7 +193,7 @@ function useState(world: World, isReady: Signal<boolean>, initializeSelfData: Si
             // just reset the predictionArr and then the game tick will apply and set to dirty.
             // Everything below will be moved to tick
 
-            if (!(await this.getPhysicsPrediction())) {
+            if (!this.physics.prediction) {
                 this.client.isDirty = {...anyDirty};
                 return;
             }
@@ -212,10 +212,6 @@ function useState(world: World, isReady: Signal<boolean>, initializeSelfData: Si
             // save last snapshot received from server - should maybe happen before replaying??
             // this.client.lastSnapshot = { ...this.client.player! };
         }),
-
-        // TODO: change this to be more of a rule structure for server and for client
-        getPhysicsCollision: $(function(this: LocalWorldWrapper) {return this.physics === ClientPhysicsMode.FULL_PREDICTION}), 
-        getPhysicsPrediction: $(function(this: LocalWorldWrapper) {return this.physics !== ClientPhysicsMode.NONE}), 
     });
 
     const lastInit = useSignal(0);

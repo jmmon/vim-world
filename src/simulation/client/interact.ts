@@ -14,17 +14,13 @@ export async function applyInteraction(
     state: LocalWorldWrapper,
     action: VimAction,
 ): Promise<Partial<IsDirty> | false> {
-    const prediction = await state.getPhysicsPrediction();
-    if (!prediction) return false;
+    if (!state.physics.prediction) return false;
 
     const basicResult = basicInteractValidation(action);
 
     if (!basicResult.ok) return false;
 
-
-    const actionType = action.command![0] as OperatorKey;
-    const modifier = action.command![1] as ModifierKey
-    const target = action.command![2] as TargetKey;
+    const [actionType, modifier, target] = [action.command![0], action.command![1], action.command![2]] as [OperatorKey, ModifierKey, TargetKey];
 
     const interactValidatorResult = await sharedValidators.interact[actionType][modifier](state, state.client.player!, target);
     if (!interactValidatorResult || !interactValidatorResult?.ok) return false;

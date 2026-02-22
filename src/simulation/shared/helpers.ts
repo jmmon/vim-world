@@ -1,7 +1,8 @@
 import { getLocalChunkCoords } from "~/server/map";
-import { World } from "~/server/types";
+import { LocalWorldWrapper } from "~/components/canvas1/types";
+import { World, ServerWorldWrapper } from "~/server/types";
 import chunkService from "~/services/chunk";
-import { Direction, MapDimensions, Tile, Vec2 } from "~/types/worldTypes";
+import { Direction, Tile, Vec2 } from "~/types/worldTypes";
 
 export function keyToDelta(key?: string): Vec2 | null {
     switch (key) {
@@ -57,18 +58,19 @@ export function applyRangeToDelta(range: number = 1, delta: Vec2): Vec2 {
     };
 }
 
-export const combinePos = (pos: Vec2, delta: Vec2): Vec2 => ({
+export const addPos = (pos: Vec2, delta: Vec2): Vec2 => ({
     x: pos.x + delta.x,
     y: pos.y + delta.y,
 });
 
 // TODO: take chunks into account
 // 
-export const isWithinBounds = (dimensions: MapDimensions, next: Vec2): boolean =>
+export const isWithinBounds = (state: ServerWorldWrapper | LocalWorldWrapper, next: Vec2): boolean =>
+    state.physics.collision === false || 
     next.x >= 0 &&
     next.y >= 0 &&
-    next.x < dimensions.worldWidthBlocks &&
-    next.y < dimensions.worldHeightBlocks;
+    next.x < state.world.dimensions.worldWidthBlocks &&
+    next.y < state.world.dimensions.worldHeightBlocks;
 
 
 // collision will get the chunk that is needed
@@ -79,18 +81,20 @@ function getWorldTile(world: World, pos: Vec2): Tile | undefined {
 }
 
 export function isWalkable(
-    world: World,
+    state: ServerWorldWrapper | LocalWorldWrapper,
     next: Vec2,
 ) {
+    if (state.physics.collision === false) return true;
     // tile collision
-    const tile = getWorldTile(world, next);
+    const tile = getWorldTile(state.world, next);
     if (tile?.collision?.solid) {
         console.error("unwalkable tile!", { tile });
         return false;
     }
 
+    // later: e.g. chunk static entities, world dynamic entities
     // object collision
-    const entity = Array.from(world.entities.values()).find(
+    const entity = Array.from(state.world.entities.values()).find(
         ({pos}) => pos && pos.x === next.x && pos.y === next.y,
     );
     if (entity?.collision?.solid) {
@@ -99,9 +103,9 @@ export function isWalkable(
     }
 
     // player collision
-    if (world.players.size === 0) return true;
+    if (state.world.players.size === 0) return true;
 
-    for (const p of world.players.values()) {
+    for (const p of state.world.players.values()) {
         if (p.pos.x === next.x && p.pos.y === next.y) {
             console.error("cannot walk on other players", p);
             return false;

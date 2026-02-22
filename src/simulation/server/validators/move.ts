@@ -1,7 +1,7 @@
 import { Player, Vec2 } from "~/types/worldTypes";
 import { VimAction } from "~/fsm/types";
 import { WORLD_WRAPPER } from "~/server/serverState";
-import { combinePos, deltaToDir, keyToDelta } from "~/simulation/shared/helpers";
+import { addPos, deltaToDir, keyToDelta } from "~/simulation/shared/helpers";
 import { ReasonCorrection, ValidateMoveResult } from "../types";
 
 function validateMove(player: Player, action: VimAction): ValidateMoveResult {
@@ -18,17 +18,17 @@ function validateMove(player: Player, action: VimAction): ValidateMoveResult {
     let processedCount = 0;
     let reason: ReasonCorrection | undefined = undefined;
     while (processedCount < steps) {
-        const next = combinePos(target, delta);
+        const next = addPos(target, delta);
 
         if (!WORLD_WRAPPER.isWithinBounds(next)) {
-            console.log("!!not within bounds!", player.pos, next);
             reason = "OUT_OF_BOUNDS";
+            console.log(`!!${reason}!`, player.pos, next);
             break; // stop at map edge
         }
 
         if (!WORLD_WRAPPER.isWalkable(next)) {
-            console.log("!!collision!", player.pos, next);
             reason = "COLLISION";
+            console.log(`!!${reason}!`, player.pos, next);
             break; // stop at obstacle or player
         }
 
