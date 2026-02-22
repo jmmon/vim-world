@@ -1,5 +1,5 @@
-import { DIMENSIONS, clientPhysicsMode } from "~/components/canvas1/constants";
-import { zone } from "~/server/map";
+import { clientPhysicsMode } from "~/components/canvas1/constants"
+import { DIMENSIONS, zone } from "~/server/map";
 import { ClientData, World, ServerWorldWrapper } from "./types";
 import { Player, Vec2 } from "~/types/worldTypes";
 import { isWalkable, isWithinBounds } from "~/simulation/shared/helpers";

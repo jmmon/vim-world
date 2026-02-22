@@ -1,4 +1,4 @@
-import { API_PORT } from "~/components/canvas1/constants";
+import { API_PORT } from "~/server/constants";
 import { World } from "~/server/types";
 import { Player, WorldEntity } from "~/types/worldTypes";
 

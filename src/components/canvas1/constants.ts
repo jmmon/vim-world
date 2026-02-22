@@ -1,23 +1,4 @@
-import { MAP_CONFIG } from "~/server/map";
-import { ItemQualityId, MapDimensions, TileType, WorldEntity } from "~/types/worldTypes";
-
-const TILE_SIZE_PX = 32; // px
-export const CHUNK_SIZE = 32; // tiles
-const SCALE_DEFAULT = 1;
-
-const WORLD_WIDTH_BLOCKS = CHUNK_SIZE * MAP_CONFIG.width;
-const WORLD_HEIGHT_BLOCKS = CHUNK_SIZE * MAP_CONFIG.height;
-
-export const DIMENSIONS: MapDimensions = {
-    worldWidthBlocks: WORLD_WIDTH_BLOCKS,
-    worldHeightBlocks: WORLD_HEIGHT_BLOCKS,
-    tileSize: TILE_SIZE_PX,
-    viewportWidthPx: CHUNK_SIZE * TILE_SIZE_PX,
-    viewportHeightPx: CHUNK_SIZE * TILE_SIZE_PX,
-    viewportWidthBlocks: CHUNK_SIZE,
-    viewportHeightBlocks: CHUNK_SIZE,
-    scale: SCALE_DEFAULT,
-}
+import { ItemQualityId, TileType, WorldEntity } from "~/types/worldTypes";
 
 export const TILE_COLOR_MAP: Record<TileType, string> = {
     GRASS: "#4CAF50",
@@ -56,8 +37,3 @@ export enum ClientPhysicsMode {
 export const clientPhysicsMode: ClientPhysicsMode = ClientPhysicsMode.VISUAL_ONLY;
 
 
-export const API_PORT = import.meta.env.PROD 
-    ? import.meta.env.VITE_API_PORT
-    : import.meta.env.DEV 
-        ? 5173 
-        : 4173;

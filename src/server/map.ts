@@ -1,5 +1,4 @@
-import { CHUNK_SIZE } from "~/components/canvas1/constants";
-import { Tile, Vec2 } from "~/types/worldTypes";
+import { MapDimensions, Tile, Vec2 } from "~/types/worldTypes";
 
 export const zone: Zone = {
     seed: 1234567,
@@ -8,6 +7,24 @@ export const zone: Zone = {
 export const MAP_CONFIG: MapConfig = {
     width: 4,
     height: 4,
+};
+
+const TILE_SIZE_PX = 32; // px
+export const CHUNK_SIZE = 32; // tiles
+const SCALE_DEFAULT = 1;
+
+const WORLD_WIDTH_BLOCKS = CHUNK_SIZE * MAP_CONFIG.width;
+const WORLD_HEIGHT_BLOCKS = CHUNK_SIZE * MAP_CONFIG.height;
+
+export const DIMENSIONS: MapDimensions = {
+    worldWidthBlocks: WORLD_WIDTH_BLOCKS,
+    worldHeightBlocks: WORLD_HEIGHT_BLOCKS,
+    tileSize: TILE_SIZE_PX,
+    viewportWidthPx: CHUNK_SIZE * TILE_SIZE_PX,
+    viewportHeightPx: CHUNK_SIZE * TILE_SIZE_PX,
+    viewportWidthBlocks: CHUNK_SIZE,
+    viewportHeightBlocks: CHUNK_SIZE,
+    scale: SCALE_DEFAULT,
 };
 
 export function mulberry32(seed: number) {

@@ -1,5 +1,4 @@
-import { CHUNK_SIZE } from "~/components/canvas1/constants";
-import { Chunk, MapConfig, Zone, generateChunk } from "~/server/map";
+import { CHUNK_SIZE, Chunk, MapConfig, Zone, generateChunk } from "~/server/map";
 
 // server AND client: chunk cache
 const chunkCache = new Map<string, Chunk>();

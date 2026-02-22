@@ -26,16 +26,15 @@ export async function applyInteraction(
     const modifier = action.command![1] as ModifierKey
     const target = action.command![2] as TargetKey;
 
-    // new:::
-    const r = await sharedValidators.interact[actionType][modifier](state, state.client.player!, target);
-    if (!r || !r?.ok) return false;
+    const interactValidatorResult = await sharedValidators.interact[actionType][modifier](state, state.client.player!, target);
+    if (!interactValidatorResult || !interactValidatorResult?.ok) return false;
 
     if (actionType === 'p') {
-        await applies.interact[actionType](state, state.client.player!, action, r as ValidatePasteValid)
+        await applies.interact[actionType](state, state.client.player!, action, interactValidatorResult as ValidatePasteValid)
     } else {
-        await applies.interact[actionType](state, state.client.player!, action, r as ValidateYankValid)
+        await applies.interact[actionType](state, state.client.player!, action, interactValidatorResult as ValidateYankValid)
     }
-    if (r.ok) return { players: true, objects: true };
+    if (interactValidatorResult.ok) return { players: true, objects: true };
     return false;
 }
 

@@ -1,5 +1,4 @@
-import { CHUNK_SIZE } from "~/components/canvas1/constants";
-import { MAP_CONFIG, Zone, getChunkSlot, mulberry32, zone } from "~/server/map";
+import { CHUNK_SIZE, MAP_CONFIG, Zone, getChunkSlot, mulberry32, zone } from "~/server/map";
 import chunkService from "~/services/chunk";
 import { Item, Vec2, WorldEntity } from "~/types/worldTypes";
 import { base58 } from "./base58";

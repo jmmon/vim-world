@@ -1,5 +1,5 @@
 import { NoSerialize, QRL, $, Signal, isServer, noSerialize, useOnWindow, useSignal, useTask$ } from "@builder.io/qwik";
-import { API_PORT } from "../../components/canvas1/constants";
+import { API_PORT } from "~/server/constants";
 
 export const useWebSocket = (
     initializeTrigger: Signal<any>,

@@ -1,7 +1,7 @@
 import { MapDimensions, WorldEntity } from "~/types/worldTypes";
 import { LocalWorldWrapper } from "../../components/canvas1/types";
 import { GameState } from "~/hooks/useState";
-import { CHUNK_SIZE } from "~/components/canvas1/constants";
+import { CHUNK_SIZE } from "~/server/map";
 
 export const getScaledTileSize = (scaleDecimal: number) => {
     const tileSize = Math.round(CHUNK_SIZE * scaleDecimal);
