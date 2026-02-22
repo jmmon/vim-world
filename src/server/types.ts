@@ -15,7 +15,7 @@ export type ServerWorldWrapper = {
     physics: PhysicsMode;
     isWithinBounds(target: Vec2): boolean;
     isWalkable(target: Vec2): boolean;
-    addPlayer(player: Player): boolean;
+    addPlayer(player: Player): Promise<boolean>;
     findObjectInRangeByKey(player: Player, key: string): ReturnType<typeof findObjectInRangeByKey>;
     pickUpObject(obj: WorldEntity, player: Player): boolean;
     pickUpItem(obj: WorldEntity, player: Player): boolean;

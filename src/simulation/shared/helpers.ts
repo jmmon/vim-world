@@ -116,4 +116,40 @@ export function isWalkable(
 }
 
 
+const DIRECTIONS = [
+    { dx: 0, dy: -1 }, // UP
+    { dx: 1, dy: 0 },  // RIGHT
+    { dx: 0, dy: 1 },  // DOWN
+    { dx: -1, dy: 0 }, // LEFT
+];
+export async function spiralSearch(this: ServerWorldWrapper, pos: Vec2, maxRadius = Infinity, returnConditionFn: (pos: Vec2) => Promise<boolean> | boolean) {
+    if (await returnConditionFn(pos)) return;
+
+    let stepLength = 1;
+    let dirIndex = 0;
+
+    while (stepLength <= maxRadius * 2) {
+        for (let repeat = 0; repeat < 2; repeat++) {
+            const { dx, dy } = DIRECTIONS[dirIndex % 4];
+
+            let steps = 0;
+            while (steps < stepLength) {
+                pos.x += dx;
+                pos.y += dy;
+
+                if (await returnConditionFn(pos)) return;
+
+                steps++;
+            }
+
+            dirIndex++;
+        }
+
+        stepLength++;
+    }
+
+    throw new Error(`!!no walkable tiles found in ${maxRadius} radius!!`);
+}
+
+
 

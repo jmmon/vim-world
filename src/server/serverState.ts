@@ -1,7 +1,7 @@
 import { DIMENSIONS, zone } from "~/server/map";
 import { ClientData, World, ServerWorldWrapper } from "./types";
 import { Player, Vec2 } from "~/types/worldTypes";
-import { isWalkable, isWithinBounds } from "~/simulation/shared/helpers";
+import { isWalkable, isWithinBounds, spiralSearch } from "~/simulation/shared/helpers";
 import { pickUpItem, pickUpObject } from "~/simulation/shared/actions/interact";
 import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact";
 import { entities } from "./objects";
@@ -28,29 +28,11 @@ export const WORLD_WRAPPER: ServerWorldWrapper = {
     /**
      * set player into world.players
      * */
-    addPlayer(player: Player) {
+    async addPlayer(player: Player) {
         if (!player) return false;
         try {
             // shift pos if not walkable
-            const pos = player.pos;
-            while (!this.isWalkable(pos) || (
-                !this.isWalkable({ x: pos.x, y: pos.y + 1 })
-                && !this.isWalkable({ x: pos.x, y: pos.y - 1 })
-                && !this.isWalkable({ x: pos.x + 1, y: pos.y })
-                && !this.isWalkable({ x: pos.x - 1, y: pos.y })
-            )) {
-                const isAtRight = pos.x === this.world.dimensions.worldWidthBlocks - 1;
-                const isAtBottom = pos.y === this.world.dimensions.worldHeightBlocks - 1;
-                if (isAtBottom && isAtRight) {
-                    throw new Error('!!no walkable tiles found!!');
-                }
-                if (isAtRight) {
-                    pos.x = 0;
-                    pos.y += 1;
-                } else {
-                    pos.x += 1;
-                }
-            }
+            await spiralSearch.call(this, player.pos, 128, (pos) => this.isWithinBounds(pos) && this.isWalkable(pos));
 
             this.world.players.set(player.id, player);
             console.log('added player:', player);
