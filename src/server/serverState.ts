@@ -1,4 +1,4 @@
-import { DIMENSIONS, zone } from "~/server/map";
+import { DIMENSIONS, MAP_CONFIG, zone } from "~/server/map";
 import { ClientData, World, ServerWorldWrapper } from "./types";
 import { Player, Vec2 } from "~/types/worldTypes";
 import { isWalkable, isWithinBounds, spiralSearch } from "~/simulation/shared/helpers";
@@ -15,7 +15,9 @@ export const SERVER_WORLD: World = {
     zone: zone,
     players,
     entities: entities,
+    config: MAP_CONFIG,
 }
+
 export const WORLD_WRAPPER: ServerWorldWrapper = {
     world: SERVER_WORLD,
     physics: SERVER_PHYSICS,
@@ -76,7 +78,7 @@ export const WORLD_WRAPPER: ServerWorldWrapper = {
 //
 //
 // this will provide actual generation and logging in flow for the server worldstate, which can be adapted to Dash once that is integrated
-// - instead of using the hard-coded `player`, will always be the players[] and have to find the player in there by id and then apply the actions
+// - instead of using the hard-coded `player`, will always be the playersp and have to find the player in there by id and then apply the actions
 //
 //
 //
@@ -267,8 +269,31 @@ export const WORLD_WRAPPER: ServerWorldWrapper = {
 // - if set to 0, pan one chunk at a time once the user goes past the edge
 // else pan one movement amount once they get to the limit e.g. 8 away from the edge
 //
-// I guess I could render a 9x9 grid of chunks offscreen, then pan across them
+// I guess I could render a 3x3 grid of chunks offscreen, then pan across them
 // always keep up to 9 buffered
 
+
+
+// tutorial levels: show ghosts of other players within the tutorials
+//
+// outer world will have actual multiplayer interaction of some sort
+
+
+
+// Ok so to get a camera origin for offset panning, need to load multiple chunks
+// I guess ~3x3 chunks loaded at a time
+// allows zoom level on client where their camera might reveal more than one chunk at a time
+//
+// might want some function pan(dir, cells) which could shift the map over and render the missing rows/cols
+
+
+// camera origin will be e.g. topleft of viewport and will be in world coords, e.g. 33,33 (2,2 of chunk 1,1)
+// viewport width/height will determine screen size to know which chunks need to be rendered
+
+
+
+// first can work on loading/unloading chunks
+// e.g. get player position and local chunk, and get 3x3 around that chunk: these will be loaded
+// if moving to chunk i2, unload chunk i0 and load chunk i3
 
 

@@ -12,7 +12,9 @@ import { ServerAckMessage, ServerAckType } from "~/types/messageTypes";
 import { applyActionToWorld } from "~/simulation/client/actions";
 import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact";
 import { getScaledTileSize } from "~/services/draw/utils";
+import chunkService from "~/services/chunk";
 import { CLIENT_PHYSICS } from "~/server/physics";
+import { setPlayerPos } from "~/simulation/client/movement";
 // import { VimAction } from "~/fsm/types";
 // import useSeq from "./useSeq";
 // import { dispatch } from "./useWebSocket";
@@ -83,7 +85,8 @@ function useState(world: World, isReady: Signal<boolean>, initializeSelfData: Si
             this.client.username = data.username;
             this.client.usernameHash = data.usernameHash;
             this.client.lastProcessedSeq = -1;
-
+            chunkService.handleChunkChange(this.client.player, this.world.config)
+            this.client.isDirty.map = true; // for chunk overlay
             console.log("initializeSelf complete!:", data);
             return true;
         }),
@@ -161,17 +164,16 @@ function useState(world: World, isReady: Signal<boolean>, initializeSelfData: Si
                 ...this.client.player!.pos,
                 ...authoritativeState.pos,
             };
+            const changed = setPlayerPos(this.client.player!, newPos, this.world.config);
             this.client.player = {
                 ...this.client.player!,
                 ...authoritativeState,
-                pos: newPos,
             };
 
             const anyDirty: IsDirty = {
                 players: true,
                 objects: false,
-                map: true, // have to "roll back" map as well; easier to just rerender
-                // map: chunkBefore.chunkX - chunkAfter.chunkX !== 0 || chunkBefore.chunkY - chunkAfter.chunkY !== 0,
+                map: changed,
             };
             console.log('EXPECT MAP DIRTY if prediction is running:', anyDirty);
 
@@ -224,6 +226,12 @@ function useState(world: World, isReady: Signal<boolean>, initializeSelfData: Si
         if (!success)
             return console.error("error initializing self!", selfData);
         state.client.isDirty.players = true;
+
+        // if player is found in some other chunk, have to rerender the map
+        const slot = chunkService.getChunkSlot(state.client.player!.pos);
+        if (slot.cx !== 0 || slot.cy !== 0) {
+            state.client.isDirty.map = true;
+        }
 
         const now = Date.now();
 

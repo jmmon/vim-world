@@ -1,4 +1,3 @@
-import { getLocalChunkCoords } from "~/server/map";
 import { LocalWorldWrapper } from "~/components/canvas1/types";
 import { World, ServerWorldWrapper } from "~/server/types";
 import chunkService from "~/services/chunk";
@@ -62,6 +61,10 @@ export const addPos = (pos: Vec2, delta: Vec2): Vec2 => ({
     x: pos.x + delta.x,
     y: pos.y + delta.y,
 });
+// export const subtractPos = (pos: Vec2, delta: Vec2): Vec2 => ({
+//     x: pos.x - delta.x,
+//     y: pos.y - delta.y,
+// });
 
 // TODO: take chunks into account
 // 
@@ -76,7 +79,7 @@ export const isWithinBounds = (state: ServerWorldWrapper | LocalWorldWrapper, ne
 // collision will get the chunk that is needed
 function getWorldTile(world: World, pos: Vec2): Tile | undefined {
     const chunk = chunkService.getChunk(pos.x, pos.y, world.zone);
-    const { localX, localY } = getLocalChunkCoords(pos);
+    const { localX, localY } = chunkService.getLocalChunkCoords(pos);
     return chunk.tiles?.[localY]?.[localX];
 }
 

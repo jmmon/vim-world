@@ -5,7 +5,7 @@ import { GameState } from "~/hooks/useState";
 import { roundToDecimals } from "~/utils/utils";
 import { Chunk, getSurroundingTiles } from "~/server/map";
 import { MapDimensions } from "~/types/worldTypes";
-import chunkService from "../chunk";
+import chunkService, { visibleChunks } from "../chunk";
 
 const LIGHTNESS_OFFSET = {
     range: 6,
@@ -19,37 +19,28 @@ export function drawOffscreenMap(state: LocalWorldWrapper) {
     canvas.width = dimensions.viewportWidthPx;
     canvas.height = dimensions.viewportHeightPx;
     canvas.style.imageRendering = "pixelated";
+    const pos = {
+        x: state.client.player?.pos.x ?? 0,
+        y: state.client.player?.pos.y ?? 0,
+    } as const;
 
-    const pos = [
-        state.client.player?.pos.x ?? 0,
-        state.client.player?.pos.y ?? 0,
-    ] as const;
     const ctx = canvas.getContext("2d")!;
-    const chunk = chunkService.getChunk(
-        ...pos,
-        state.world.zone,
-    );
+    const chunk = chunkService.getChunk(pos.x, pos.y, state.world.zone);
+
+    const rng = chunkService.getChunkRng(chunk.seed);
 
     for (let y = 0; y < dimensions.viewportHeightBlocks; y++) {
         for (let x = 0; x < dimensions.viewportWidthBlocks; x++) {
             const baseColor = TILE_COLOR_MAP[chunk.tiles[y][x].type];
             const lightnessOffset = roundToDecimals(
-                Math.random() * LIGHTNESS_OFFSET.range -
-                    LIGHTNESS_OFFSET.range / 2,
+                rng() * LIGHTNESS_OFFSET.range - LIGHTNESS_OFFSET.range / 2,
                 LIGHTNESS_OFFSET.decimals,
             );
             const adjusted = shadeColor(baseColor, lightnessOffset);
 
             switch (chunk.tiles[y][x].type) {
                 case "CLIFF":
-                    drawCliffTile(
-                        dimensions,
-                        ctx,
-                        x,
-                        y,
-                        adjusted,
-                        chunk,
-                    );
+                    drawCliffTile(dimensions, ctx, x, y, adjusted, chunk);
                     break;
                 default:
                     ctx.fillStyle = adjusted;
@@ -207,18 +198,41 @@ function drawCliffTile(
     }
 }
 
-export function drawChunkOverlay(ctx: CanvasRenderingContext2D, x: number, y: number) {
+export function drawChunkOverlay(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+) {
     // draw background
-    ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
-    ctx.fillRect(0, 0, 64, 64);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
+    ctx.fillRect(0, 0, 128, 128);
 
-    // draw stats
+    // current chunk slot
     ctx.font = `bold ${16}px mono`;
     ctx.textAlign = "left";
-    ctx.fillStyle = "red";
-    ctx.fillText(`${x}, ${y}`, 10, 26);
-    ctx.strokeStyle = "white";
-    ctx.strokeText(`${x}, ${y}`, 10, 26);
+    ctx.fillStyle = "rgba(255, 31, 31, 0.85)";
+    ctx.fillText(`${x}, ${y}`, 10, 18);
+
+    // visible chunks:
+    if (!visibleChunks.length) return;
+
+    const sorted = visibleChunks.sort((a, b) => {
+        const [ax, ay] = a.split(",").map(Number);
+        const [bx, by] = b.split(",").map(Number);
+        if (ax === bx && ay === by) return 0;
+        if (ax === bx) return ay - by;
+        if (ay === by) return ax - bx;
+        return ay - by + ax - bx;
+    });
+    const [minX, minY] = sorted[0].split(",").map(Number);
+
+    visibleChunks.forEach((key) => {
+        console.log("drawing map overlay for key::", { key });
+        const [chunkX, chunkY] = key.split(",").map(Number);
+        const col = chunkX - minX;
+        const row = chunkY - minY;
+        ctx.fillText(`${chunkX},${chunkY}`, 6 + col * 40, 18 + 26 * (row + 1));
+    });
 }
 
 export function drawVisibleMap(state: GameState) {

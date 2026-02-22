@@ -1,12 +1,13 @@
 import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact";
 import { MapDimensions, Player, Vec2, WorldEntity } from "~/types/worldTypes";
-import { Zone } from "./map";
+import { MapConfig, Zone } from "./map";
 import { PhysicsMode } from "./physics";
 
 export type World = {
     players: Map<string, Player>;
     entities: Map<string, WorldEntity>,
     zone: Zone;
+    config: MapConfig;
     dimensions: MapDimensions;  // derived/merged with MapConfig?
 };
 

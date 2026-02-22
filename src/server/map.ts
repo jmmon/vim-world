@@ -1,4 +1,5 @@
-import { MapDimensions, Tile, Vec2 } from "~/types/worldTypes";
+import chunkService from "~/services/chunk";
+import { MapDimensions, Tile } from "~/types/worldTypes";
 
 export const zone: Zone = {
     seed: 1234567,
@@ -27,6 +28,10 @@ export const DIMENSIONS: MapDimensions = {
     scale: SCALE_DEFAULT,
 };
 
+
+
+type IgnoreEdgesOpts = Partial<{ ignoreEdges: Array<"N" | "S" | "W" | "E"> }>;
+
 export function mulberry32(seed: number) {
     return function () {
         let t = (seed += 0x6d2b79f5);
@@ -40,29 +45,10 @@ function hash32(a: number, b: number, c: number) {
     h = (h ^ (h >> 13)) * 1274126177;
     return h >>> 0;
 }
-function chunkSeed(worldSeed: number, cx: number, cy: number) {
+
+export function getChunkSeed(worldSeed: number, cx: number, cy: number) {
     return hash32(worldSeed, cx, cy);
 }
-
-/** @returns the chunk's slot coords
- * @example: world coords: 0, 0 => chunk slot: 0, 0
- * @example: world coords: 32, 0 => chunk slot: 1, 0
- * @example: world coords: 64, 0 => chunk slot: 2, 0
- * */
-export const getChunkSlot = (worldPos: Vec2): Vec2<'chunk'> => ({
-    chunkX: Math.floor(worldPos.x / CHUNK_SIZE),
-    chunkY: Math.floor(worldPos.y / CHUNK_SIZE)
-});
-
-/** @returns coords within a chunk 
- * @example: world coords: 1, 1 => chunk coords: 1, 1
- * @example: world coords: 33, 1 => chunk coords: 1, 1
- * @example: world coords: 65, 1 => chunk coords: 1, 1
- * */
-export const getLocalChunkCoords = (worldPos: Vec2): Vec2<'local'> => ({
-    localX: worldPos.x % CHUNK_SIZE,
-    localY: worldPos.y % CHUNK_SIZE,
-});
 
 // chunk numbers
 export interface MapConfig {
@@ -78,6 +64,9 @@ export interface Chunk {
     cx: number;
     cy: number;
     tiles: Tile[][];
+    seed: number;
+    // playerIds: [],
+    // staticEntityIds: [],
 }
 
 // type TileType2 = "floor" | "wall" | "water" | "grass" | "tree";
@@ -150,7 +139,7 @@ function addBorders(rng: () => number, chunk: Chunk, rulesetId: RuleSetId) {
         }
     }
 }
-addBorders(() => 1, { cx: 0, cy: 0, tiles: [[]] }, "dungeon-v1");
+addBorders(() => 1, { cx: 0, cy: 0, tiles: [[]], seed: 123 }, "dungeon-v1");
 
 // TODO: addWorldBorders
 
@@ -316,19 +305,17 @@ function spreadTiles(
     rng: () => number,
     chunk: Chunk,
     rulesetId: RuleSetId,
-    opts: { ignoreEdges: Array<"N" | "S" | "W" | "E"> } = {
-        ignoreEdges: ["N", "S", "E", "W"],
-    },
+    opts?: IgnoreEdgesOpts,
 ) {
     const ruleset = RULESETS[rulesetId];
     if (!ruleset) throw new Error(`Unknown ruleset: ${rulesetId}`);
 
     for (let y = 0; y < CHUNK_SIZE; y++) {
-        if (opts.ignoreEdges.includes("N") && y === 0) continue;
-        if (opts.ignoreEdges.includes("S") && y === CHUNK_SIZE - 1) continue;
+        if (opts?.ignoreEdges?.includes("N") && y === 0) continue;
+        if (opts?.ignoreEdges?.includes("S") && y === CHUNK_SIZE - 1) continue;
         for (let x = 0; x < CHUNK_SIZE; x++) {
-            if (opts.ignoreEdges.includes("W") && x === 0) continue;
-            if (opts.ignoreEdges.includes("E") && x === CHUNK_SIZE - 1) continue;
+            if (opts?.ignoreEdges?.includes("W") && x === 0) continue;
+            if (opts?.ignoreEdges?.includes("E") && x === CHUNK_SIZE - 1) continue;
             chunk.tiles[y][x] = spread(chunk, x, y, rng, ruleset.baseTiles);
         }
     }
@@ -338,9 +325,7 @@ function spreadMap(
     chunk: Chunk,
     rulesetId: RuleSetId,
     count: number,
-    opts: { ignoreEdges: Array<"N" | "S" | "W" | "E"> } = {
-        ignoreEdges: ["N", "S", "E", "W"],
-    },
+    opts?: IgnoreEdgesOpts,
 ) {
     for (let i = 0; i < count; i++) {
         spreadTiles(rng, chunk, rulesetId, opts);
@@ -400,16 +385,14 @@ function reduceOrphans(
     rng: () => number,
     chunk: Chunk,
     rulesetId: RuleSetId,
-    opts: { ignoreEdges: Array<"N" | "S" | "W" | "E"> } = {
-        ignoreEdges: ["N", "S", "E", "W"],
-    },
+    opts?: IgnoreEdgesOpts,
 ) {
     for (let y = 0; y < chunk.tiles.length; y++) {
-        if (opts.ignoreEdges.includes("N") && y === 0) continue;
-        if (opts.ignoreEdges.includes("S") && y === CHUNK_SIZE - 1) continue;
+        if (opts?.ignoreEdges?.includes("N") && y === 0) continue;
+        if (opts?.ignoreEdges?.includes("S") && y === CHUNK_SIZE - 1) continue;
         for (let x = 0; x < chunk.tiles[0].length; x++) {
-            if (opts.ignoreEdges.includes("W") && x === 0) continue;
-            if (opts.ignoreEdges.includes("E") && x === CHUNK_SIZE - 1) continue;
+            if (opts?.ignoreEdges?.includes("W") && x === 0) continue;
+            if (opts?.ignoreEdges?.includes("E") && x === CHUNK_SIZE - 1) continue;
             chunk.tiles[y][x] = replaceWithSurround(rng, chunk, x, y, rulesetId);
         }
     }
@@ -420,9 +403,7 @@ function reduceMapOrphans(
     chunk: Chunk,
     rulesetId: RuleSetId,
     count: number,
-    opts: { ignoreEdges: Array<"N" | "S" | "W" | "E"> } = {
-        ignoreEdges: ["N", "S", "E", "W"],
-    },
+    opts?: IgnoreEdgesOpts,
 ) {
     for (let i = 0; i < count; i++) {
         reduceOrphans(rng, chunk, rulesetId, opts);
@@ -462,15 +443,19 @@ function generateBorderTile(rulesetId: RuleSetId): Tile {
 /* ====================================== */
 
 // generateBaseTile: world coords matter later for biomes & paths
+const ADD_BORDERS = false;
+const IGNORE_EDGES_OPTS: IgnoreEdgesOpts = {
+    ignoreEdges: ["N", "S", "E", "W"]
+};
 export function generateChunk(
     worldSeed: number,
     worldX: number,
     worldY: number,
     rulesetId: RuleSetId,
 ): Chunk {
-    const { chunkX, chunkY } = getChunkSlot({ x: worldX, y: worldY });
+    const { cx, cy } = chunkService.getChunkSlot({ x: worldX, y: worldY });
 
-    const seed = chunkSeed(worldSeed, chunkX, chunkY);
+    const seed = getChunkSeed(worldSeed, cx, cy);
     const rng = mulberry32(seed);
 
     const tiles: Tile[][] = [];
@@ -484,11 +469,11 @@ export function generateChunk(
         tiles.push(row);
     }
 
-    const chunk = { cx: chunkX, cy: chunkY, tiles };
-    // addBorders(rng, chunk, rulesetId);
-    // TODO: addWorldBorders
-    spreadMap(rng, chunk, rulesetId, 5, { ignoreEdges: ["N", "S", "E", "W"] });
-    reduceMapOrphans(rng, chunk, rulesetId, 2, { ignoreEdges: ["N", "S", "E", "W"] });
+    const chunk = { cx: cx, cy: cy, tiles, seed };
+    if (ADD_BORDERS) addBorders(rng, chunk, rulesetId);
+    // TODO: addWorldBorders around map config edges instead of single chunk edges
+    spreadMap(rng, chunk, rulesetId, 5, ADD_BORDERS ? IGNORE_EDGES_OPTS : undefined);
+    reduceMapOrphans(rng, chunk, rulesetId, 2, ADD_BORDERS ? IGNORE_EDGES_OPTS : undefined);
     return chunk;
 }
 

@@ -7,14 +7,14 @@ import {
 import { closeOldCanvas, shadeColor } from "./utils";
 import { GameState } from "~/hooks/useState";
 import { items } from "~/server/objects";
-import { getChunkSlot, getLocalChunkCoords } from "~/server/map";
+import chunkService from "../chunk";
 
 export function drawObject(
     dimensions: MapDimensions,
     ctx: CanvasRenderingContext2D,
     obj: WorldEntity,
 ) {
-    const { localX: x, localY: y } = getLocalChunkCoords(obj.pos!);
+    const { localX: x, localY: y } = chunkService.getLocalChunkCoords(obj.pos!);
     const baseColor = OBJECT_COLOR_MAP[obj.type];
     const lightnessOffset = Math.random() * 20 - 10;
     const adjusted = shadeColor(baseColor, lightnessOffset);
@@ -108,7 +108,7 @@ export function drawObjects(state: GameState) {
     const ctx = state.refs.objects.value!.getContext("2d")!;
     // clear old rect
     closeOldCanvas(state.ctx, ctx);
-    const cameraChunk = getChunkSlot(
+    const cameraChunk = chunkService.getChunkSlot(
         state.ctx.client.player?.pos || { x: 0, y: 0 },
     );
 
@@ -124,11 +124,9 @@ export function drawObjects(state: GameState) {
             return;
         }
 
-        const entityChunk = getChunkSlot(entity.pos);
-        const isInDifferentChunk =
-            entityChunk.chunkX - cameraChunk.chunkX !== 0 ||
-            entityChunk.chunkY - cameraChunk.chunkY !== 0;
-        if (isInDifferentChunk) {
+        const entityChunk = chunkService.getChunkSlot(entity.pos);
+        const isSameChunk = chunkService.isSameChunk(entityChunk, cameraChunk) 
+        if (!isSameChunk) {
             console.log("outside chunk:", entity.id);
             return;
         }

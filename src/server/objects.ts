@@ -1,4 +1,4 @@
-import { CHUNK_SIZE, MAP_CONFIG, Zone, getChunkSlot, mulberry32, zone } from "~/server/map";
+import { CHUNK_SIZE, MAP_CONFIG, Zone, mulberry32, zone } from "~/server/map";
 import chunkService from "~/services/chunk";
 import { Item, Vec2, WorldEntity } from "~/types/worldTypes";
 import { base58 } from "./base58";
@@ -219,7 +219,7 @@ export const entities = entityFactory(zone);
 console.log(
     'entities:: expect positions within world 0-127::',
     Array.from(entities.values()).map(
-        (e) => ({ ...e, chunkCoords: getChunkSlot(e.pos!)})
+        (e) => ({ ...e, chunkCoords: chunkService.getChunkSlot(e.pos!)})
     )
 );
 

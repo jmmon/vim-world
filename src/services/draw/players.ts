@@ -1,7 +1,7 @@
 import { Direction, MapDimensions, Player } from "~/types/worldTypes";
 import { closeOldCanvas } from "./utils";
 import { GameState } from "~/hooks/useState";
-import { getLocalChunkCoords } from "~/server/map";
+import chunkService from "../chunk";
 
 export function drawPlayers(state: GameState) {
     const canvas = state.refs.players.value!;
@@ -26,7 +26,7 @@ export function drawPlayer(
 
     ctx.fillStyle = player.color;
     const tileSize = state.ctx.world.dimensions.tileSize;
-    const { localX, localY } = getLocalChunkCoords(player.pos);
+    const { localX, localY } = chunkService.getLocalChunkCoords(player.pos);
     const x = localX * tileSize;
     const y = localY * tileSize;
     ctx.fillRect(x, y, tileSize, tileSize);

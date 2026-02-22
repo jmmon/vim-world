@@ -130,8 +130,8 @@ export type Vec2<T extends VecType = "world"> = T extends "local"
       }
     : T extends "chunk"
       ? {
-            chunkX: number;
-            chunkY: number;
+            cx: number;
+            cy: number;
         }
       : {
             x: number;

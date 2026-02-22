@@ -1,8 +1,21 @@
 import { IsDirty, LocalWorldWrapper } from "~/components/canvas1/types";
 import { VimAction } from "../../fsm/types";
-import { getChunkSlot } from "~/server/map";
 import { addPos, keyToDelta, deltaToDir } from "~/simulation/shared/helpers";
+import chunkService from "~/services/chunk";
+import { Player, Vec2 } from "~/types/worldTypes";
+import { MapConfig } from "~/server/map";
 
+
+export function setPlayerPos(player: Player, next: Vec2, mapConfig: MapConfig): boolean {
+    const prev = { ...player.pos };
+    player.pos.x = next.x;
+    player.pos.y = next.y;
+
+    const isSame = chunkService.isSameChunkByPos(prev, next);
+    console.log('setPlayerPos:', {isSameChunk: isSame});
+    if (!isSame) chunkService.handleChunkChange(player, mapConfig);
+    return !isSame;
+}
 
 export async function applyMoveAction(
     state: LocalWorldWrapper,
@@ -15,14 +28,12 @@ export async function applyMoveAction(
 
     const steps = action.count ?? 1;
     const p = state.client.player!;
-    p.dir = deltaToDir(delta); // always update direction even if they didn't move
+    p.dir = deltaToDir(delta); // commit facing change
 
-    const prevChunk = getChunkSlot(p.pos);
-    let nextChunk = prevChunk;
-
+    let next: Vec2 = p.pos;
     let processed = 0;
     for (; processed < steps; processed++) {
-        const next = addPos(next, delta);
+        const nextTry = addPos(next, delta);
         // console.log({processed, next});
 
         if (!(await state.isWithinBounds(nextTry))) {
@@ -34,15 +45,14 @@ export async function applyMoveAction(
             break; // stop at obstacle or player
         }
 
-        p.pos = next; // commit step
-        nextChunk = getChunkSlot(next);
+        next = nextTry;
     }
+    const changed = setPlayerPos(p, next, state.world.config); // commit step
 
-    const hasChunkChanged = prevChunk.chunkX - nextChunk.chunkX !== 0 || prevChunk.chunkY - nextChunk.chunkY !== 0;
     return {
         players: (processed > 0),
-        map: hasChunkChanged,
-        objects: hasChunkChanged,
+        map: changed,
+        objects: changed,
     };
 };
 
