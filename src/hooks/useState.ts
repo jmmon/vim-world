@@ -49,6 +49,7 @@ function useState(world: World, isReady: Signal<boolean>) {
             predictionBuffer: [],
             commandBuffer: "",
             lastSnapshot: undefined,
+            lastAckCheckpoint: undefined,
         },
         show: {
             help: false,
@@ -126,6 +127,16 @@ function useState(world: World, isReady: Signal<boolean>) {
             this: LocalWorldWrapper,
             msg: ServerAckMessage<SubtypeServerAck>,
         ) {
+            if ("subtype" in msg && msg.subtype === "CHECKPOINT") {
+                this.client.lastAckCheckpoint = (msg as ServerAckMessage<"CHECKPOINT">).checkpoint;
+                // this.client.lastSnapshot = 
+                //         checkpointService.toPlayer(
+                //     (msg as ServerAckMessage<"CHECKPOINT">).checkpoint,
+                //     this.client.lastProcessedSeq,
+                // );
+                return;
+            }
+
             const { seq, authoritativeState } = msg;
 
             if (seq < (this.client.lastProcessedSeq ?? -1)) return;
@@ -180,9 +191,6 @@ function useState(world: World, isReady: Signal<boolean>) {
                 objects: false,
                 map: changed,
             };
-
-            this.client.lastSnapshot = { ...this.client.player! };
-
             console.log("EXPECT MAP DIRTY if prediction is running:", anyDirty);
             console.log('EXPECT all properties on player::', this.client.player);
 
@@ -211,9 +219,6 @@ function useState(world: World, isReady: Signal<boolean>) {
                 anyDirty.map = isDirty.map || anyDirty.map;
             }
             this.client.isDirty = {...anyDirty};
-
-            // save last snapshot received from server - should maybe happen before replaying??
-            // this.client.lastSnapshot = { ...this.client.player! };
         }),
         onOtherPlayerMove: $(function (this: LocalWorldWrapper, data: ServerOtherPlayerMessage<"MOVE">)  {
             // skip self

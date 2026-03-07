@@ -11,7 +11,7 @@ import {
     ClientMessage,
 } from "~/types/wss/client";
 import { WORLD_WRAPPER, clients } from "../serverState";
-import checkpointService from "../checkpointService";
+import checkpointService, { PlayerCheckpoint } from "../checkpointService";
 import { Player } from "~/types/worldTypes";
 import { ReasonCorrection, ReasonRejected } from "~/simulation/server/types";
 import { closeAfkPlayer } from "./handleAfkDisconnect";
@@ -106,6 +106,15 @@ export function sendAck(client: ClientSession, {seq, authoritativeState}: {seq: 
         seq,
         accepted: true,
         authoritativeState: authoritativeState,
+    };
+    client.ws.send(JSON.stringify(ack));
+}
+function sendAckCheckpoint(client: ClientSession, checkpoint: PlayerCheckpoint) {
+    const ack: ServerAckMessage<"CHECKPOINT"> = {
+        type: "ACK",
+        subtype: "CHECKPOINT",
+        accepted: true,
+        checkpoint,
     };
     client.ws.send(JSON.stringify(ack));
 }
@@ -213,8 +222,8 @@ function handleSave(clientId: string, { checkpoint: checkpointData, isClosing }:
     const client = clients.get(clientId)!;
     if (client.playerId !== checkpointData.playerId) return;
 
-    checkpointService.update(checkpointData);
-
+    const savedData = checkpointService.update(checkpointData);
+    if (savedData) sendAckCheckpoint(client, savedData)
     if (isClosing) closeAfkPlayer(clientId);
 }
 

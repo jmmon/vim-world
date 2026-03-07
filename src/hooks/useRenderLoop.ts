@@ -9,15 +9,33 @@ import { dispatch } from "./useWebSocket";
 import draw from "~/services/draw";
 import { GameState } from "~/hooks/useState";
 import { isSnapshotSame } from "~/simulation/shared/helpers";
+import checkpointService from "~/server/checkpointService";
 
 export default function useRenderLoop(
     ws: Signal<NoSerialize<WebSocket>>,
     state: GameState,
 ) {
+    /**
+     * lastSnapshot represents the last snapshot sent/received from the server
+     * we check if player has changed from that snapshot to know if we need to dispatch another
+     * */
     const isSnapshotChanged$ = useComputed$(() => {
         if (!state.ctx.client.player) return false;
-        if (!state.ctx.client.lastSnapshot) return false;
-        return !isSnapshotSame(state.ctx.client.player, state.ctx.client.lastSnapshot);
+        if (!state.ctx.client.lastAckCheckpoint) return true;
+        const playerCheckpoint = checkpointService.fromPlayer(
+            state.ctx.client.player,
+            state.ctx.client.lastAckCheckpoint.lastSeenAt,
+        );
+        const isSame = isSnapshotSame(
+            playerCheckpoint,
+            state.ctx.client.lastAckCheckpoint,
+        );
+        console.log("~~ comparing snapshots...", {
+            playerCheckpoint,
+            lastAckCheckpoint: state.ctx.client.lastAckCheckpoint,
+            isSame,
+        });
+        return !isSame;
     });
 
     // eslint-disable-next-line qwik/no-use-visible-task
