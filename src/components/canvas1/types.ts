@@ -53,7 +53,6 @@ export type LocalWorldWrapper = InterfaceData & {
     client: ClientData;
     isWithinBounds: QRL<(target: Vec2) => boolean>;
     isWalkable: QRL<(target: Vec2) => boolean>;
-    addPlayer: QRL<(player: Player) => boolean>;
     initClientData: QRL<(data: InitializeClientData) => boolean>;
     getScaledTileSize: QRL<
         (desiredScale: number) => { actualScale: number; tileSize: number }

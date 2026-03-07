@@ -14,7 +14,6 @@ import {
 } from "~/types/messageTypes";
 import useSeq from "../../hooks/useSeq";
 import useVimFSM from "~/hooks/useVimFSM";
-import { InitializeClientData } from "./types";
 import { useNavigate } from "@builder.io/qwik-city";
 import { applyActionToWorld } from "~/simulation/client/actions";
 import ChooseUsername from "../choose-username/choose-username";
@@ -30,15 +29,19 @@ type Canvas1Props = {
 };
 const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
     const isReady = useSignal(false);
-    const initializeSelfData = useSignal<InitializeClientData>();
     const nav = useNavigate();
     const ws = useSignal<NoSerialize<WebSocket>>(undefined);
     const dispatch = useDispatch(ws);
 
     const getNextSeq = useSeq(); // action index
-    const state = useState(worldState, isReady, initializeSelfData);
+    const state = useState(worldState, isReady);
+    console.log(
+        "canvas1 component init: players:",
+        state.ctx.world.players,
+        " entities::",
+        state.ctx.world.entities,
+    );
 
-    console.log("canvas1 component init: players:", state.ctx.world.players, ' entities::', state.ctx.world.entities);
 
     const onOtherPlayerMove$ = $((data: ServerOtherPlayerMessage<"MOVE">) => {
         // skip self
@@ -72,6 +75,7 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
         switch (data.type) {
             case "CLOSE":
                 if (data.subtype === "START") {
+                    console.assert(state.ctx.client.player, 'Expected player on CLOSE_START!!');
                     if (!state.ctx.client.player) break;
 
                     dispatch.checkpoint(state.ctx.client.player, true);
@@ -85,10 +89,21 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
                 state.ctx.show.afk = true;
                 break;
             case "ACK":
-                if ((data as ServerAckRejectionMessage)?.subtype === "REJECTION")
-                    console.log("REJECTION:", (data as ServerAckRejectionMessage).reason);
-                if ((data as ServerAckCorrectionMessage)?.subtype === "CORRECTION")
-                    console.log("CORRECTION:", (data as ServerAckCorrectionMessage).reason);
+                if (
+                    (data as ServerAckRejectionMessage)?.subtype === "REJECTION"
+                )
+                    console.log(
+                        "REJECTION:",
+                        (data as ServerAckRejectionMessage).reason,
+                    );
+                if (
+                    (data as ServerAckCorrectionMessage)?.subtype ===
+                    "CORRECTION"
+                )
+                    console.log(
+                        "CORRECTION:",
+                        (data as ServerAckCorrectionMessage).reason,
+                    );
                 state.ctx.onServerAck(data);
                 break;
             case "PLAYER":
@@ -99,17 +114,12 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
                 }
                 break;
             case "INIT":
-                console.assert(
-                    data.subtype === "CONFIRM",
-                    'EXPECTED subtype "CONFIRM", got',
-                    data.subtype,
-                );
                 // confirm that playerId has been saved on server
                 onInitConfirm$(data);
                 break;
 
             default:
-                console.warn("INVALID MESSAGE TYPE RECEIVED:", data);
+                console.warn("INVALID MESSAGE TYPE RECEIVED from server::", data);
         }
     });
 

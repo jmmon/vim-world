@@ -1,6 +1,5 @@
 import {
     $,
-    Signal,
     component$,
     useSignal,
     useVisibleTask$,
@@ -8,7 +7,7 @@ import {
 import { server$ } from "@builder.io/qwik-city";
 import crypto from "node:crypto";
 import httpService from "~/services/http";
-import { InitializeClientData } from "../canvas1/types";
+import { LocalWorldWrapper } from "../canvas1/types";
 
 const serverHash$ = server$((str: string) =>
     crypto.createHash("sha256").update(str).digest("hex"),
@@ -16,9 +15,9 @@ const serverHash$ = server$((str: string) =>
 
 export default component$(
     ({
-        initializeSelfData,
+        state,
     }: {
-        initializeSelfData: Signal<InitializeClientData | undefined>;
+        state: LocalWorldWrapper,
     }) => {
         const dialogRef = useSignal<HTMLDialogElement>();
         const username = useSignal<string>("");
@@ -61,15 +60,15 @@ export default component$(
                     await httpService.api.player(formData);
                 console.log("/api/player response:", { player, isNew });
 
-                initializeSelfData.value = {
+                state.initClientData({
                     player: player,
                     username: username.value,
                     usernameHash: hash,
-                };
+                });
 
                 dialogRef.value!.close();
             } catch (err) {
-                console.error(err);
+                console.error('Error initializing client data::', err);
             }
         });
 
@@ -128,5 +127,4 @@ export default component$(
         );
     },
 );
-
 

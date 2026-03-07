@@ -1,4 +1,4 @@
-import { $, Signal, useSignal, useStore, useVisibleTask$ } from "@builder.io/qwik";
+import { $, Signal, useSignal, useStore } from "@builder.io/qwik";
 import { World } from "~/server/types";
 import {
     InitializeClientData,
@@ -19,14 +19,16 @@ import { setPlayerPos } from "~/simulation/client/movement";
 // import useSeq from "./useSeq";
 // import { dispatch } from "./useWebSocket";
 
-function useState(world: World, isReady: Signal<boolean>, initializeSelfData: Signal<InitializeClientData | undefined>) {
+function useState(world: World, isReady: Signal<boolean>) {
+    const offscreenMapRef = useSignal<HTMLCanvasElement>();
     const mapRef = useSignal<HTMLCanvasElement>();
     const objectsRef = useSignal<HTMLCanvasElement>();
     const playersRef = useSignal<HTMLCanvasElement>();
     const overlayRef = useSignal<HTMLCanvasElement>();
-    const offscreenMapRef = useSignal<HTMLCanvasElement>();
 
     // const getNextSeq = useSeq(); // action index
+
+    const lastInit = useSignal(0);
 
     const state = useStore<LocalWorldWrapper>({
         world: {
@@ -64,17 +66,6 @@ function useState(world: World, isReady: Signal<boolean>, initializeSelfData: Si
         isWalkable: $(function (this: LocalWorldWrapper, target: Vec2) {
             return isWalkable(this, target);
         }),
-        addPlayer: $(function (this: LocalWorldWrapper, player: Player) {
-            if (!player) return false;
-            try {
-                this.world.players.set(player.id, player);
-                console.log("added player:", player);
-                return true;
-            } catch (err) {
-                console.error("addPlayer error:", err);
-                return false;
-            }
-        }),
         initClientData: $(function (
             this: LocalWorldWrapper,
             data: InitializeClientData,
@@ -88,6 +79,18 @@ function useState(world: World, isReady: Signal<boolean>, initializeSelfData: Si
             chunkService.handleChunkChange(this.client.player, this.world.config)
             this.client.isDirty.map = true; // for chunk overlay
             console.log("initializeSelf complete!:", data);
+            const now = Date.now();
+            console.assert(
+                now - lastInit.value > 5000,
+                "!!initializing called many times!!",
+            );
+            console.log(
+                "initialized localWorld with client data, NOW READY::",
+                data,
+            );
+
+            lastInit.value = now;
+            isReady.value = true;
             return true;
         }),
         // client only
@@ -214,39 +217,12 @@ function useState(world: World, isReady: Signal<boolean>, initializeSelfData: Si
             // save last snapshot received from server - should maybe happen before replaying??
             // this.client.lastSnapshot = { ...this.client.player! };
         }),
-    });
 
-    const lastInit = useSignal(0);
-    // eslint-disable-next-line qwik/no-use-visible-task
-    useVisibleTask$(async ({ track }) => {
-        const selfData = track(initializeSelfData);
-        if (!selfData) return;
 
-        const success = await state.initClientData(selfData);
-        if (!success)
-            return console.error("error initializing self!", selfData);
-        state.client.isDirty.players = true;
 
-        // if player is found in some other chunk, have to rerender the map
-        const slot = chunkService.getChunkSlot(state.client.player!.pos);
-        if (slot.cx !== 0 || slot.cy !== 0) {
-            state.client.isDirty.map = true;
-        }
 
-        const now = Date.now();
 
-        console.assert(
-            now - lastInit.value > 5000,
-            "!!initializing called many times!!",
-        );
-        console.log(
-            "initialized localWorld with client data, NOW READY::",
-            selfData,
-        );
 
-        lastInit.value = now;
-        initializeSelfData.value = undefined; // reset in case we need to fetch again
-        isReady.value = true;
     });
 
     return {
