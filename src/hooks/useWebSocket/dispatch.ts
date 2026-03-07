@@ -4,13 +4,11 @@ import { VimAction } from "~/fsm/types";
 import { ClientActionMessage, ClientCheckpointMessage, ClientInitMessage } from "~/types/messageTypes";
 import { PlayerCheckpoint } from "~/server/checkpointService";
 
-
 function action(
     ws: NoSerialize<WebSocket> | null,
     seq: number,
     action: VimAction,
 ) {
-    // 3. Send to server
     if (!ws || ws?.readyState !== WebSocket.OPEN) return;
 
     const data: ClientActionMessage = {
@@ -28,8 +26,6 @@ function init(ws: NoSerialize<WebSocket>, playerId: string) {
     console.assert(ws && ws.readyState === WebSocket.OPEN, '!!websocket not open!! playerId:', playerId);
     if (!ws || ws?.readyState !== WebSocket.OPEN) return;
 
-    // TODO:
-    // could use localStorage to save a unique playerId on the browser!
     // later use Dash id or username
     const initMessage: ClientInitMessage = {
         type: "INIT",
