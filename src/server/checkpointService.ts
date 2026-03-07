@@ -70,18 +70,18 @@ function loadOrDefault(playerId: string): CheckpointOrDefault {
     return response as CheckpointOrDefault;
 }
 
-function update(checkpointData: PlayerCheckpoint): boolean {
+function update(checkpointData: PlayerCheckpoint): PlayerCheckpoint | false {
     // console.log('saving checkpoint...', checkpointData.playerId);
     try {
         checkpointCache.set(checkpointData.playerId, checkpointData);
-        return true
+        return checkpointData;
     } catch(err) {
         console.error(err);
         return false;
     }
 }
 
-function toPlayer(data: PlayerCheckpoint) {
+function toPlayer(data: PlayerCheckpoint, lastProcessedSeq: number = -1) {
     const player: Player = {
         level: 1,
         name: data.name,
@@ -93,11 +93,26 @@ function toPlayer(data: PlayerCheckpoint) {
         dir: data.dir,
         color: getRandomHSLColor(data.playerId),
         zone: data.zone,
-        lastProcessedSeq: -1,
+        lastProcessedSeq,
         session: newPlayerSession(),
     };
     return player;
 }
+
+function fromPlayer(p: Player, lastSeenAt: number) {
+    const checkpoint: PlayerCheckpoint = {
+        level: 1,
+        name: p.name,
+        playerId: p.id,
+        x: p.pos.x,
+        y: p.pos.y,
+        dir: p.dir,
+        lastSeenAt: lastSeenAt,
+        zone: p.zone,
+    };
+    return checkpoint;
+}
+
 function toCheckpoint(data: Player) {
     const checkpoint: PlayerCheckpoint = {
         level: data.level,
@@ -128,6 +143,7 @@ const checkpointService = {
     _loadDefaultCheckpoint: _getDefaultCheckpoint,
     update: update,
     toPlayer,
+    fromPlayer,
     toCheckpoint,
 };
 

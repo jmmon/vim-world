@@ -1,4 +1,4 @@
-import { CHUNK_SIZE, MAP_CONFIG, Zone, mulberry32, zone } from "~/server/map";
+import { CHUNK_SIZE, MAP_CONFIG, MapConfig, Zone, mulberry32, zone } from "~/server/map";
 import chunkService from "~/services/chunk";
 import { Item, Vec2, WorldEntity } from "~/types/worldTypes";
 import { base58 } from "./base58";
@@ -9,7 +9,7 @@ const ITEMS: Item[] = [
     { id: "789", quality: "EPIC", kind: "KEY", meta: {name: "Key", description: "description3"} },
 ];
 
-const entitiesList: WorldEntity[] = [
+const ENTITIES_LIST: WorldEntity[] = [
     // {
     //     id: "abc",
     //     type: "DOOR",
@@ -129,9 +129,10 @@ function buildId(rng: () => number) {
     return base58(number17).padEnd(11, '0'); // NOTE: 0 is not valid base58 but this will keep all ids at 11. Probably not needed but just in case
 }
 
-let _items: Array<Item & { prevId: string }>;
+type ItemWithOldId = Item & { prevId: string };
+let _items: Array<ItemWithOldId>;
 
-function buildItems(zone: Zone) {
+function buildItemsWithIds(zone: Zone): ItemWithOldId[] {
     if (_items) return _items;
 
     const rng = mulberry32(zone.seed);
@@ -143,55 +144,42 @@ function buildItems(zone: Zone) {
     return _items;
 }
 
-export const items = buildItems(zone);
 
-
-
-function buildEntities(zone: Zone) {
-    const rng = mulberry32(zone.seed);
-    const itemPrevToIdMap = items.reduce<Record<string, string>>((acc, i) => ({ ...acc, [i.prevId]: i.id }), {});
-    // use seeded IDs; replace items with correct seeded ids
-    const entities = entitiesList.map((e) => ({
-        ...e,
-        id: `${e.type}-${buildId(rng)}`,
-        container: e.container 
-            ? {
-                ...e.container,
-                itemIds: e.container.itemIds.map((i) => itemPrevToIdMap[i]),
-            } : undefined,
-    }));
-
-    // find walkable spots
-    const CHUNKS = chunkService.getMap(zone, MAP_CONFIG);
-    const WALKABLE_MAP_TILES_VEC2_ARRAY = CHUNKS.reduce<Vec2[]>(
-        (accum, row, y) => {
-            row.forEach((chunk, x) => {
-                chunk.tiles.forEach((row, cy) => {
-                    row.forEach((tile, cx) => {
-                        if (!tile.collision?.solid) {
+const findWalkableTiles = (zone: Zone, mapConfig: MapConfig) => 
+    chunkService
+        .getMap(zone, mapConfig)
+        .reduce<Vec2[]>(
+            (accum, chunkRow, y) => {
+                chunkRow.forEach((chunk, x) => {
+                    chunk.tiles.forEach((tileRow, cy) => {
+                        tileRow.forEach((tile, cx) => {
+                            if (tile.collision?.solid) return;
                             accum.push({
                                 x: x * CHUNK_SIZE + cx,
                                 y: y * CHUNK_SIZE + cy
                             });
-                        }
-                    });
-                })
-            });
-            return accum;
-        },
-        [],
-    );
+                        });
+                    })
+                });
+                return accum;
+            },
+            [],
+        );
 
-    // randomizing positions
-    const entitiesPositioned = entities.map((entity) => {
-        const random = Math.floor(rng() * WALKABLE_MAP_TILES_VEC2_ARRAY.length);
-        const { x, y } = WALKABLE_MAP_TILES_VEC2_ARRAY[random];
+
+const randomizeEntityPositions = (
+    entities: WorldEntity[],
+    walkableTiles: Vec2[],
+    rng: () => number
+) => entities.map((entity) => {
+        const random = Math.floor(rng() * walkableTiles.length);
+        const { x, y } = walkableTiles[random];
         console.assert(
-            !!WALKABLE_MAP_TILES_VEC2_ARRAY[random],
+            !!walkableTiles[random],
             "error indexing walkable map tiles!",
         );
         // remove that position from available positions to avoid stacked placement
-        WALKABLE_MAP_TILES_VEC2_ARRAY.splice(random, 1);
+        walkableTiles.splice(random, 1);
         const positionedEntity = {
             ...entity,
             pos: {
@@ -202,19 +190,39 @@ function buildEntities(zone: Zone) {
         return positionedEntity;
     });
 
+const addIdsToEntities = (entitiesList: WorldEntity[], items: ItemWithOldId[], rng: () => number) => {
+    const itemPrevToIdMap = items.reduce<Record<string, string>>((acc, i) => ({ ...acc, [i.prevId]: i.id }), {});
+    // use seeded IDs; replace items with correct seeded ids
+    return entitiesList.map((e) => ({
+        ...e,
+        id: `${e.type}-${buildId(rng)}`,
+        container: e.container 
+            ? {
+                ...e.container,
+                itemIds: e.container.itemIds.map((i) => itemPrevToIdMap[i]),
+            } : undefined,
+    }));
+}
+
+function buildEntities(zone: Zone, mapConfig: MapConfig, entitiesList: WorldEntity[], items: ItemWithOldId[]) {
+    const rng = mulberry32(zone.seed);
+
+    const entities = addIdsToEntities(entitiesList, items, rng);
+    const walkableTiles = findWalkableTiles(zone, mapConfig);
+    const entitiesPositioned = randomizeEntityPositions(entities, walkableTiles, rng);
+
     return new Map<string, WorldEntity>(entitiesPositioned.map((o) => [o.id, o]));
 }
 
 let _entities: Map<string, WorldEntity>;
-
-function entityFactory(zone: Zone) {
+function entityFactory(zone: Zone, mapConfig: MapConfig, entitiesList: WorldEntity[], items: ItemWithOldId[]) {
     if (_entities) return _entities;
-    _entities = buildEntities(zone);
+    _entities = buildEntities(zone, mapConfig, entitiesList, items);
     return _entities;
 }
 
-
-export const entities = entityFactory(zone);
+export const ITEMS_WITH_IDS = buildItemsWithIds(zone);
+export const entities = entityFactory(zone, MAP_CONFIG, ENTITIES_LIST, ITEMS_WITH_IDS);
 
 // console.log(
 //     'entities:: expect positions within world 0-127::',

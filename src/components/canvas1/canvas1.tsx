@@ -8,7 +8,6 @@ import {
 import {
     ServerMessage,
     ServerOtherPlayerMessage,
-    ServerInitConfirmMessage,
     ServerAckRejectionMessage,
     ServerAckCorrectionMessage,
 } from "~/types/wss/server";
@@ -22,7 +21,7 @@ import Menu from "../menu/menu";
 import useRenderLoop from "~/hooks/useRenderLoop";
 import { World } from "~/server/types";
 import useState from "../../hooks/useState";
-import useDispatch from "~/hooks/useDispatch";
+import useDispatch$ from "~/hooks/useDispatch";
 
 type Canvas1Props = {
     worldState: World;
@@ -31,7 +30,7 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
     const isReady = useSignal(false);
     const nav = useNavigate();
     const ws = useSignal<NoSerialize<WebSocket>>(undefined);
-    const dispatch = useDispatch(ws);
+    const dispatch$ = useDispatch$(ws);
 
     const getNextSeq = useSeq(); // action index
     const state = useState(worldState, isReady);
@@ -42,30 +41,6 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
         state.ctx.world.entities,
     );
 
-
-    const onOtherPlayerMove$ = $((data: ServerOtherPlayerMessage<"MOVE">) => {
-        // skip self
-        if (!data.playerId || data.playerId === state.ctx.client.player?.id) {
-            return;
-        }
-
-        // e.g. updating from other clients: find the moving player and move it
-        const otherPlayer = state.ctx.world.players.get(data.playerId);
-        if (!otherPlayer) return;
-
-        otherPlayer.pos = data.pos;
-        otherPlayer.dir = data.dir;
-
-        state.ctx.client.isDirty.players = true;
-    });
-
-    const onInitConfirm$ = $((data: ServerInitConfirmMessage) => {
-        console.log("RECEIVED INIT CONFIRM:", { data });
-        console.assert(
-            localStorage.getItem("playerId") === data.playerId,
-            "!! playerId mismatch!!",
-        );
-    });
 
     const onMessage$ = $((event: MessageEvent<string>) => {
         // console.log("onMessage data:", event.data);
@@ -108,14 +83,14 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
                 break;
             case "PLAYER":
                 if (data.subtype === "MOVE") {
-                    onOtherPlayerMove$(
+                    state.ctx.onOtherPlayerMove(
                         data as ServerOtherPlayerMessage<"MOVE">,
                     );
                 }
                 break;
             case "INIT":
                 // confirm that playerId has been saved on server
-                onInitConfirm$(data);
+                state.ctx.onInitConfirm(data);
                 break;
 
             default:

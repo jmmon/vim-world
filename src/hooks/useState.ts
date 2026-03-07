@@ -5,7 +5,7 @@ import {
     IsDirty,
     LocalWorldWrapper,
 } from "../components/canvas1/types";
-import { Player, Vec2 } from "~/types/worldTypes";
+import { Vec2 } from "~/types/worldTypes";
 import { pickUpItem, pickUpObject } from "~/simulation/shared/actions/interact";
 import { isWalkable, isWithinBounds } from "~/simulation/shared/helpers";
 import { applyActionToWorld } from "~/simulation/client/actions";
@@ -14,10 +14,7 @@ import { getScaledTileSize } from "~/services/draw/utils";
 import chunkService from "~/services/chunk";
 import { setPlayerPos } from "~/simulation/client/movement";
 import { ClientPhysicsMode, getClientPhysics } from "~/simulation/shared/physics";
-import { ServerAckMessage, SubtypeServerAck } from "~/types/wss/server";
-// import { VimAction } from "~/fsm/types";
-// import useSeq from "./useSeq";
-// import { dispatch } from "./useWebSocket";
+import { ServerAckMessage, ServerInitConfirmMessage, ServerOtherPlayerMessage, SubtypeServerAck } from "~/types/wss/server";
 
 function useState(world: World, isReady: Signal<boolean>) {
     const offscreenMapRef = useSignal<HTMLCanvasElement>();
@@ -218,9 +215,36 @@ function useState(world: World, isReady: Signal<boolean>) {
             // save last snapshot received from server - should maybe happen before replaying??
             // this.client.lastSnapshot = { ...this.client.player! };
         }),
+        onOtherPlayerMove: $(function (this: LocalWorldWrapper, data: ServerOtherPlayerMessage<"MOVE">)  {
+            // skip self
+            if (!data.playerId || data.playerId === this.client.player?.id) {
+                return;
+            }
 
+            // TODO: ignore if not within visibleChunks
+            // TODO: reload other players when visibleChunks changes
 
+            // e.g. updating from other clients: find the moving player and move it
+            const otherPlayer = this.world.players.get(data.playerId);
+            if (!otherPlayer) return;
 
+            otherPlayer.pos = data.pos;
+            otherPlayer.dir = data.dir;
+
+            this.client.isDirty.players = true;
+        }),
+        onInitConfirm: $(function (data: ServerInitConfirmMessage) {
+            console.assert(
+                data.subtype === "CONFIRM",
+                'EXPECTED subtype "CONFIRM", got',
+                data.subtype,
+            );
+            console.log("RECEIVED INIT CONFIRM:", { data });
+            console.assert(
+                localStorage.getItem("playerId") === data.playerId,
+                "!! playerId mismatch!!",
+            );
+        }),
 
 
 

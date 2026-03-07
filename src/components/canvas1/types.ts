@@ -1,7 +1,7 @@
 import { QRL } from "@builder.io/qwik";
 import { VimAction } from "~/fsm/types";
 import { World } from "~/server/types";
-import { ServerAckMessage, SubtypeServerAck } from "~/types/wss/server";
+import { ServerAckMessage, ServerInitConfirmMessage, ServerOtherPlayerMessage, SubtypeServerAck } from "~/types/wss/server";
 import { Player, Vec2, WorldEntity } from "~/types/worldTypes";
 import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact";
 import { PhysicsMode } from "~/simulation/shared/physics";
@@ -82,4 +82,6 @@ export type LocalWorldWrapper = InterfaceData & {
     // >;
 
     onServerAck: QRL<(msg: ServerAckMessage<SubtypeServerAck>) => void>; 
+    onOtherPlayerMove: QRL<(msg: ServerOtherPlayerMessage<"MOVE">) => void>;
+    onInitConfirm: QRL<(data: ServerInitConfirmMessage) => void>;
 };

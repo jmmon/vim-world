@@ -1,7 +1,18 @@
 import { LocalWorldWrapper } from "~/components/canvas1/types";
+import { PlayerCheckpoint } from "~/server/checkpointService";
 import { World, ServerWorldWrapper } from "~/server/types";
 import chunkService from "~/services/chunk";
-import { Direction, Tile, Vec2 } from "~/types/worldTypes";
+import { Direction, Player, Tile, Vec2 } from "~/types/worldTypes";
+
+const _stringify = (data: Record<any, any>) =>
+    JSON.stringify(
+        Object.entries(data).sort((a, b) => a[0].localeCompare(b[0])),
+    );
+
+export const isSnapshotSame = <T extends PlayerCheckpoint | Player>(
+    player: T,
+    last: T,
+) => _stringify(last) === _stringify(player);
 
 export function keyToDelta(key?: string): Vec2 | null {
     switch (key) {
@@ -50,12 +61,10 @@ export function dirToDelta(dir: Direction): Vec2 {
     }
 }
 
-export function applyRangeToDelta(range: number = 1, delta: Vec2): Vec2 {
-    return {
-        x: delta.x * range,
-        y: delta.y * range
-    };
-}
+export const applyRangeToDelta = (range: number = 1, { x, y }: Vec2): Vec2 => ({
+    x: x * range,
+    y: y * range,
+});
 
 export const addPos = (pos: Vec2, delta: Vec2): Vec2 => ({
     x: pos.x + delta.x,

@@ -8,11 +8,7 @@ import { initFpsTest } from "~/components/canvas1/utils";
 import { dispatch } from "./useWebSocket";
 import draw from "~/services/draw";
 import { GameState } from "~/hooks/useState";
-
-const stringify = (data: Record<any, any>) =>
-    JSON.stringify(
-        Object.entries(data).sort((a, b) => a[0].localeCompare(b[0])),
-    );
+import { isSnapshotSame } from "~/simulation/shared/helpers";
 
 export default function useRenderLoop(
     ws: Signal<NoSerialize<WebSocket>>,
@@ -20,14 +16,12 @@ export default function useRenderLoop(
 ) {
     const isSnapshotChanged$ = useComputed$(() => {
         if (!state.ctx.client.player) return false;
-        if (!state.ctx.client.lastSnapshot) return true;
-        const last = stringify(state.ctx.client.lastSnapshot);
-        const current = stringify(state.ctx.client.player);
-        return last !== current;
+        if (!state.ctx.client.lastSnapshot) return false;
+        return !isSnapshotSame(state.ctx.client.player, state.ctx.client.lastSnapshot);
     });
 
     // eslint-disable-next-line qwik/no-use-visible-task
-    useVisibleTask$({ cleanup }) => {
+    useVisibleTask$(({ cleanup }) => {
         const zero = Number(document.timeline.currentTime);
         const countFps = initFpsTest(zero, 1);
         state.ctx.client.timeSinceLastCheckpoint = Date.now();

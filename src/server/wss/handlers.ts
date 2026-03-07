@@ -15,7 +15,7 @@ import checkpointService from "../checkpointService";
 import { Player } from "~/types/worldTypes";
 import { ReasonCorrection, ReasonRejected } from "~/simulation/server/types";
 import { closeAfkPlayer } from "./handleAfkDisconnect";
-import { ClientData } from "../types";
+import { ClientSession } from "../types";
 import applyActionToServerWorld from "~/simulation/server/applyAction";
 import serverValidators from "~/simulation/server/validators";
 
@@ -76,7 +76,7 @@ export const onClose = (clientId: string) => () => {
     console.log(`Client ${clientId} disconnected`);
 };
 
-export function sendRejection(client: ClientData, {seq, authoritativeState, reason}: {seq: number; reason: ReasonRejected, authoritativeState: Player}) {
+export function sendRejection(client: ClientSession, {seq, authoritativeState, reason}: {seq: number; reason: ReasonRejected, authoritativeState: Player}) {
     const reject: ServerAckMessage<"REJECTION"> = {
         type: "ACK",
         subtype: "REJECTION",
@@ -88,7 +88,7 @@ export function sendRejection(client: ClientData, {seq, authoritativeState, reas
     client.ws.send(JSON.stringify(reject));
 }
 
-export function sendCorrection(client: ClientData, {seq, authoritativeState, reason}: {seq: number, reason: ReasonCorrection, authoritativeState: Player}) {
+export function sendCorrection(client: ClientSession, {seq, authoritativeState, reason}: {seq: number, reason: ReasonCorrection, authoritativeState: Player}) {
     const correction: ServerAckMessage<"CORRECTION"> = {
         type: "ACK",
         subtype: "CORRECTION",
@@ -100,7 +100,7 @@ export function sendCorrection(client: ClientData, {seq, authoritativeState, rea
     client.ws.send(JSON.stringify(correction));
 }
 
-export function sendAck(client: ClientData, {seq, authoritativeState}: {seq: number, authoritativeState: Player}) {
+export function sendAck(client: ClientSession, {seq, authoritativeState}: {seq: number, authoritativeState: Player}) {
     const ack: ServerAckMessage = {
         type: "ACK",
         seq,
@@ -209,7 +209,7 @@ function handleInit(clientId: string, { playerId }: ClientInitMessage) {
 
 
 
-function handleSave(clientId: string, { checkpoint: checkpointData, isClosing }: ClientCheckpointMessage<"SAVE">) {
+function handleSave(clientId: string, { checkpoint: checkpointData, isClosing }: Pick<ClientCheckpointMessage<"SAVE">, 'checkpoint' | 'isClosing'>) {
     const client = clients.get(clientId)!;
     if (client.playerId !== checkpointData.playerId) return;
 

@@ -1,9 +1,9 @@
 import { Player } from "~/types/worldTypes";
-import { ClientData } from "~/server/types";
+import { ClientSession } from "~/server/types";
 import { ClientActionMessage } from "~/types/wss/client";
 import { VimAction } from "~/fsm/types";
 
-function validateActionSequence(client: ClientData, player: Player, msg: ClientActionMessage) {
+function validateActionSequence(client: ClientSession, player: Player, msg: ClientActionMessage) {
     // basic validation:
     console.log('basic validation:', msg, player);
     if (msg.seq <= player.lastProcessedSeq) {
@@ -47,7 +47,7 @@ function validateActionSchema(action: VimAction): boolean {
     }
 }
 
-export default function basicValidation(client: ClientData, player: Player, msg: ClientActionMessage) {
+export default function basicValidation(client: ClientSession, player: Player, msg: ClientActionMessage) {
     if (!validateActionSequence(client, player, msg)) {
         console.log('invalid action sequence! at:', player.lastProcessedSeq, 'msg:', msg.seq);
         return "INVALID_SEQUENCE";

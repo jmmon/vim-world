@@ -1,5 +1,5 @@
 import { DIMENSIONS, MAP_CONFIG, zone } from "~/server/map";
-import { ClientData, World, ServerWorldWrapper } from "./types";
+import { ClientSession, World, ServerWorldWrapper } from "./types";
 import { Player, Vec2 } from "~/types/worldTypes";
 import { isWalkable, isWithinBounds, spiralSearch } from "~/simulation/shared/helpers";
 import { pickUpItem, pickUpObject } from "~/simulation/shared/actions/interact";
@@ -7,7 +7,7 @@ import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact"
 import { entities } from "./objects";
 import { getServerPhysics } from "~/simulation/shared/physics";
 
-export const clients = new Map<string, ClientData<undefined | 'withPlayerId'>>();
+export const clients = new Map<string, ClientSession<undefined | 'withPlayerId'>>();
 const players = new Map<string, Player>();
 
 export const SERVER_WORLD: World = {

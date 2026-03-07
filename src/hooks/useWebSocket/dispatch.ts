@@ -1,8 +1,8 @@
 import { NoSerialize } from "@builder.io/qwik";
 import { Player } from "~/types/worldTypes";
 import { VimAction } from "~/fsm/types";
-import { PlayerCheckpoint } from "~/server/checkpointService";
 import { ClientActionMessage, ClientCheckpointMessage, ClientInitMessage } from "~/types/wss/client";
+import checkpointService from "~/server/checkpointService";
 
 function action(
     ws: NoSerialize<WebSocket> | null,
@@ -42,17 +42,7 @@ function checkpoint(
 ) {
     if (!ws || ws?.readyState !== WebSocket.OPEN) return;
     // create player checkpoint
-    const checkpoint: PlayerCheckpoint = {
-        level: player.level,
-        name: player.name,
-        playerId: player.id,
-        zone: "default",
-        x: player.pos.x,
-        y: player.pos.y,
-        dir: player.dir,
-        // TODO: session: player.session,
-        lastSeenAt: Date.now(),
-    };
+    const checkpoint = checkpointService.fromPlayer(player, Date.now());
 
     // use ws to send checkpoint data to server
     const checkpointMessage: ClientCheckpointMessage<"SAVE"> = {

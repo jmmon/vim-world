@@ -24,7 +24,7 @@ export type ServerWorldWrapper = {
     // placeItem(obj: MapObjWithPos, player: Player): boolean | Promise<boolean>;
 }
 
-export type ClientData<T extends undefined | 'withPlayerId' = undefined> = {
+export type ClientSession<T extends undefined | 'withPlayerId' = undefined> = {
     clientId: string;
     ws: any;
     lastMessageTime: number;
