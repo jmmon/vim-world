@@ -5,7 +5,7 @@ import { isWalkable, isWithinBounds, spiralSearch } from "~/simulation/shared/he
 import { pickUpItem, pickUpObject } from "~/simulation/shared/actions/interact";
 import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact";
 import { entities } from "./objects";
-import { SERVER_PHYSICS } from "./physics";
+import { getServerPhysics } from "~/simulation/shared/physics";
 
 export const clients = new Map<string, ClientData<undefined | 'withPlayerId'>>();
 const players = new Map<string, Player>();
@@ -20,7 +20,7 @@ export const SERVER_WORLD: World = {
 
 export const WORLD_WRAPPER: ServerWorldWrapper = {
     world: SERVER_WORLD,
-    physics: SERVER_PHYSICS,
+    physics: getServerPhysics(),
     isWithinBounds(target: Vec2) {
         return isWithinBounds(this, target);
     },

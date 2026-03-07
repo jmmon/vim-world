@@ -4,7 +4,7 @@ import { World } from "~/server/types";
 import { ServerAckMessage, ServerAckType } from "~/types/messageTypes";
 import { Player, Vec2, WorldEntity } from "~/types/worldTypes";
 import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact";
-import { PhysicsMode } from "~/server/physics";
+import { PhysicsMode } from "~/simulation/shared/physics";
 
 export interface Prediction {
     seq: number;
@@ -51,8 +51,8 @@ export type LocalWorldWrapper = InterfaceData & {
     world: World & {
         lastScale: number;
     };
-    physics: PhysicsMode;
     client: ClientData;
+    physics: PhysicsMode;
     isWithinBounds: QRL<(target: Vec2) => boolean>;
     isWalkable: QRL<(target: Vec2) => boolean>;
     initClientData: QRL<(data: InitializeClientData) => boolean>;

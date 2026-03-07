@@ -13,8 +13,8 @@ import { applyActionToWorld } from "~/simulation/client/actions";
 import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact";
 import { getScaledTileSize } from "~/services/draw/utils";
 import chunkService from "~/services/chunk";
-import { CLIENT_PHYSICS } from "~/server/physics";
 import { setPlayerPos } from "~/simulation/client/movement";
+import { ClientPhysicsMode, getClientPhysics } from "~/simulation/shared/physics";
 // import { VimAction } from "~/fsm/types";
 // import useSeq from "./useSeq";
 // import { dispatch } from "./useWebSocket";
@@ -35,7 +35,7 @@ function useState(world: World, isReady: Signal<boolean>) {
             ...world,
             lastScale: 0,
         },
-        physics: CLIENT_PHYSICS,
+        physics: getClientPhysics(ClientPhysicsMode.VISUAL_ONLY),
         client: {
             player: undefined,
             username: undefined,
