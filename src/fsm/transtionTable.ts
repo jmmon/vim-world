@@ -1,5 +1,4 @@
 import {
-    VimFSMState,
     VimMode,
     TransitionFn,
     OperatorKey,
@@ -8,12 +7,6 @@ import {
     ModifierKey,
     TargetKey,
 } from "./types";
-
-export const resetCtx = (): VimFSMState => ({
-    mode: "normal",
-    buffer: [],
-    count: null,
-})
 
 export const MOVEMENT_KEYS: MovementKey[] = ["h", "j", "k", "l", "w", "b"];
 export const AWAITING_CHAR_KEYS: AwaitingCharKey[] = ["f", "F", "t", "T", "g"];
@@ -71,7 +64,7 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
             // TODO: show some menu
             if (state.buffer.length > 0 || state.count !== null) {
                 return {
-                    state: "reset",
+                    state: "__reset__",
                 };
             }
             return {
@@ -108,7 +101,7 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
         if (MOVEMENT_KEYS.includes(key as MovementKey)) {
             const count = state.count ?? 1;
             return {
-                state: "reset",
+                state: "__reset__",
                 emit: {
                     type: "MOVE",
                     key,
@@ -162,7 +155,7 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
         if (key === "[" && event.ctrlKey) {
             // cancel current command
             return {
-                state: "reset",
+                state: "__reset__",
             };
         }
 
@@ -173,7 +166,7 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
         if (VALID_YANK_PASTE_TARGETS.includes(key as TargetKey)) {
             const cmd = `${state.operator}${state.buffer.join("")}${key}`;
             return {
-                state: "reset",
+                state: "__reset__",
                 emit: {
                     type: "INTERACT",
                     command: cmd,
@@ -182,7 +175,7 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
             };
         }
 
-        return { state: "reset" };
+        return { state: "__reset__" };
     },
 
     /* ---------------- AWAITING CHAR ---------------- */
@@ -191,13 +184,13 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
         if (key === "[" && event.ctrlKey) {
             // cancel current command
             return {
-                state: "reset",
+                state: "__reset__",
             };
         }
         const cmd = `${state.motion}${key}`;
         if (key === "?") {
             return {
-                state: "reset",
+                state: "__reset__",
                 emit: {
                     type: "COMMAND",
                     command: cmd,
@@ -206,7 +199,7 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
         }
 
         return {
-            state: "reset",
+            state: "__reset__",
             emit: {
                 type: "TARGET",
                 command: cmd,
@@ -221,13 +214,13 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
         if (key === "[" && event.ctrlKey) {
             // cancel current command
             return {
-                state: "reset",
+                state: "__reset__",
             };
         }
 
         if (key === "Enter") {
             return {
-                state: "reset",
+                state: "__reset__",
                 emit: {
                     type: "COMMAND",
                     command: state.buffer.join(""),

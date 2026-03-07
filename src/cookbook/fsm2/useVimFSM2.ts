@@ -1,20 +1,20 @@
 import { $, QRL, useSignal } from "@builder.io/qwik";
 import { VimAction, VimFSMState } from "../../fsm/types";
 import { classifyInput, transitionTable } from "./transitionTable2";
-import { resetCtx } from "../../fsm/transtionTable";
 
+const INITIAL_STATE: VimFSMState = {
+    mode: "normal",
+    count: 0,
+    buffer: [],
+};
 export function useVimFsm2(onAction: QRL<(a: VimAction) => void>) {
     const TIMEOUT_MS = 1500;
-    const state = useSignal<VimFSMState>({
-        mode: "normal",
-        count: 0,
-        buffer: [],
-    });
+    const state = useSignal<VimFSMState>({...INITIAL_STATE});
 
     const timeoutId = useSignal<number | null>(null);
 
     const reset = $(() => {
-        state.value = resetCtx();
+        state.value = {...INITIAL_STATE};
         if (timeoutId.value) {
             clearTimeout(timeoutId.value);
             timeoutId.value = null;

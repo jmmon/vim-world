@@ -1,18 +1,19 @@
 import { QRL } from "@builder.io/qwik";
 import { VimAction, VimFSMState } from "./types";
-import { resetCtx, transitionTable } from "./transtionTable";
+import { transitionTable } from "./transtionTable";
 
 export type ActionFunction = (action: VimAction) => void | Promise<void>;
 
+const INITIAL_STATE: VimFSMState = {
+    mode: "normal",
+    buffer: [],
+    count: null,
+};
 export class VimFSM {
-    state: VimFSMState = {
-        mode: "normal",
-        buffer: [],
-        count: null,
-    };
+    state: VimFSMState = { ...INITIAL_STATE };
 
     lastAction: VimAction | null = null;
-    timeoutId: number | null = null;
+    timeoutId: number | ReturnType<typeof setTimeout> | null = null;
 
     constructor(
         private onAction: ActionFunction | QRL<ActionFunction>,
@@ -20,44 +21,46 @@ export class VimFSM {
     ) {}
 
     reset() {
-        this.state = resetCtx();
-        if (this.timeoutId) {
-            clearTimeout(this.timeoutId);
-            this.timeoutId = null;
-        }
+        this.state = { ...INITIAL_STATE };
     }
 
-    isBrowserHotkey({key, shiftKey, ctrlKey}: KeyboardEvent) {
-        /** refresh */
-        return ctrlKey && key === 'r' || key === 'R' || 
-        /** hard refresh */
-        ctrlKey && shiftKey && key === 'r' || key === 'R' || 
-        /** function keys */
-        key[0] === 'F' && Number(key.slice(1)) >= 1 && Number(key.slice(1)) <= 12;
-        // ...(Array.from({ length: 12 }, (_, i) => key === `F${i + 1}`)),
-    };
-    isIgnoredKey({key, shiftKey, ctrlKey, altKey}: KeyboardEvent) {
-        return (key === "Shift" && shiftKey) || 
-            (key === "Control" && ctrlKey) ||
-            (key === "Alt" && altKey);
+    shouldBrowserHandle({ key, ctrlKey }: KeyboardEvent) {
+        const rest = key.slice(1);
+        return (
+            /** refresh */
+            /** hard refresh */
+            (ctrlKey && (key === "r" || key === "R")) ||
+            /** function keys */
+            (key[0] === "F" && Number(rest) >= 1 && Number(rest) <= 12)
+        );
+    }
+
+    shouldIgnore(e: KeyboardEvent) {
+        return (
+            (e.key === "Shift" && e.shiftKey) ||
+            (e.key === "Control" && e.ctrlKey) ||
+            (e.key === "Alt" && e.altKey) ||
+            this.shouldBrowserHandle(e)
+        );
     }
 
     keyPress(event: KeyboardEvent, initialized = false) {
         if (!initialized) return;
-        if (this.isBrowserHotkey(event)) return; // completely ignore these
-        event.preventDefault(); // prevent browser default hotkeys
-        // skip if modifier and no key
-        if (this.isIgnoredKey(event)) return;
+        if (this.shouldIgnore(event)) return;
+        event.preventDefault();
 
         if (this.timeoutId) clearTimeout(this.timeoutId);
-        this.timeoutId = window.setTimeout(this.reset, this.timeoutMs);
+        this.timeoutId = window.setTimeout(
+            this.reset.bind(this),
+            this.timeoutMs,
+        );
 
         const result = transitionTable[this.state.mode](
             this.state,
             event,
             this.lastAction,
         );
-        if (result.state === "reset") {
+        if (result.state === "__reset__") {
             this.reset();
         } else {
             this.state = result.state;
@@ -69,5 +72,3 @@ export class VimFSM {
         }
     }
 }
-
-

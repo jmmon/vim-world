@@ -34,7 +34,7 @@ export interface VimAction {
 }
 
 export type TransitionResult = {
-    state: VimFSMState | "reset";
+    state: VimFSMState | "__reset__";
     emit?: VimAction;
 };
 
