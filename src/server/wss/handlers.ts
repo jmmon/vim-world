@@ -60,6 +60,9 @@ export const onMessage = (clientId: string) => (message: WebSocket.RawData) => {
                 handleSave(clientId, clientMessage as ClientCheckpointMessage<'SAVE'>);
             }
             break;
+        case('LOGOUT'):
+            handleSave(clientId, {...clientMessage, isClosing: true});
+            break;
         default:
             console.log("UNHANDLED:: RECEIVED ClientMessage:", message.toString());
     }

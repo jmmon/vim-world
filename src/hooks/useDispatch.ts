@@ -14,5 +14,8 @@ export default function useDispatch$(ws: Signal<NoSerialize<WebSocket>>) {
         checkpoint: $((player: Player, isClosing?: boolean) => {
             dispatch.checkpoint(ws.value!, player, isClosing);
         }),
+        logout: $((player: Player) => {
+            dispatch.logout(ws.value!, player);
+        }),
     };
 }

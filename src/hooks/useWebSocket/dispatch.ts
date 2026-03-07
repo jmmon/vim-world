@@ -1,7 +1,7 @@
 import { NoSerialize } from "@builder.io/qwik";
 import { Player } from "~/types/worldTypes";
 import { VimAction } from "~/fsm/types";
-import { ClientActionMessage, ClientCheckpointMessage, ClientInitMessage } from "~/types/wss/client";
+import { ClientActionMessage, ClientCheckpointMessage, ClientInitMessage, ClientLogoutMessage } from "~/types/wss/client";
 import checkpointService from "~/server/checkpointService";
 
 function action(
@@ -55,10 +55,29 @@ function checkpoint(
     ws.send(JSON.stringify(checkpointMessage));
 }
 
+function logout(
+    ws: NoSerialize<WebSocket> | null,
+    player: Player,
+) {
+    if (!ws || ws?.readyState !== WebSocket.OPEN) return;
+    // create player checkpoint
+    const checkpoint = checkpointService.fromPlayer(player, Date.now());
+
+    // use ws to send checkpoint data to server
+    const logoutMessage: ClientLogoutMessage = {
+        type: "LOGOUT",
+        checkpoint: checkpoint,
+    };
+    console.log('sending logout:', logoutMessage);
+    ws.send(JSON.stringify(logoutMessage));
+
+}
+
 const dispatch = {
     init,
     action,
     checkpoint,
+    logout,
 };
 export default dispatch;
 

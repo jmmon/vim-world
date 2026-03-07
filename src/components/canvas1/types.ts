@@ -84,4 +84,5 @@ export type LocalWorldWrapper = InterfaceData & {
     onServerAck: QRL<(msg: ServerAckMessage<SubtypeServerAck>) => void>; 
     onOtherPlayerMove: QRL<(msg: ServerOtherPlayerMessage<"MOVE">) => void>;
     onInitConfirm: QRL<(data: ServerInitConfirmMessage) => void>;
+    dispatch: ReturnType<typeof useDispatch$>;
 };

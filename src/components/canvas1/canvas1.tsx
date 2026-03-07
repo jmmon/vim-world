@@ -33,7 +33,8 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
     const dispatch$ = useDispatch$(ws);
 
     const getNextSeq = useSeq(); // action index
-    const state = useState(worldState, isReady);
+    const state = useState(worldState, isReady, dispatch$);
+
     console.log(
         "canvas1 component init: players:",
         state.ctx.world.players,
@@ -53,7 +54,7 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
                     console.assert(state.ctx.client.player, 'Expected player on CLOSE_START!!');
                     if (!state.ctx.client.player) break;
 
-                    dispatch.checkpoint(state.ctx.client.player, true);
+                    dispatch$.checkpoint(state.ctx.client.player, true);
                     state.ctx.client.timeSinceLastCheckpoint = Date.now();
                     break;
                 }
@@ -106,15 +107,7 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
             state.ctx.client.player,
         );
 
-        dispatch.init(state.ctx.client.player!.id);
-
-        // would prefer to do it on /api/player post req, but don't have the clientId yet
-        //
-        // maybe post API should create a new client without a websocket, in a temp UUID,
-        // would have to send back to client so client could pass into the init??
-        // on websocket connect, can't do anything because we don't have the playerId,
-        // on INIT message, would have to get the tempId from clients and move it to a new ID??
-        // delete and set
+        dispatch$.init(state.ctx.client.player!.id);
     });
 
     useWebSocket(isReady, onMessage$, onConnect$, ws);
@@ -140,8 +133,8 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
             };
             console.log("afterAction:", { ...state.ctx.client.player });
 
-            // 3. Send to server; wipe local and server AFK state
-            dispatch.action(seq, action);
+            // Send to server; wipe local and server AFK state
+            dispatch$.action(seq, action);
             state.ctx.show.afk = false;
             state.ctx.client.afkStartTime = -1;
             state.ctx.client.idleStartTime = Date.now();
@@ -150,10 +143,7 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
         state.ctx,
     );
 
-    /** =======================================================
-     *                          MAIN LOOP
-     * ======================================================= */
-    useRenderLoop(ws, state);
+    useRenderLoop(dispatch$, state);
 
     const dimensions = state.ctx.world.dimensions;
     const canvasStyle: CSSProperties = { position: "absolute", top: 0, left: 0, imageRendering: "pixelated" };

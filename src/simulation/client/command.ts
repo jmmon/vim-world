@@ -61,9 +61,8 @@ export function applyCommandAction(
         action.command = action.command!.slice(0, -1);
     }
     if (QUIT_ACTIONS.includes(action.command!)) {
-        console.log(
-            "TODO: quit command: save checkpoint then redirect to homepage",
-        );
+        if (!state.client.player) return false;
+        state.dispatch.logout(state.client.player!);
         return false;
     }
     return false;

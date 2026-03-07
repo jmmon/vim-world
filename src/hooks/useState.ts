@@ -15,8 +15,9 @@ import chunkService from "~/services/chunk";
 import { setPlayerPos } from "~/simulation/client/movement";
 import { ClientPhysicsMode, getClientPhysics } from "~/simulation/shared/physics";
 import { ServerAckMessage, ServerInitConfirmMessage, ServerOtherPlayerMessage, SubtypeServerAck } from "~/types/wss/server";
+import useDispatch$ from "./useDispatch";
 
-function useState(world: World, isReady: Signal<boolean>) {
+function useState(world: World, isReady: Signal<boolean>, dispatch$: ReturnType<typeof useDispatch$>) {
     const offscreenMapRef = useSignal<HTMLCanvasElement>();
     const mapRef = useSignal<HTMLCanvasElement>();
     const objectsRef = useSignal<HTMLCanvasElement>();
@@ -253,6 +254,7 @@ function useState(world: World, isReady: Signal<boolean>) {
 
 
 
+        dispatch: dispatch$,
     });
 
     return {

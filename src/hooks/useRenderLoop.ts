@@ -1,18 +1,13 @@
-import {
-    NoSerialize,
-    Signal,
-    useComputed$,
-    useVisibleTask$,
-} from "@builder.io/qwik";
+import { useComputed$, useVisibleTask$ } from "@builder.io/qwik";
 import { initFpsTest } from "~/components/canvas1/utils";
-import { dispatch } from "./useWebSocket";
 import draw from "~/services/draw";
 import { GameState } from "~/hooks/useState";
+import useDispatch$ from "./useDispatch";
 import { isSnapshotSame } from "~/simulation/shared/helpers";
 import checkpointService from "~/server/checkpointService";
 
 export default function useRenderLoop(
-    ws: Signal<NoSerialize<WebSocket>>,
+    dispatch$: ReturnType<typeof useDispatch$>,
     state: GameState,
 ) {
     /**
@@ -62,14 +57,12 @@ export default function useRenderLoop(
         function saveCheckpoint() {
             const now = Date.now();
             const difference = now - state.ctx.client.timeSinceLastCheckpoint;
-            if (difference >= CHECKPOINT_INTERVAL) {
-                console.log("fps:", lastFps, "ema:", lastEma);
+            if (difference < CHECKPOINT_INTERVAL) return;
+            state.ctx.client.timeSinceLastCheckpoint += difference;
 
-                state.ctx.client.timeSinceLastCheckpoint += difference;
-                dispatch.checkpoint(ws.value!, state.ctx.client.player!, false);
-                // TODO: run this on  some sort of "ACK_CHECKPOINT" response??
-                // e.g. lastSnapshot.value = response.snapshot to store the actual last-saved snapshot
-                state.ctx.client.lastSnapshot = { ...state.ctx.client.player! };
+            if (isSnapshotChanged$.value) {
+                dispatch$.checkpoint(state.ctx.client.player!, false);
+                console.log("fps:", lastFps, "ema:", lastEma);
             }
         }
 
@@ -147,9 +140,10 @@ export default function useRenderLoop(
             state.ctx.world.lastScale = state.ctx.world.dimensions.scale;
 
             // handle checkpoints
-            if (state.ctx.client.player && isSnapshotChanged$.value)
-                saveCheckpoint();
+            if (!state.ctx.client.player) return;
+            saveCheckpoint();
         })(zero);
+
         cleanup(() => {
             isCancelled = true;
             console.log("turning off loop...");
