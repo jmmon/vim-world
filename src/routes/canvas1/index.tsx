@@ -1,22 +1,22 @@
 import { Resource, component$, useResource$ } from "@builder.io/qwik";
 import Canvas1 from "~/components/canvas1/canvas1";
 import { Player, WorldEntity } from "~/types/worldTypes";
-import { World } from "~/server/types";
 import httpService from "~/services/http";
+import { World } from "~/server/types";
 
 export default component$(() => {
     // fetch world from server
-    const worldResource = useResource$<World>(async () => {
-        const serverWorld = await httpService.api.map();
+    const worldResource = useResource$<World<'Client'>>(async () => {
+        const clientWorld = await httpService.api.map();
 
-        console.assert((!serverWorld.players.has), "serverWorld:", serverWorld, '\ntypeof players:', typeof serverWorld.players);
-        const rebuiltWorld: World = {
-            ...serverWorld,
+        console.assert((!clientWorld.players.has), "serverWorld:", clientWorld, '\ntypeof players:', typeof clientWorld.players);
+        const rebuiltWorld: World<'Client'> = {
+            ...clientWorld,
             players: new Map<string, Player>(
-                Object.entries(serverWorld.players),
+                Object.entries(clientWorld.players),
             ),
             entities: new Map<string, WorldEntity>(
-                Object.entries(serverWorld.entities),
+                Object.entries(clientWorld.entities),
             ),
         };
         console.assert(!!rebuiltWorld.players.has, "rebuiltWorld:", rebuiltWorld, '\ntypeof players:', typeof rebuiltWorld.players, '\nMissing .has property');
@@ -34,7 +34,7 @@ export default component$(() => {
                     <p class="text-3xl">Loading...</p>
                 </div>
             )}
-            onResolved={(serverWorld) => <Canvas1 worldState={serverWorld} />}
+            onResolved={(clientWorld) => <Canvas1 worldState={clientWorld} />}
         />
     );
 });

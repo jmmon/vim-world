@@ -8,14 +8,19 @@ import {
 } from "@builder.io/qwik";
 import { LocalWorldWrapper } from "../canvas1/types";
 import { roundToDecimals } from "~/utils/utils";
+import { getScaledTileSize } from "~/services/draw/utils";
+import { handlers } from "~/hooks/useState";
 
-export default component$(({ state }: { state: LocalWorldWrapper }) => {
+type MenuProps = { ctx: LocalWorldWrapper };
+
+export default component$<MenuProps>(({ ctx }) => {
     const dialogRef = useSignal<HTMLDialogElement>();
     const inputRef = useSignal<HTMLInputElement>();
-    const scale = useSignal(state.world.config.scale);
+    const scale = useSignal(ctx.world.config.scale);
 
+    // sync dialog state with ctx state
     useTask$(({ track }) => {
-        const isOpen = track(() => state.show.menu);
+        const isOpen = track(() => ctx.show.menu);
         if (isServer) return;
         if (isOpen === dialogRef.value?.open) return;
 
@@ -27,15 +32,17 @@ export default component$(({ state }: { state: LocalWorldWrapper }) => {
         }
     });
 
-    const onSubmit = $(async () => {
-        const { actualScale, tileSize } = await state.getScaledTileSize(
+    const onSubmit = $(() => {
+        const { actualScale, tileSize } = getScaledTileSize(
+            ctx.world.config,
             scale.value,
         );
-        if (actualScale !== state.world.config.scale) {
-            await state.updateScale(actualScale, tileSize);
-            state.markAllDirty();
+        if (actualScale !== ctx.world.config.scale) {
+            handlers.updateScale(ctx, actualScale, tileSize);
+            handlers.markAllDirty(ctx);
         }
-        state.show.menu = false;
+        ctx.show.menu = false;
+    });
     });
 
     return (

@@ -15,7 +15,7 @@ function getBoxStyles(
     widthPx: number,
     verticalPaddingPx: number,
     scale: number,
-) {
+): BoxStyles {
     const scaled_fontSize = fontSize * scale;
     const scaled_lineHeight = (fontSize + lineHeightPaddingPx) * scale;
     const scaled_width = widthPx * scaled_fontSize; // 16 * 4 = 64
@@ -27,8 +27,22 @@ function getBoxStyles(
         leftPadding: leftPaddingPx * scale,
         fontSize: scaled_fontSize,
         lineHeight: scaled_lineHeight,
+        lines,
     };
 }
+interface BoxStyles {
+    width: number;
+    height: number;
+    leftPadding: number;
+    fontSize: number;
+    lineHeight: number;
+    lines: number;
+};
+interface StylesWithContext extends BoxStyles {
+    ctx: CanvasRenderingContext2D;
+    x: number;
+    y: number;
+};
 
 // ****************************************************************
 //
@@ -43,7 +57,7 @@ function getFpsStyles(
     canvas: HTMLCanvasElement,
     fps: string, // length of 2-4
     ema?: string,
-) {
+): StylesWithContext {
     const LINES = 1 + Number(ema !== undefined);
     const FONT_SIZE = 16;
     const styles = getBoxStyles(
@@ -59,7 +73,6 @@ function getFpsStyles(
         ctx: canvas.getContext("2d")!,
         x: viewport.width - styles.width,
         y: 0,
-        lines: LINES,
         ...styles,
     };
 }
@@ -181,6 +194,7 @@ type D = {
     leftPadding: number;
     fontSize: number;
     lineHeight: number;
+    rowGap?: number;
     ctx: CanvasRenderingContext2D;
     x: number;
     y: number;
@@ -190,7 +204,7 @@ function getDevStatsStyles(
     viewport: Viewport,
     { scale }: MapConfig,
     canvas: HTMLCanvasElement,
-): D {
+): StylesWithContext {
     const LINES = STAT_MAP.length;
     const FONT_SIZE = 16;
 
@@ -209,7 +223,6 @@ function getDevStatsStyles(
         ctx: canvas.getContext("2d")!,
         x: viewport.width - styles.width,
         y: fpsYEnd + 10 * scale, // slight gap from the fps window
-        lines: LINES,
         ...styles,
     };
 }
@@ -220,7 +233,7 @@ export function closeDevStats(
     config?: MapConfig,
 ) {
     const canvas = state.refs.overlay.value!;
-    const d = getDevStatsStyles(
+    const d = STYLES.devStats(
         viewport ?? state.ctx.client.viewport,
         config ?? state.ctx.world.config,
         canvas,
@@ -287,7 +300,7 @@ function closeOldHelp(state: GameState, ctx: CanvasRenderingContext2D) {
 const HELP_DIMENSIONS: Record<string, RectDimensions> = {};
 const getHelpDimensions = (viewport: Viewport, config: MapConfig) => {
     if (!HELP_DIMENSIONS[config.tileSize]) {
-        HELP_DIMENSIONS[config.tileSize] = generateHelpDimensions(
+        HELP_DIMENSIONS[config.tileSize] = STYLES.help(
             viewport,
             config,
         );
@@ -307,6 +320,10 @@ const HELP_TEXT = [
     // "g? - Toggle Help",
 ];
 const ROWS = 6;
+const helpTextPadding = {
+    x: 1,
+    y: 1,
+};
 
 export function drawHelp(state: GameState) {
     const ctx = state.refs.overlay.value!.getContext("2d")!;
@@ -320,10 +337,6 @@ export function drawHelp(state: GameState) {
 
     ctx.font = `bold ${18 * config.scale}px mono`;
     ctx.fillStyle = "white";
-    const helpTextPadding = {
-        x: 1,
-        y: 1,
-    };
     const leftPadding = HELP.left + config.tileSize * helpTextPadding.x;
     const topPadding = HELP.top + 20 * config.scale;
     const columnPadding = 224 * config.scale;
@@ -342,7 +355,7 @@ export function closeHelp(state: GameState) {
     const ctx = state.refs.overlay.value!.getContext("2d")!;
     closeOldHelp(state, ctx);
 
-    const HELP = generateHelpDimensions(
+    const HELP = STYLES.help(
         state.ctx.client.viewport,
         state.ctx.world.config,
     );
@@ -464,7 +477,7 @@ function getStatusStyles(
     viewport: Viewport,
     { scale }: MapConfig,
     canvas: HTMLCanvasElement,
-) {
+): StylesWithContext & { rowGap: number } {
     const LINES = 2;
     const FONT_SIZE = 16;
     const styles = getBoxStyles(LINES, FONT_SIZE, 10, 0, 0, 0, scale);
@@ -484,7 +497,7 @@ function closeStatus(
     config?: MapConfig,
 ) {
     const canvas = state.refs.overlay.value!;
-    const d = getStatusStyles(
+    const d = STYLES.status(
         viewport ?? state.ctx.client.viewport,
         config ?? state.ctx.world.config,
         canvas,
@@ -493,13 +506,21 @@ function closeStatus(
     return d;
 }
 
+const STYLES = {
+    status: getStatusStyles,
+    help: generateHelpDimensions,
+    devStats: getDevStatsStyles,
+};
+
 export function drawStatus(state: GameState) {
+    // this happens for everything, could probably make a map
     if (hasScaleChanged(state.ctx)) {
         // clear old rect
         closeStatus(state, ...generateOldDimensions(state.ctx));
     }
     // clear new rect
     const d = closeStatus(state);
+
 
     // background
     d.ctx.fillStyle = "rgba(0, 0, 0, 0.3)";

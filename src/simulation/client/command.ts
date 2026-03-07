@@ -1,12 +1,17 @@
 import {
     VimSettings,
     LocalWorldWrapper,
-    ApplyActionDirtyResult,
-    MaybePromise,
+    ActionResult,
 } from "~/components/canvas1/types";
-import { VimAction } from "../../fsm/types";
+import { CommandVimAction } from "../../fsm/types";
 import { SPECIAL_KEY_VALUES, SpecialKeyValues } from "~/fsm/transtionTable";
-import { ClientPhysicsMode, getClientPhysics } from "../shared/physics";
+import {
+    ClientPhysicsMode,
+    PhysicsMode,
+    getClientPhysics,
+} from "../shared/physics";
+import viewport from "./viewport";
+import { handlers } from "~/hooks/useState";
 
 const QUIT_ACTIONS = [
     "q",
@@ -24,94 +29,83 @@ const QUIT_ACTIONS = [
     "exi",
     "exit",
 ];
+const modalMap: Record<string, keyof LocalWorldWrapper['show']> = {
+    "g?": 'help',
+    "help": "help",
+    "h": "help",
+    "ctrl+[": 'menu',
+}
 // :q[uit][!], :wq[!], :wa[ll], :conf[irm] q[uit], :x[it], :exi[t], :[w]qa[ll][!], :quita[ll][!]
 export function applyCommandAction(
-    state: LocalWorldWrapper,
-    action: VimAction,
-): MaybePromise<ApplyActionDirtyResult> {
+    ctx: LocalWorldWrapper,
+    action: CommandVimAction,
+): ActionResult {
+    console.log("applyCommandAction::", action);
+    const result = { reason: undefined, isDirty: false };
+
     if (action.type === "COMMAND_PROMPT") {
-        state.client.commandBuffer = ":";
-        return false;
+        ctx.client.commandBuffer = ":";
+        return result;
     }
     if (action.type === "COMMAND_PARTIAL") {
         // or could parse before dispatching to server to avoid long strings with lots of special sequences
         // unless commands need to do something on the server, then it should parse the list of keystrokes itself!
-        const command2 = parseCommand(action.command!);
-        state.client.commandBuffer = ":" + command2;
-        return false;
+        const command2 = parseCommand(action.command);
+        ctx.client.commandBuffer = ":" + command2;
+        return result;
     }
-    state.client.commandBuffer = "";
+    
+    ctx.client.commandBuffer = "";
 
-    // should these be commands??
-    if (action.command === "g?") {
-        state.show.help = !state.show.help;
-        return false;
-    }
-    if (action.command === "ctrl+[") {
-        // show menu
-        state.show.menu = !state.show.menu;
-        return false;
+    const modalTarget = modalMap[action.command];
+    if (modalTarget) {
+        ctx.show[modalTarget] = !ctx.show[modalTarget];
+        return result;
     }
 
-    if (action.command === "help" || action.command === "h") {
-        state.show.help = !state.show.help;
-        return false;
-    }
-
-    if (action.command!.startsWith("set ")) {
-        return updateSetting(state, action.command!.slice(4));
+    if (action.command.startsWith("set ")) {
+        return updateSetting(ctx, action.command.slice(4));
     }
 
     // allow optional ! at end of strings for quit write etc commands
-    if (action.command!.endsWith("!")) {
-        action.command = action.command!.slice(0, -1);
+    if (action.command.endsWith("!")) {
+        action.command = action.command.slice(0, -1);
     }
-    if (QUIT_ACTIONS.includes(action.command!)) {
-        if (!state.client.player) return false;
-        state.dispatch.logout(state.client.player!);
-        return false;
+    if (QUIT_ACTIONS.includes(action.command)) {
+        ctx.dispatch.logout.call(ctx);
+        return result;
     }
-    return false;
+    return result;
 }
 
-const SETTINGS_ABRIEV_MAP: Record<string, keyof VimSettings | 'physics'> = {
+const LIMITS_MAP = {
+    scrolloff: (state: LocalWorldWrapper) => ({
+        min: 0,
+        max: state.client.viewport.height / state.world.config.tileSize,
+    }),
+    sidescrolloff: (state: LocalWorldWrapper) => ({
+        min: 0,
+        max: state.client.viewport.width / state.world.config.tileSize,
+    }),
+    lines: (state: LocalWorldWrapper) => ({
+        min: Math.max(10, state.client.settings.scrolloff + 1),
+        max: 100,
+    }),
+    columns: (state: LocalWorldWrapper) => ({
+        min: Math.max(10, state.client.settings.sidescrolloff + 1),
+        max: 100,
+    }),
+};
+
+type SettingsProps = "prediction" | "collision" | "serverAck";
+type SettingsKeysAddl = "physics" | SettingsProps;
+const SETTINGS_ABRIEV_MAP: Record<
+    string,
+    keyof VimSettings | SettingsKeysAddl
+> = {
     so: "scrolloff",
     siso: "sidescrolloff",
     co: "columns",
-};
-const limits = {
-    scrolloff: {
-        min(_: LocalWorldWrapper) {
-            return 0;
-        },
-        max(state: LocalWorldWrapper) {
-            return state.client.viewport.height / state.world.config.tileSize;
-        },
-    },
-    sidescrolloff: {
-        min(_: LocalWorldWrapper) {
-            return 0;
-        },
-        max(state: LocalWorldWrapper) {
-            return state.client.viewport.width / state.world.config.tileSize;
-        },
-    },
-    lines: {
-        min(state: LocalWorldWrapper) {
-            return Math.max(10, state.client.settings.scrolloff + 1);
-        },
-        max(_: LocalWorldWrapper) {
-            return 100;
-        },
-    },
-    columns: {
-        min(state: LocalWorldWrapper) {
-            return Math.max(10, state.client.settings.sidescrolloff + 1);
-        },
-        max(_: LocalWorldWrapper) {
-            return 100;
-        },
-    },
 };
 
 function clamp(min: number, max: number, value: number) {
@@ -119,21 +113,70 @@ function clamp(min: number, max: number, value: number) {
 }
 
 const PHYSICS_MAP: Record<string, ClientPhysicsMode> = {
+    client_only: ClientPhysicsMode.CLIENT_ONLY,
     full_prediction: ClientPhysicsMode.FULL_PREDICTION,
     visual_only: ClientPhysicsMode.VISUAL_ONLY,
     none: ClientPhysicsMode.NONE,
 };
 const PHYSICS_ABRIEV: Record<string, keyof typeof PHYSICS_MAP> = {
-    f: 'full_prediction',
-    full: 'full_prediction',
-    full_prediction: 'full_prediction',
+    c: "client_only",
+    client: "client_only",
+    client_only: "client_only",
 
-    v: 'visual_only',
-    visual: 'visual_only',
-    visual_only: 'visual_only',
+    f: "full_prediction",
+    full: "full_prediction",
+    full_prediction: "full_prediction",
 
-    n: 'none',
-    none: 'none',
+    v: "visual_only",
+    visual: "visual_only",
+    visual_only: "visual_only",
+
+    n: "none",
+    none: "none",
+};
+
+const BOOLEAN_MAP: Record<string, boolean> = {
+    off: false,
+    false: false,
+    "0": false,
+    on: true,
+    true: true,
+    "1": true,
+};
+
+function getNewPhysicsMode(
+    key: SettingsProps,
+    val: boolean,
+    prev: PhysicsMode,
+): ClientPhysicsMode {
+    switch (key) {
+        case "prediction":
+            if (!val) {
+                return ClientPhysicsMode.NONE;
+            } else if (prev.collision) {
+                return ClientPhysicsMode.FULL_PREDICTION;
+            } else {
+                return ClientPhysicsMode.VISUAL_ONLY;
+            }
+
+        case "collision":
+            if (val) {
+                return ClientPhysicsMode.FULL_PREDICTION;
+            } else if (prev.prediction) {
+                return ClientPhysicsMode.VISUAL_ONLY;
+            } else {
+                return ClientPhysicsMode.NONE;
+            }
+
+        case "serverAck":
+            if (val) {
+                // default to full prediction (standard)
+                return ClientPhysicsMode.FULL_PREDICTION;
+            } else {
+                // false: disabling dispatch to server
+                return ClientPhysicsMode.CLIENT_ONLY;
+            }
+    }
 }
 
 function setClientSetting(
@@ -143,10 +186,7 @@ function setClientSetting(
 ): boolean {
     const prev = state.client.settings[key];
     const value = parseInt(valueString);
-    const LIMITS = limits[key];
-
-    const min = LIMITS.min(state);
-    const max = LIMITS.max(state);
+    const { min, max } = LIMITS_MAP[key](state);
 
     const valueClamped = clamp(min, max, value);
     state.client.settings[key] = valueClamped;
@@ -157,32 +197,52 @@ function setClientSetting(
     return hasChanged;
 }
 
-async function updateSetting(state: LocalWorldWrapper, command: string) {
+function updateSetting(
+    ctx: LocalWorldWrapper,
+    command: string,
+): ActionResult {
+    const result = { reason: undefined, isDirty: false };
     const [setting, _value] = command.split("=");
     console.log(`attempting to update ${setting} to ${_value}...`);
     const key = SETTINGS_ABRIEV_MAP[setting] ?? setting;
-    if (key in state.client.settings === false && key !== 'physics') {
+    if (key in ctx.client.settings === false && key !== "physics") {
         console.warn("~~ unknown setting::", { key, _value });
-        return false;
+        return { reason: "INVALID_ACTION", isDirty: false };
     }
 
-    if (key === 'physics') {
+    if (key === "physics") {
         const target = PHYSICS_ABRIEV[_value.toLowerCase()];
-        const prop = PHYSICS_MAP[target];
-        if (prop === undefined) {
-            console.warn("~~ unknown setting::", { key, _value, prop, ...(target && { target }) });
-            return false;
+        const newPhysicsMode = PHYSICS_MAP[target];
+        if (newPhysicsMode === undefined) {
+            console.warn("~~ unknown setting::", {
+                key,
+                _value,
+                prop: newPhysicsMode,
+                ...(target && { target }),
+            });
+            return result;
         }
-        state.physics = getClientPhysics(prop);
-        console.log("~~ updated physics to::", { value: prop });
-        return false;
+        ctx.physics = getClientPhysics(newPhysicsMode);
+        console.log("~~ updated physics to::", { value: newPhysicsMode });
+        return result;
     }
 
-    const isDirty = setClientSetting(state, key, _value);
-    if (key === "columns" || key === "lines") {
-        return await state.updateViewportDimensions();
+    if (key === "prediction" || key === "collision" || key === "serverAck") {
+        const target = BOOLEAN_MAP[_value.toLowerCase()];
+        const newPhysicsMode = getNewPhysicsMode(key, target, ctx.physics);
+        ctx.physics = getClientPhysics(newPhysicsMode);
+        console.log("~~ updated physics to::", {
+            physics: { ...ctx.physics },
+            newPhysicsMode,
+        });
+        return result;
     }
-    return isDirty;
+
+    let isDirty = setClientSetting(ctx, key, _value);
+    if (key === "columns" || key === "lines") {
+        isDirty = viewport.updateDimensions(ctx);
+    }
+    return { reason: undefined, isDirty };
 }
 
 function parseCommand(input: string): string {

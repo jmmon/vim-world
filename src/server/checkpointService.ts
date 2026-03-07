@@ -43,26 +43,26 @@ function _loadCheckpoint(playerId: string): PlayerCheckpoint | undefined {
     console.log('loading checkpoint...', playerId);
     return checkpointCache.get(playerId);
 }
-function _getDefaultCheckpoint({ name, id }: Partial<Pick<Player, 'name' | 'id'>>): PlayerCheckpoint {
+function _createDefaultCheckpoint(playerId: string, name?: string | null): PlayerCheckpoint {
     console.log('loading default checkpoint...');
     return {
         ...DEFAULT_CHECKPOINT,
-        playerId: id ?? DEFAULT_CHECKPOINT.playerId,
-        name: name ?? id ?? DEFAULT_CHECKPOINT.name,
+        playerId: playerId ?? DEFAULT_CHECKPOINT.playerId,
+        name: name ?? playerId ?? DEFAULT_CHECKPOINT.name,
     };
 }
 export type CheckpointOrDefault = {
     checkpoint: PlayerCheckpoint,
     isNew: boolean
 };
-function loadOrDefault(playerId: string): CheckpointOrDefault {
+function loadOrDefault(playerId: string, name?: string | null): CheckpointOrDefault {
     const response = {
         checkpoint: _loadCheckpoint(playerId),
         isNew: false,
     };
     if (!response.checkpoint) {
         console.warn('no checkpoint found for playerId:', playerId);
-        const defaultCheckpoint = _getDefaultCheckpoint({ id: playerId });
+        const defaultCheckpoint = _createDefaultCheckpoint(playerId, name);
         checkpointCache.set(playerId, defaultCheckpoint);
         response.isNew = true;
         response.checkpoint = defaultCheckpoint;
@@ -140,7 +140,7 @@ function newPlayerSession(): SessionAggregate {
 const checkpointService = {
     loadOrDefault,
     _loadCheckpoint,
-    _loadDefaultCheckpoint: _getDefaultCheckpoint,
+    _loadDefaultCheckpoint: _createDefaultCheckpoint,
     update: update,
     toPlayer,
     fromPlayer,

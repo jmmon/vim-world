@@ -4,24 +4,26 @@ import { transitionTable } from "./transtionTable";
 
 export type ActionFunction = (action: VimAction) => void | Promise<void>;
 
-const INITIAL_STATE: VimFSMState = {
+const STATE_INITIAL: VimFSMState = {
     mode: "normal",
     buffer: [],
     count: null,
 };
-export class VimFSM {
-    state: VimFSMState = { ...INITIAL_STATE };
 
+export class VimFSM {
+    state: VimFSMState = { ...STATE_INITIAL };
     lastAction: VimAction | null = null;
+
     timeoutId: number | ReturnType<typeof setTimeout> | null = null;
 
     constructor(
         private onAction: ActionFunction | QRL<ActionFunction>,
-        private timeoutMs = 1000,
-    ) {}
+        private timeoutMs: number | undefined = undefined,
+    ) {
+    }
 
     reset() {
-        this.state = { ...INITIAL_STATE };
+        this.state = { ...STATE_INITIAL };
     }
 
     shouldBrowserHandle({ key, ctrlKey }: KeyboardEvent) {
@@ -49,21 +51,24 @@ export class VimFSM {
         if (this.shouldIgnore(event)) return;
         event.preventDefault();
 
-        if (this.timeoutId) clearTimeout(this.timeoutId);
-        this.timeoutId = window.setTimeout(
-            this.reset.bind(this),
-            this.timeoutMs,
-        );
-
         const result = transitionTable[this.state.mode](
             this.state,
             event,
             this.lastAction,
         );
+
         if (result.state === "__reset__") {
             this.reset();
         } else {
             this.state = result.state;
+
+            if (this.state.mode !== "command") {
+                if (this.timeoutId) clearTimeout(this.timeoutId);
+                this.timeoutId = window.setTimeout(
+                    this.reset.bind(this),
+                    this.timeoutMs,
+                );
+            }
         }
 
         if (result?.emit) {

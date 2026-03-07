@@ -13,10 +13,11 @@ import render from "./entry.ssr";
 import { createServer } from "node:http";
 import { initializeWss } from "./server/wss/wss";
 import serverLoop from "./server/serverLoop";
+import { API_PORT } from "./server/constants";
 
 // Allow for dynamic port
 // applies to production build
-const PORT = import.meta.env.VITE_API_PORT ?? 3000;
+// const PORT = import.meta.env.VITE_API_PORT ?? 3000;
 
 
 // Create the Qwik City express middleware
@@ -48,6 +49,6 @@ server.on("upgrade", (req, socket, head) => {
     });
 });
 
-server.listen(PORT, () => {
-    console.log(`Node server listening on http://localhost:${PORT}`);
+server.listen(API_PORT, () => {
+    console.log(`Node server listening on http://localhost:${API_PORT}`);
 });

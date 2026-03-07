@@ -128,7 +128,7 @@ export function drawObjects(state: GameState) {
 
         const {x, y} = entity.pos;
         if (!isWithinViewport(state.ctx.client.viewport, {px: x * tileSize, py: y * tileSize})) {
-            console.log("outside viewport:", {id: entity.id, pos: entity.pos, viewport: state.ctx.client.viewport});
+            // console.log("outside viewport:", {id: entity.id, pos: entity.pos, viewport: state.ctx.client.viewport});
             return;
         }
         console.log('within viewport! drawing entity::', entity);

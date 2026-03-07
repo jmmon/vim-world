@@ -2,6 +2,7 @@ import { $, NoSerialize, Signal } from "@builder.io/qwik";
 import { dispatch } from "./useWebSocket";
 import { Player } from "~/types/worldTypes";
 import { VimAction } from "~/fsm/types";
+import { LocalWorldWrapper } from "~/components/canvas1/types";
 
 export default function useDispatch$(ws: Signal<NoSerialize<WebSocket>>) {
     return {
@@ -14,8 +15,9 @@ export default function useDispatch$(ws: Signal<NoSerialize<WebSocket>>) {
         checkpoint: $((player: Player, isClosing?: boolean) => {
             dispatch.checkpoint(ws.value!, player, isClosing);
         }),
-        logout: $((player: Player) => {
-            dispatch.logout(ws.value!, player);
+        logout: $(async function (this: LocalWorldWrapper) {
+            if (!this.client.player) return;
+            dispatch.logout(ws.value!, this.client.player);
         }),
     };
 }

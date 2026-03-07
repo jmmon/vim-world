@@ -1,93 +1,49 @@
-import { ClientActionMessage } from "~/types/wss/client";
-import { Direction, Player, Vec2 } from "~/types/worldTypes";
-import { ApplyActionResult, ApplyInteractResult, ApplyMoveResult, ValidateMoveCorrection, ValidatePasteValid, ValidateYankValid } from "./types";
-import { WORLD_WRAPPER } from "~/server/serverState";
+import { Player, ServerPlayer } from "~/types/worldTypes";
 import applies from "~/simulation/shared/actions";
-import { ModifierKey, OperatorKey, TargetKey } from "~/fsm/types";
+import { ModifierKey, OperatorKey, TargetKey, ExpandedVimAction, VimActionType } from "~/fsm/types";
 import serverValidators from "./validators";
+import { ServerWorldWrapper } from "~/server/types";
+import { applyCommandToPlayerCommandState } from "../shared/actions/command";
+import { ActionResult } from "~/components/canvas1/types";
+import { isValidMove } from "../shared/helpers";
+import { ValidateMoveCorrection, ValidateMoveValid } from "./types";
 
-function applyMoveToWorld(player: Player, msg: ClientActionMessage, result: { target: Vec2, dir?: Direction }) {
+function movePlayer(player: Player, result: ValidateMoveValid | ValidateMoveCorrection) {
     player.pos.x = result.target.x;
     player.pos.y = result.target.y;
-    if (result.dir) player.dir = result.dir;
-    player.lastProcessedSeq = msg.seq;
+    player.dir = result.dir ?? player.dir;
+}
+function applyMoveToServerWorld(ctx: ServerWorldWrapper, player: Player, action: ExpandedVimAction): ActionResult['reason'] {
+    const result = serverValidators.move(ctx, player, action);
+    if (isValidMove(result)) movePlayer(player, result);
+    return result.reason;
 }
 
-function applyMoveToServerWorld(player: Player, msg: ClientActionMessage): ApplyMoveResult {
-    const result = serverValidators.move(player, msg.action);
-    if (!result.ok) {
-        if (result.reason === 'INVALID_KEY' || result.reason === 'INVALID_ACTION') {
-            return {
-                seq: msg.seq,
-                reason: result.reason,
-            };
-        } 
+function applyInteractToServerWorld(ctx: ServerWorldWrapper, player: Player, action: ExpandedVimAction): ActionResult['reason'] {
+    const basicResult = serverValidators.interact.basic(action);
+    if (!basicResult.ok) return basicResult.reason;
 
-        // apply corrected move
-        applyMoveToWorld(player, msg, result as ValidateMoveCorrection);
-        return {
-            seq: msg.seq,
-            reason: result.reason,
-        };
-    }
-    
-    // apply fully valid move
-    applyMoveToWorld(player, msg, result);
-    return {
-        seq: msg.seq,
-        reason: undefined,
-    };
+    const [actionType, modifier, target] = action.command!.split('') as [ OperatorKey, ModifierKey, TargetKey ];
+    const result = serverValidators.interact[actionType][modifier](ctx, player, target);
+
+     // 'OUT_OF_BOUNDS' | 'COLLISION' | 'INVALID_KEY' | 'INVALID_ACTION'
+    if (!result || !result?.ok) return result.reason;
+    applies.interact[actionType](player, action, result)
+
+    return undefined;
 }
 
-async function applyInteractToServerWorld(player: Player, msg: ClientActionMessage): Promise<ApplyInteractResult> {
-    const basicResult = serverValidators.interact.basic(msg.action);
-    if (!basicResult.ok) return { seq: msg.seq, reason: basicResult.reason };
-
-    const actionType = msg.action.command?.[0] as OperatorKey;
-    const modifier = msg.action.command![1] as ModifierKey;
-    const target = msg.action.command![2] as TargetKey;
-
-    const result = await serverValidators.interact[actionType][modifier](WORLD_WRAPPER, player, target);
-
-    if (!result || !result?.ok) return {
-        seq: msg.seq,
-        reason: result.reason, // 'OUT_OF_BOUNDS' | 'COLLISION' | 'INVALID_KEY' | 'INVALID_ACTION'
-    };
-
-    if (actionType === 'p') {
-        await applies.interact[actionType](WORLD_WRAPPER, player, msg.action, result as ValidatePasteValid)
-    } else {
-        await applies.interact[actionType](WORLD_WRAPPER, player, msg.action, result as ValidateYankValid)
-    }
-
-    return {
-        seq: msg.seq,
-        reason: undefined,
-    };
+function applyTargetToServerWorld(world: ServerWorldWrapper, player: ServerPlayer, action: ExpandedVimAction) {
+    console.log('"TARGET" !!Not yet implemented...');
+    return 'INVALID_ACTION' as ActionResult["reason"];
+}
+export const serverApplyAction: Record<VimActionType, (world: ServerWorldWrapper, player: ServerPlayer, action: ExpandedVimAction) => ActionResult['reason']> = {
+    "MOVE": applyMoveToServerWorld,
+    "INTERACT": applyInteractToServerWorld,
+    "COMMAND": applyCommandToPlayerCommandState,
+    "COMMAND_PARTIAL": applyCommandToPlayerCommandState,
+    "COMMAND_PROMPT": applyCommandToPlayerCommandState,
+    "TARGET": applyTargetToServerWorld,
 }
 
-export default async function applyActionToServerWorld(player: Player, msg: ClientActionMessage): Promise<ApplyActionResult> {
-    let result: ApplyActionResult;
-    switch (msg.action.type) {
-        case "MOVE":
-            result = applyMoveToServerWorld(player, msg)
-            break;
-        case "INTERACT":
-            result = await applyInteractToServerWorld(player, msg);
-            break;
-        // case "TARGET":
-        //     // TODO:
-        //     return { seq: msg.seq, reason: 'NOT_YET_IMPLEMENTED' };
-        // case "COMMAND":
-        //     // TODO:
-        //     return { seq: msg.seq, reason: 'NOT_YET_IMPLEMENTED' };
-        default: 
-            // TODO:
-            result = { seq: msg.seq, reason: 'INVALID_ACTION' };
-    }
-
-    console.log(result, ' ~~ at:', msg.seq, ' action:', msg.action, ' player:', player);
-
-    return result;
-}
 

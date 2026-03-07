@@ -2,6 +2,7 @@ import {
     applyRangeToDelta,
     addPos,
     dirToDelta,
+    isWithinBounds,
 } from "~/simulation/shared/helpers";
 import {
     MODIFIER_KEYS,
@@ -26,17 +27,17 @@ import {
 
 // for yank command
 export function findObjectInRangeByKey(
-    this: LocalWorldWrapper | ServerWorldWrapper,
+    state: LocalWorldWrapper | ServerWorldWrapper,
     player: Player,
     key: string,
 ): FindObjectsInRangeResult {
     const FACTOR = 0.5;
     const modifiedRange = Math.ceil((player?.level || 1) * FACTOR);
     const result: FindObjectsInRangeResult = {
-        targetObj: undefined,
+        obj: undefined,
         modifiedRange,
         dir: player.dir,
-        lastPosBeforeObject: {
+        pos: {
             // new player's position
             x: player.pos.x,
             y: player.pos.y,
@@ -54,7 +55,7 @@ export function findObjectInRangeByKey(
         // instead of finding each loop, could filter to find in a straight line and loop over those
         // but items are just a list, maybe i could make it an array of arrays and insert them at coordinates
         // then it could be searched easier
-        const entitiesArray = Array.from(this.world.entities.values());
+        const entitiesArray = Array.from(state.world.entities.values());
         const targetObj = entitiesArray.find(
             (o) =>
                 o.interactable &&
@@ -71,11 +72,11 @@ export function findObjectInRangeByKey(
             entitiesArray,
         );
         if (targetObj) {
-            result.targetObj = targetObj;
+            result.obj = targetObj;
             return result as FindObjectsInRangeValid;
         }
-        result.lastPosBeforeObject.x = targetPos.x;
-        result.lastPosBeforeObject.y = targetPos.y;
+        result.pos.x = targetPos.x;
+        result.pos.y = targetPos.y;
     }
 
     return result as FindObjectsInRangeError;
@@ -86,17 +87,16 @@ export type ValidatePasteObjectResult = {
     targetPos: Vec2;
     obj: WorldEntity;
 };
-export async function validateCarryingObjectAndEmptyInFront(
+export function validateCarryingObjectAndEmptyInFront(
     state: LocalWorldWrapper | ServerWorldWrapper,
     player: Player,
-): Promise<ValidatePasteObjectResult | false> {
-
+): ValidatePasteObjectResult | false {
     if (!player?.carryingObjId) return false;
 
     const delta = dirToDelta(player.dir);
     const targetPos = addPos(delta, player.pos);
     if (state.physics.collision !== false) {
-        if (!(await state.isWithinBounds(targetPos))) return false;
+        if (!isWithinBounds(state, targetPos)) return false;
 
         const entitiesArray = Array.from(state.world.entities.values());
         if (
@@ -119,6 +119,8 @@ export async function validateCarryingObjectAndEmptyInFront(
 export type BasicInteractValidationResult =
     | { ok: true; reason: undefined }
     | { ok: false; reason: "INVALID_KEY" };
+
+
 export function basicInteractValidation(
     action: VimAction,
 ): BasicInteractValidationResult {
@@ -146,26 +148,26 @@ export function basicInteractValidation(
     return { ok: true, reason: undefined };
 }
 
-async function validateFindObjectInRangeByKey(
+function validateFindObjectInRangeByKey(
     state: ServerWorldWrapper | LocalWorldWrapper,
     player: Player,
     key: string,
-): Promise<ValidateYankResult> {
-    const result = await state.findObjectInRangeByKey(player, key);
+): ValidateYankResult {
+    const result = findObjectInRangeByKey(state, player, key);
     console.log("validateYank result:", result);
-    if (!result.targetObj) {
+    if (!result.obj) {
         console.warn("no target object found!", result);
         return { ok: false, reason: "INVALID_ACTION" };
     }
 
     // hopefully work for both client and server: server has no opts, client might have opts
     if (state.physics.collision !== false) {
-        if (!state.isWithinBounds(result.targetObj.pos!)) {
+        if (!isWithinBounds(state, result.obj.pos!)) {
             // probably never happens unless we have objects offmap
             console.warn("found target object is OUTSIDE BOUNDS!", result);
             return { ok: false, reason: "OUT_OF_BOUNDS" };
         }
-        if (!state.isWithinBounds(result.lastPosBeforeObject)) {
+        if (!isWithinBounds(state, result.pos)) {
             console.warn("new player position is OUTSIDE BOUNDS!", result);
             return { ok: false, reason: "OUT_OF_BOUNDS" };
         }
@@ -174,17 +176,16 @@ async function validateFindObjectInRangeByKey(
     return {
         ok: true,
         reason: undefined,
-        targetObj: result.targetObj,
-        lastPosBeforeObject: result.lastPosBeforeObject,
+        obj: result.obj,
+        pos: result.pos,
     };
 }
 
-
-async function validatePlaceCarryingObjectTowardsDir(
+function validatePlaceCarryingObjectTowardsDir(
     state: ServerWorldWrapper | LocalWorldWrapper,
     player: Player,
-): Promise<ValidatePasteResult> {
-    const res = await validateCarryingObjectAndEmptyInFront(state, player);
+): ValidatePasteResult {
+    const res = validateCarryingObjectAndEmptyInFront(state, player);
     if (!res)
         return {
             ok: false,
@@ -195,22 +196,80 @@ async function validatePlaceCarryingObjectTowardsDir(
         ok: true,
         reason: undefined,
         obj: res.obj,
-        targetPos: res.targetPos,
+        pos: res.targetPos,
     };
 }
 
+// type ReturnTypes = {
+//     y: {
+//         a: ValidateYankResult;
+//         i: ValidateYankResult;
+//     };
+//     p: {
+//         a: ValidatePasteResult;
+//         i: ValidateYankResult;
+//     };
+//     d: {
+//         a: ValidateYankResult;
+//         i: ValidateYankResult;
+//     };
+//     c: {
+//         a: ValidateYankResult;
+//         i: ValidateYankResult;
+//     };
+//     basic: BasicInteractValidationResult;
+// };
+
 // move: validateMove,
+export function interact2(actionType?: OperatorKey) {
+    if (!actionType) {
+        return {
+            basic: basicInteractValidation,
+        };
+    }
+    switch (actionType) {
+        case "y":
+            return {
+                // yanking inside: grab an object // make sure there's an object
+                a: validateFindObjectInRangeByKey,
+                // yanking inside: grab an item from inside an object // make sure there's an object
+                i: validateFindObjectInRangeByKey,
+            };
+        case "p":
+            return {
+                // pasting around: paste an object into an empty space
+                a: validatePlaceCarryingObjectTowardsDir,
+                // pasting inside: paste an item into an object // make sure there's an object
+                i: validateFindObjectInRangeByKey,
+            };
+        case "d":
+            return {
+                a: validateFindObjectInRangeByKey,
+                i: validateFindObjectInRangeByKey,
+            };
+        case "c":
+            return {
+                a: validateFindObjectInRangeByKey,
+                i: validateFindObjectInRangeByKey,
+            };
+        default:
+            return {
+                basic: basicInteractValidation,
+            };
+    }
+}
+
 const interact = {
-    p: {
-        // pasting around: paste an object into an empty space
-        a: validatePlaceCarryingObjectTowardsDir,
-        // pasting inside: paste an item into an object // make sure there's an object
-        i: validateFindObjectInRangeByKey,
-    },
     y: {
         // yanking inside: grab an object // make sure there's an object
         a: validateFindObjectInRangeByKey,
         // yanking inside: grab an item from inside an object // make sure there's an object
+        i: validateFindObjectInRangeByKey,
+    },
+    p: {
+        // pasting around: paste an object into an empty space
+        a: validatePlaceCarryingObjectTowardsDir,
+        // pasting inside: paste an item into an object // make sure there's an object
         i: validateFindObjectInRangeByKey,
     },
     d: {

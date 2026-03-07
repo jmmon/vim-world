@@ -1,8 +1,9 @@
 import { NoSerialize, QRL, $, Signal, isServer, noSerialize, useOnWindow, useSignal, useTask$ } from "@builder.io/qwik";
 import { API_PORT } from "~/server/constants";
+import { GameState } from "../useState";
 
 export const useWebSocket = (
-    initializeTrigger: Signal<any>,
+    state: GameState,
     onMessage: QRL<(data: any) => any>, 
     onOpen: QRL<() => any>,
     ws: Signal<NoSerialize<WebSocket>>,
@@ -18,20 +19,23 @@ export const useWebSocket = (
             ws.value.close();
             ws.value = undefined;
         }
-        initializeTrigger.value = false;
+        state.ctx.client.isReady = false;
         isStartingInBrowser.value = true;
     });
 
     useOnWindow('beforeunload', cleanup$);
 
     useTask$(({ track, cleanup }) => {
-        const isReady = !!track(initializeTrigger);
+        const _isReady = !!track(() => state.ctx.client.isReady);
         if (isServer) {
             isStartingInBrowser.value = true
             return;
         }
-        console.log('useWebSocket task runs:', { isReady, ws: ws.value, isStartingInBrowser: isStartingInBrowser.value });
-        if (!isReady) return;
+        console.log('useWebSocket task runs:', {
+            isReady: _isReady, ws: ws.value, isStartingInBrowser: isStartingInBrowser.value
+        });
+        if (!_isReady) return;
+        console.log('~~ player ready! initializing connection...');
 
         if (!ws.value || isStartingInBrowser.value) ws.value = noSerialize(new WebSocket(opts.url));
         isStartingInBrowser.value = false;

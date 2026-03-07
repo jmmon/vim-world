@@ -1,41 +1,454 @@
-import { $, Signal, useSignal, useStore } from "@builder.io/qwik";
-import { World } from "~/server/types";
+import { NoSerialize, Signal, useSignal, useStore } from "@builder.io/qwik";
 import {
     InitializeClientData,
     IsDirty,
     LocalWorldWrapper,
     ApplyActionDirtyResult,
 } from "../components/canvas1/types";
-import { Vec2 } from "~/types/worldTypes";
-import { pickUpItem, pickUpObject } from "~/simulation/shared/actions/interact";
-import { isWalkable, isWithinBounds } from "~/simulation/shared/helpers";
+import { Player } from "~/types/worldTypes";
+import { mergePlayerState } from "~/simulation/shared/helpers";
 import { applyActionToWorld } from "~/simulation/client/actions";
-import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact";
-import { getScaledTileSize } from "~/services/draw/utils";
 import chunkService from "~/services/chunk";
-import { ClientPhysicsMode, getClientPhysics } from "~/simulation/shared/physics";
-import { setPlayerPos, updateViewportPos } from "~/simulation/client/movement";
-import { ServerAckMessage, ServerInitConfirmMessage, ServerOtherPlayerMessage, SubtypeServerAck } from "~/types/wss/server";
+import {
+    ClientPhysicsMode,
+    getClientPhysics,
+} from "~/simulation/shared/physics";
+import { updatePlayerMovement } from "~/simulation/client/movement";
+import {
+    ServerAckMessage,
+    ServerInitConfirmMessage,
+    ServerOtherPlayerMessage,
+    SubtypeServerAck,
+} from "~/types/wss/server";
 import useDispatch$ from "./useDispatch";
+import { VimAction } from "~/fsm/types";
+import { World } from "~/server/types";
+import viewport from "~/simulation/client/viewport";
 
-function useState(world: World, isReady: Signal<boolean>, dispatch$: ReturnType<typeof useDispatch$>) {
+export const handlers = {
+    markAllDirty: function (ctx: LocalWorldWrapper) {
+        console.log("marking all dirty");
+        ctx.client.isDirty.overlay = true;
+        ctx.client.isDirty.objects = true;
+        ctx.client.isDirty.players = true;
+        ctx.client.isDirty.map = true;
+    },
+    clearAllDirty: function (ctx: LocalWorldWrapper) {
+        console.log("clearing all dirty");
+        ctx.client.isDirty.overlay = false;
+        ctx.client.isDirty.objects = false;
+        ctx.client.isDirty.players = false;
+        ctx.client.isDirty.map = false;
+    },
+
+    updateIsDirty: function (
+        ctx: LocalWorldWrapper,
+        isDirty: ApplyActionDirtyResult,
+    ) {
+        if (isDirty) {
+            ctx.client.isDirty.overlay ||=
+                isDirty === true || !!isDirty.overlay;
+            ctx.client.isDirty.players ||=
+                isDirty === true || !!isDirty.players;
+            ctx.client.isDirty.objects ||=
+                isDirty === true || !!isDirty.objects;
+            ctx.client.isDirty.map ||= isDirty === true || !!isDirty.map;
+        }
+    },
+
+    updateScale: function (
+        ctx: LocalWorldWrapper,
+        newScale: number,
+        newTileSize: number,
+    ) {
+        ctx.client.viewport.width =
+            newTileSize *
+            (ctx.client.viewport.width / ctx.world.config.tileSize);
+        ctx.client.viewport.height =
+            newTileSize *
+            (ctx.client.viewport.height / ctx.world.config.tileSize);
+        ctx.world.config.scale = newScale;
+        ctx.world.config.tileSize = newTileSize;
+    },
+
+    handleComparePrediction: function (
+        ctx: LocalWorldWrapper,
+        result: Player,
+        indexAction: number,
+        authoritativeState?: Partial<Player>,
+    ) {
+        const inputBuffer = ctx.client.inputBuffer.slice();
+        const isPredictionMatching =
+            authoritativeState &&
+            authoritativeState.pos &&
+            authoritativeState.dir &&
+            result.carryingObjId ===
+                (authoritativeState?.carryingObjId ?? "") &&
+            result.pos.x === authoritativeState.pos.x &&
+            result.pos.y === authoritativeState.pos.y &&
+            result.dir === authoritativeState.dir;
+
+        // Prediction matched — just drop it
+        if (!authoritativeState || isPredictionMatching) {
+            // clear everything before it as well
+            ctx.client.inputBuffer = inputBuffer.slice(indexAction + 1);
+
+            console.log("~~ results are same: remaining predictions:", {
+                remaining: [...inputBuffer],
+                index: indexAction,
+                resultState: { ...result },
+            });
+            return true;
+            // no need to replay anything since there was no correction
+        }
+        return false;
+    },
+
+    /**
+     * @returns true if handled, false if not
+     * */
+    handleAckSubtype: function (
+        ctx: LocalWorldWrapper,
+        msg: ServerAckMessage<SubtypeServerAck>,
+    ): boolean {
+        switch (msg.subtype) {
+            case "CHECKPOINT":
+                ctx.client.lastAckCheckpoint = (
+                    msg as ServerAckMessage<"CHECKPOINT">
+                ).checkpoint;
+                return true;
+            case "COMMAND_PARTIAL":
+                // update the statusbar as chars are typed
+                ctx.client.commandBuffer =
+                    ":" + msg.authoritativeState!.commandLineState!.buffer;
+                return true;
+            case "COMMAND": {
+                // should run the command in case we aren't running command prediction
+                if (ctx.physics.prediction) return true;
+
+                if (
+                    (msg.authoritativeState?.commandLineState?.buffer ||
+                        "")[0] === ":"
+                ) {
+                    msg.authoritativeState!.commandLineState!.buffer.replace(
+                        ":",
+                        "",
+                    );
+                }
+                const command =
+                    msg.authoritativeState?.commandLineState?.buffer || "";
+                console.assert(command.length, "no command found");
+
+                // finalize statusbar so correct command can run
+                ctx.client.commandBuffer = command;
+
+                const reason = applyActionToWorld(ctx, {
+                    type: "COMMAND",
+                    command,
+                });
+                handlers.updateIsDirty(ctx, reason.isDirty);
+                return true;
+            }
+        }
+        return false;
+    },
+
+    /* action: steps
+     * 10j => 3j * 3 + 1j
+     * seq:
+     * 22l => 21 * 3 + 22
+     *
+     *
+     *
+     *
+     * Ok so once we get that server ack, we need to remove actionQueue for that seq
+     *  - need to make sure the server completing first will cause the client
+     *      to break the loop instead of duplicating moves
+     * */
+    onServerAck: function (
+        ctx: LocalWorldWrapper,
+        msg: ServerAckMessage<SubtypeServerAck>,
+    ) {
+        // ================================================================
+        // handle subtype: checkpoint, commands
+        // ================================================================
+        if ("subtype" in msg && handlers.handleAckSubtype(ctx, msg)) {
+            return //console.log('~ handled subtype:', msg.subtype);
+        }
+
+        const { seq, authoritativeState, tick } = msg;
+        const TOLERANCE = 2;
+        console.assert(
+            tick >= ctx.client.tick - TOLERANCE,
+            "GOT AN OLD TICK::",
+            tick,
+            " ours:",
+            ctx.client.tick,
+        );
+        ctx.client.tick = tick; // not really sure how to sync this with server
+
+        ctx.client.lastProcessedSeq ??= -1;
+        if (seq < ctx.client.lastProcessedSeq)
+            return console.log(
+                `received old sequence: ${seq} -- we're at ${ctx.client.lastProcessedSeq} `,
+            );
+
+        const inputBuffer = ctx.client.inputBuffer.slice();
+        const index = inputBuffer.findIndex((p) => p.seq === seq);
+        if (ctx.physics.prediction && index === -1) {
+            return console.log(
+                "~ prediction running, but buffer is missing, maybe it's old:",
+                seq,
+                ` (${ctx.client.lastProcessedSeq} lastProcessedSeq)`,
+            );
+        }
+
+        ctx.client.lastProcessedSeq = Math.max(
+            seq,
+            ctx.client.lastProcessedSeq,
+        );
+        // const input = inputBuffer[index];
+        // const count = input.action.count ?? 1;
+        // const steps = Math.ceil(count / 3);
+        // const remainderLast = count % 3;
+
+        // ================================================================
+        // prediction: check against next snapshot, ignore if matching
+        // - if no next snapshot, or if prediction is not running, check against current player
+        // ================================================================
+        const indexPredictedResult = inputBuffer.findIndex(
+            (p) => p.seq === seq + 1,
+        );
+        const hasPredictionResult =
+            ctx.physics.prediction && indexPredictedResult !== -1;
+        const result = hasPredictionResult
+            ? inputBuffer[indexPredictedResult].snapshotBefore
+            : ctx.client.player!;
+        const isMatching = handlers.handleComparePrediction(
+            ctx,
+            result,
+            index,
+            authoritativeState,
+        );
+
+        const indexLastStepForSeq = ctx.client.actionQueue.findIndex(
+            (ea) => ea.remaining === 0 && ea.seq === seq,
+        );
+        if (isMatching) {
+            // TODO: handle only removing the one partial step, based on the original action
+            // this would handle only the last step or clearing all including the last step
+            if (indexLastStepForSeq > -1)
+                ctx.client.actionQueue.splice(0, indexLastStepForSeq + 1);
+        }
+        // ================================================================
+        // clear action queue steps that are stale!
+        if (isMatching || !authoritativeState) return console.log('~~ matching, or no authoritative state');
+
+        // for dirtying objects:
+        const isSameItem =
+            ctx.client.player!.carryingObjId ===
+            (authoritativeState?.carryingObjId ?? "");
+
+        // ================================================================
+        // Prediction not matched, roll back player according to ack player
+        // ================================================================
+        const target = {
+            ...ctx.client.player!.pos,
+            ...authoritativeState.pos,
+        };
+        const isSameChunk = updatePlayerMovement(ctx, {
+            target,
+            dir: authoritativeState.dir,
+        });
+
+        const viewportChanged =
+            viewport.updateDimensions(ctx) || viewport.updatePos(ctx);
+
+        console.log("onserverAck$:", {
+            nextPos: target,
+            viewportChanged,
+            isSameChunk,
+        });
+
+        mergePlayerState(ctx, authoritativeState);
+
+        const anyDirty: IsDirty = {
+            overlay: !isSameChunk,
+            players: true, // redraw player when player is moved
+            objects: !isSameItem || viewportChanged,
+            map: viewportChanged,
+        };
+        handlers.updateIsDirty(ctx, anyDirty);
+
+
+        // ================================================================
+        // Remove confirmed actions including this seq
+        // ================================================================
+        inputBuffer.splice(0, index + 1);
+
+        ctx.client.inputBuffer = inputBuffer;
+        console.log("~~ predictionBuffer remaining:", [...inputBuffer]);
+
+        if (indexLastStepForSeq > -1) {
+            ctx.client.actionQueue.splice(0, indexLastStepForSeq + 1);
+            console.assert(
+                !isMatching,
+                "WARNING: may have double-removed the last step from queue!!",
+                JSON.stringify(ctx.client.actionQueue),
+            );
+        }
+
+        // ================================================================
+        // NOTE: after moving to a client tick model, no need to applyActionToWorld here!
+        // just reset the predictionArr and then the game tick will apply and set to dirty.
+        // Everything below will be moved to tick
+        //
+        // - or: do I need to replay immediately to get it back in sync??
+        // - either way: need to get the correct expandedAction step and replay from there,
+        //      NOT replay the entire action
+        // ================================================================
+
+        if (!ctx.physics.prediction) return;
+
+        // Replay remaining predictions based on the corrected position
+        for (const p of inputBuffer) {
+            const reason = applyActionToWorld(ctx, p.action);
+            handlers.updateIsDirty(ctx, reason.isDirty);
+        }
+    },
+
+    onOtherPlayerMove: function (
+        ctx: LocalWorldWrapper,
+        data: ServerOtherPlayerMessage<"MOVE">,
+    ) {
+        // skip self
+        if (!data.playerId || data.playerId === ctx.client.player?.id) {
+            return;
+        }
+
+        // TODO: ignore if not within visibleChunks
+        // TODO: reload other players when visibleChunks changes
+
+        // e.g. updating from other clients: find the moving player and move it
+        const otherPlayer = ctx.world.players.get(data.playerId);
+        if (!otherPlayer) return;
+
+        otherPlayer.pos = data.pos;
+        otherPlayer.dir = data.dir;
+
+        ctx.client.isDirty.players = true;
+    },
+
+    /**
+     * applies a step, called 3 times per tick
+     * @returns the reason for cancelling  TODO:
+     * */
+    applyActionStep: function (
+        ctx: LocalWorldWrapper,
+        action: VimAction,
+        tick: number,
+    ) {
+        /*
+         * server: does basic validation
+         * apply to world, take reason
+         * */
+
+        const result = applyActionToWorld(ctx, action);
+        handlers.updateIsDirty(ctx, result.isDirty);
+
+        console.log(
+            `afterActionStep: tick ${tick}::`,
+            {
+                name: ctx.client.player!.name,
+                id: ctx.client.player!.id,
+                x: ctx.client.player!.pos.x,
+                y: ctx.client.player!.pos.y,
+                dir: ctx.client.player!.dir,
+            },
+        );
+
+        // return reason for breaking early
+        return result.reason;
+    },
+
+    initClientData: function (
+        ctx: LocalWorldWrapper,
+        data: InitializeClientData,
+    ) {
+        ctx.client.lastSnapshot = ctx.client.player;
+
+        ctx.client.player = data.player;
+        ctx.client.username = data.username;
+        ctx.client.usernameHash = data.usernameHash;
+        ctx.client.lastProcessedSeq = -1;
+
+        chunkService.handleVisibleChunksChange(
+            ctx.client.player.pos,
+            ctx.world.config,
+        );
+        viewport.updatePos(ctx);
+        handlers.markAllDirty(ctx);
+
+        const now = Date.now();
+        console.assert(
+            now - ctx.client.lastInit > 5000,
+            "!!initializing called many times!!",
+        );
+        console.log(
+            "initialized localWorld with client data, NOW READY for websocket!::",
+            data,
+        );
+
+        ctx.client.lastInit = now;
+        ctx.client.isReady = true;
+        return true;
+    },
+
+    onInitConfirm: function (
+        ctx: LocalWorldWrapper,
+        data: ServerInitConfirmMessage,
+    ) {
+        console.assert(
+            data.subtype === "CONFIRM",
+            'EXPECTED subtype "CONFIRM", got',
+            data.subtype,
+        );
+        console.log("RECEIVED INIT CONFIRM:", { data });
+
+        if (data.tick) {
+            console.assert(
+                data.tick > ctx.client.tick,
+                "!!server is behind??::",
+                data,
+                ctx.client.tick,
+            );
+            ctx.client.tick = data.tick;
+        }
+        console.assert(
+            localStorage.getItem("playerId") === data.playerId,
+            "!! playerId mismatch!!",
+        );
+    },
+};
+
+function useState(world: World<"Client">, ws: Signal<NoSerialize<WebSocket>>,) {
     const containerRef = useSignal<HTMLDivElement>();
     const offscreenMapRef = useSignal<HTMLCanvasElement>();
     const mapRef = useSignal<HTMLCanvasElement>();
     const objectsRef = useSignal<HTMLCanvasElement>();
     const playersRef = useSignal<HTMLCanvasElement>();
     const overlayRef = useSignal<HTMLCanvasElement>();
+    const dispatch$ = useDispatch$(ws);
 
     // const getNextSeq = useSeq(); // action index
 
-    const lastInit = useSignal(0);
-
-    const state = useStore<LocalWorldWrapper>({
-        world: {
-            ...world,
-        },
-        physics: getClientPhysics(ClientPhysicsMode.VISUAL_ONLY),
+    const ctx = useStore<LocalWorldWrapper>({
+        world,
+        physics: getClientPhysics(ClientPhysicsMode.NONE),
+        dispatch: dispatch$,
         client: {
+            isReady: false,
+            lastInit: 0,
             settings: {
                 scrolloff: 10,
                 sidescrolloff: 10,
@@ -69,8 +482,10 @@ function useState(world: World, isReady: Signal<boolean>, dispatch$: ReturnType<
                 objects: true,
                 map: true,
             },
-            predictionBuffer: [],
-            commandBuffer: "",
+            inputBuffer: [],
+            actionQueue: [],
+            tick: -1,
+            commandBuffer: "", // to be displayed in the bar // TODO: mimick server logic and structure
             lastSnapshot: undefined,
             lastAckCheckpoint: undefined,
         },
@@ -81,267 +496,9 @@ function useState(world: World, isReady: Signal<boolean>, dispatch$: ReturnType<
             afk: false,
             devStats: true,
         },
-        isWithinBounds: $(function (this: LocalWorldWrapper, target: Vec2) {
-            return isWithinBounds(this, target);
-        }),
-        isWalkable: $(function (this: LocalWorldWrapper, target: Vec2) {
-            return isWalkable(this, target);
-        }),
-        initClientData: $(function (
-            this: LocalWorldWrapper,
-            data: InitializeClientData,
-        ) {
-            this.client.lastSnapshot = this.client.player;
-
-            this.client.player = data.player;
-            this.client.username = data.username;
-            this.client.usernameHash = data.usernameHash;
-            this.client.lastProcessedSeq = -1;
-
-            chunkService.handleVisibleChunksChange(
-                this.client.player.pos,
-                this.world.config,
-            );
-            updateViewportPos(this);
-            this.markAllDirty();
-
-            const now = Date.now();
-            console.assert(
-                now - lastInit.value > 5000,
-                "!!initializing called many times!!",
-            );
-            console.log(
-                "initialized localWorld with client data, NOW READY::",
-                data,
-            );
-
-            lastInit.value = now;
-            isReady.value = true;
-            return true;
-        }),
-        // client only
-        getScaledTileSize: $(function (this: LocalWorldWrapper, scale: number) {
-            return getScaledTileSize(this.world.config, scale);
-        }),
-        // client only
-        markAllDirty: $(function (this: LocalWorldWrapper) {
-            console.log('marking all dirty');
-            this.client.isDirty.overlay = true;
-            this.client.isDirty.objects = true;
-            this.client.isDirty.players = true;
-            this.client.isDirty.map = true;
-        }),
-        clearAllDirty: $(function (this: LocalWorldWrapper) {
-            console.log('clearing all dirty');
-            this.client.isDirty.overlay = false;
-            this.client.isDirty.objects = false;
-            this.client.isDirty.players = false;
-            this.client.isDirty.map = false;
-        }),
-        // client only
-        updateScale: $(function (
-            this: LocalWorldWrapper,
-            newScale: number,
-            newTileSize: number,
-        ) {
-            this.client.viewport.width =
-                newTileSize *
-                (this.client.viewport.width / this.world.config.tileSize);
-            this.client.viewport.height =
-                newTileSize *
-                (this.client.viewport.height / this.world.config.tileSize);
-            this.world.config.scale = newScale;
-            this.world.config.tileSize = newTileSize;
-        }),
-
-        findObjectInRangeByKey: $(findObjectInRangeByKey),
-
-        // ya: maybe need a "carry" slot on player; put the itemId in the "carry" slot, remove its position while carried?
-        pickUpObject: $(pickUpObject),
-        // yi: I guess remove the itemId from the object and add it to the player's items
-        pickUpItem: $(pickUpItem),
-        // later: pa" pi"
-        // placeObject: $(placeObject),
-        // placeItem: $(placeItem),
-        // placeItem: $(placeItem),
-
-        onServerAck: $(async function (
-            this: LocalWorldWrapper,
-            msg: ServerAckMessage<SubtypeServerAck>,
-        ) {
-            if ("subtype" in msg && msg.subtype === "CHECKPOINT") {
-                this.client.lastAckCheckpoint = (msg as ServerAckMessage<"CHECKPOINT">).checkpoint;
-                // this.client.lastSnapshot = 
-                //         checkpointService.toPlayer(
-                //     (msg as ServerAckMessage<"CHECKPOINT">).checkpoint,
-                //     this.client.lastProcessedSeq,
-                // );
-                return;
-            }
-
-            const { seq, authoritativeState } = msg;
-
-            if (seq < (this.client.lastProcessedSeq ?? -1)) return;
-            const predictionArr = [...this.client.predictionBuffer];
-
-            const index = predictionArr.findIndex((p) => p.seq === seq);
-            if (this.physics.prediction && index === -1) return console.log('~prediction running, but buffer is missing:', seq);
-            this.client.lastProcessedSeq = seq;
-
-            // NOTE: skip if results of the changes matched: for full prediction on the client
-            // - if no client visual prediction, then the resultState and authState would NOT match since client would be behind
-
-            const result =
-                predictionArr[predictionArr.findIndex((p) => p.seq === seq + 1)]
-                    ?.snapshotBefore || this.client.player;
-
-            const isPredictionMatching =
-                this.physics.prediction &&
-                authoritativeState?.pos &&
-                authoritativeState.dir &&
-                result.pos.x === authoritativeState.pos.x &&
-                result.pos.y === authoritativeState.pos.y &&
-                result.dir === authoritativeState.dir;
-
-            // Prediction matched — just drop it
-            if (!authoritativeState || isPredictionMatching) {
-                // clear everything before it as well
-                predictionArr.splice(0, index + 1);
-                this.client.predictionBuffer = predictionArr;
-                console.log("~~ results are same: remaining predictions:", {
-                    remaining: [...predictionArr],
-                    index,
-                    resultState: { ...result },
-                });
-                return;
-                // no need to replay anything since there was no correction
-            }
-
-            // Prediction not matched, roll back player according to ack player
-            const next = {
-                ...this.client.player!.pos,
-                ...authoritativeState.pos,
-            };
-            const isSameChunk = setPlayerPos(this, next);
-            this.client.player!.dir =
-                authoritativeState.dir || this.client.player!.dir; // update dir before viewport!
-            const viewportChanged =
-                (await this.updateViewportDimensions()) || updateViewportPos(this);
-            console.log({next, viewportChanged, isSameChunk});
-            this.client.player = {
-                ...this.client.player!,
-                ...authoritativeState,
-            };
-
-            const anyDirty: IsDirty = {
-                overlay: !isSameChunk,
-                players: true, // redraw player when player is moved
-                objects: viewportChanged, // only redraw when viewport changes
-                map: viewportChanged,
-            };
-            await this.updateIsDirty(anyDirty);
-            console.log("EXPECT MAP DIRTY if prediction is running:", anyDirty);
-            console.log('EXPECT all properties on player::', this.client.player);
-
-            // Remove confirmed actions including this seq
-            predictionArr.splice(0, index + 1);
-
-            this.client.predictionBuffer = predictionArr;
-            console.log("~~ predictionBuffer remaining:", [...predictionArr]);
-
-            // NOTE: after moving to a client tick model, no need to applyActionToWorld here!
-            // just reset the predictionArr and then the game tick will apply and set to dirty.
-            // Everything below will be moved to tick
-
-            if (!this.physics.prediction) {
-                return;
-            }
-
-            // 3. Replay remaining predictions based on the corrected position
-            for (const p of predictionArr) {
-                const isDirty = await applyActionToWorld(this, p.action);
-                await this.updateIsDirty(isDirty);
-            }
-        }),
-        onOtherPlayerMove: $(function (this: LocalWorldWrapper, data: ServerOtherPlayerMessage<"MOVE">)  {
-            // skip self
-            if (!data.playerId || data.playerId === this.client.player?.id) {
-                return;
-            }
-
-            // TODO: ignore if not within visibleChunks
-            // TODO: reload other players when visibleChunks changes
-
-            // e.g. updating from other clients: find the moving player and move it
-            const otherPlayer = this.world.players.get(data.playerId);
-            if (!otherPlayer) return;
-
-            otherPlayer.pos = data.pos;
-            otherPlayer.dir = data.dir;
-
-            this.client.isDirty.players = true;
-        }),
-        onInitConfirm: $(function (data: ServerInitConfirmMessage) {
-            console.assert(
-                data.subtype === "CONFIRM",
-                'EXPECTED subtype "CONFIRM", got',
-                data.subtype,
-            );
-            console.log("RECEIVED INIT CONFIRM:", { data });
-            console.assert(
-                localStorage.getItem("playerId") === data.playerId,
-                "!! playerId mismatch!!",
-            );
-        }),
-        updateViewportDimensions: $(function (this: LocalWorldWrapper) {
-            const { lines, columns } = this.client.settings;
-            const { tileSize } = this.world.config;
-            const prev = { ...this.client.viewport };
-
-            console.log('setting viewport width/height...');
-            this.client.viewport.width = columns * tileSize;
-            this.client.viewport.height = lines * tileSize;
-
-            const hasChanged =
-                prev.height !== this.client.viewport.height ||
-                prev.width !== this.client.viewport.width;
-
-            // if styles are not attached in the jsx
-            if (hasChanged) {
-                console.log("new viewport:", this.client.viewport);
-                containerRef.value!.style.width =
-                    mapRef.value!.style.width =
-                    objectsRef.value!.style.width =
-                    playersRef.value!.style.width =
-                    overlayRef.value!.style.width =
-                        this.client.viewport.width + "px";
-                containerRef.value!.style.height =
-                    mapRef.value!.style.height =
-                    objectsRef.value!.style.height =
-                    playersRef.value!.style.height =
-                    overlayRef.value!.style.height =
-                        this.client.viewport.height + "px";
-            }
-            return hasChanged;
-        }),
-        updateIsDirty: $(function (
-            this: LocalWorldWrapper,
-            isDirty: ApplyActionDirtyResult,
-        ) {
-            if (isDirty) {
-                this.client.isDirty.overlay ||=
-                    isDirty === true || !!isDirty.overlay;
-                this.client.isDirty.players ||=
-                    isDirty === true || !!isDirty.players;
-                this.client.isDirty.objects ||=
-                    isDirty === true || !!isDirty.objects;
-                this.client.isDirty.map ||= isDirty === true || !!isDirty.map;
-            }
-        }),
-        dispatch: dispatch$,
     });
 
-    return {
+    const state = {
         refs: {
             container: containerRef,
             map: mapRef,
@@ -350,8 +507,9 @@ function useState(world: World, isReady: Signal<boolean>, dispatch$: ReturnType<
             overlay: overlayRef,
             offscreenMap: offscreenMapRef,
         },
-        ctx: state,
+        ctx: ctx,
     };
+    return state;
 }
 
 export type GameState = ReturnType<typeof useState>;

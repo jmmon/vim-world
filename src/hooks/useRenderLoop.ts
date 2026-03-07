@@ -1,17 +1,17 @@
 import { useComputed$, useVisibleTask$ } from "@builder.io/qwik";
 import { initFpsTest } from "~/components/canvas1/utils";
 import draw from "~/services/draw";
-import { GameState } from "~/hooks/useState";
+import { GameState, handlers } from "~/hooks/useState";
 import chunkService from "~/services/chunk";
-import useDispatch$ from "./useDispatch";
 import { isSnapshotSame } from "~/simulation/shared/helpers";
 import checkpointService from "~/server/checkpointService";
+import { setupCallTicksForPlayer } from "~/simulation/shared/loop/loop";
+import viewport from "~/simulation/client/viewport";
 
 /** =======================================================
  *                        MAIN LOOP
  * ======================================================= */
 export default function useRenderLoop(
-    dispatch$: ReturnType<typeof useDispatch$>,
     state: GameState,
 ) {
     /**
@@ -39,12 +39,14 @@ export default function useRenderLoop(
 
     // eslint-disable-next-line qwik/no-use-visible-task
     useVisibleTask$(async ({ cleanup }) => {
+        let isCancelled = false;
         const zero = Number(document.timeline.currentTime);
         const countFps = initFpsTest(zero, 1);
         state.ctx.client.timeSinceLastCheckpoint = Date.now();
         console.log("starting main loop:");
 
-        await state.ctx.updateViewportDimensions(); // initialize viewport dimensions
+        viewport.updateDimensions(state.ctx); // initialize viewport dimensions
+        viewport.updateCanvas(state);
 
         // init canvas dimensions and visible chunks
         if (!state.refs.offscreenMap.value) {
@@ -59,6 +61,7 @@ export default function useRenderLoop(
         // initialize offscreen canvas of map tiles /// is this needed?? offscreen map?
         function renderMap() {
             console.log("~~ RENDER MAP ~~ EXPECT to happen RARELY");
+            viewport.updateCanvas(state);
             draw.offscreenMap(state);
             draw.visibleMap(state);
             if (!state.ctx.show.helpHint) return;
@@ -75,7 +78,7 @@ export default function useRenderLoop(
             state.ctx.client.timeSinceLastCheckpoint += difference;
 
             if (isSnapshotChanged$.value) {
-                dispatch$.checkpoint(state.ctx.client.player!, false);
+                state.ctx.dispatch.checkpoint(state.ctx.client.player!, false);
                 console.log("fps:", lastFps, "ema:", lastEma);
             }
         }
@@ -100,21 +103,8 @@ export default function useRenderLoop(
             }
         }
 
-        let isCancelled = false;
-        // main client loop
-        (async function loop(ts: number) {
-            if (isCancelled) return console.log("~~ loop cancelled");
-            requestAnimationFrame(loop);
-            const result = countFps(ts);
-            if (result) {
-                lastFps = result.fps;
-                lastEma = result.ema;
-            }
-
-            if (
-                state.ctx.world.config.lastScale !==
-                state.ctx.world.config.scale
-            ) {
+        function render() {
+            if (state.ctx.world.config.lastScale !== state.ctx.world.config.scale) {
                 draw.clearAll(state);
             }
 
@@ -153,11 +143,30 @@ export default function useRenderLoop(
             state.ctx.client.isDirty.map = false;
 
             state.ctx.world.config.lastScale = state.ctx.world.config.scale;
+        }
+
+        const callTicks = setupCallTicksForPlayer(state.ctx, state.ctx.client, handlers.applyActionStep);
+
+        // main client loop
+        (function loop(ts: number) {
+            if (isCancelled) return console.log("~~ loop cancelled");
+            requestAnimationFrame(loop);
+
+            callTicks(ts, state.ctx.client);
+
+            const result = countFps(ts);
+            if (result) {
+                lastFps = result.fps;
+                lastEma = result.ema;
+            }
+
+            render();
 
             // handle checkpoints
             if (!state.ctx.client.player) return;
             saveCheckpoint();
         })(zero);
+
 
         cleanup(() => {
             isCancelled = true;

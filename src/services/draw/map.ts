@@ -206,7 +206,7 @@ export function drawOffscreenMap(
     state: GameState,
     visibleChunks: ChunkKey[] = __visibleChunks,
 ) {
-    console.log("drawing offscreen map::", visibleChunks);
+    // console.log("drawing offscreen map::", visibleChunks);
     for (const chunkKey of visibleChunks) {
         // console.log("drawing chunk:", chunkKey);
         drawChunk(state, chunkKey);
@@ -230,7 +230,7 @@ export function drawVisibleMap(state: GameState) {
     const sy = origin.y;
     const sw = width;
     const sh = height;
-    console.log({ sx, sy, sw, sh });
+    // console.log({ sx, sy, sw, sh });
 
     // draw map (blit from offscreen)
     ctx.drawImage(state.refs.offscreenMap.value!, sx, sy, sw, sh, 0, 0, sw, sh);

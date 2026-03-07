@@ -1,13 +1,10 @@
-import { LocalWorldWrapper } from "~/components/canvas1/types";
-import { ModifierKey, VimAction } from "~/fsm/types";
-import { ServerWorldWrapper } from "~/server/types";
+import { ModifierKey, OperatorKey, VimAction } from "~/fsm/types";
 import { entityHasItem } from "~/services/draw/utils";
-import { ValidateInteractValid, ValidatePasteValid, ValidateYankValid } from "~/simulation/server/types";
 import {
-    WorldEntity,
-    Player,
-    Vec2,
-} from "~/types/worldTypes";
+    ValidateInteractValid,
+    ValidateYankValid,
+} from "~/simulation/server/types";
+import { WorldEntity, Player, Vec2 } from "~/types/worldTypes";
 
 export function pickUpObject(entity: WorldEntity, player: Player) {
     player.carryingObjId = entity.id;
@@ -17,7 +14,7 @@ export function pickUpObject(entity: WorldEntity, player: Player) {
 
 // TODO: if object is an item-wrapper, remove the object; it will get placed when placing the item
 export function pickUpItem(entity: WorldEntity, player: Player) {
-    const isItemWrapper = entity.type === 'ITEM_ENTITY';
+    const isItemWrapper = entity.type === "ITEM_ENTITY";
 
     const firstItem = entity.container!.itemIds.shift();
     player.itemIds ??= [];
@@ -27,8 +24,6 @@ export function pickUpItem(entity: WorldEntity, player: Player) {
     }
     return true;
 }
-
-
 
 function placeObject(entity: WorldEntity, player: Player, target: Vec2) {
     entity.pos = target;
@@ -40,7 +35,7 @@ function placeObject(entity: WorldEntity, player: Player, target: Vec2) {
 // how to handle this???
 // - different validation: paste inside:
 // > - if item should be wrapped (how to tell???) then create/find wrapper and place it, then place item inside
-// > - 
+// > -
 // > - (done) else if item should NOT be wrapped, have to find the nearby object and put inside
 function placeItem(entity: WorldEntity, player: Player) {
     console.log("placeItem:", { obj: entity, player });
@@ -48,12 +43,8 @@ function placeItem(entity: WorldEntity, player: Player) {
     if (!entity.container) return false;
 
     const prevLength = player.itemIds?.length;
-    console.assert(
-        prevLength,
-        "player should have items!",
-        player.itemIds,
-    );
-    
+    console.assert(prevLength, "player should have items!", player.itemIds);
+
     const itemId = player.itemIds.shift()!; // remove first item from player
     entity.container.itemIds.push(itemId); // add to object
 
@@ -67,17 +58,13 @@ function placeItem(entity: WorldEntity, player: Player) {
     return true;
 }
 
-async function applyYankCommand(
-    state: ServerWorldWrapper | LocalWorldWrapper,
+function applyYankCommand(
     player: Player,
     action: VimAction,
-    target: {
-        targetObj: WorldEntity;
-        lastPosBeforeObject: Vec2;
-    },
+    result: ValidateYankValid,
 ) {
     // move player into position
-    player.pos = target.lastPosBeforeObject;
+    player.pos = result.pos;
     const modifier = action.command?.[1];
 
     // attempt to pick up item
@@ -85,63 +72,76 @@ async function applyYankCommand(
         case "a":
             // "around" e.g. pick up the object??
             if (player.carryingObjId) return false; // already carrying
-            if (!target.targetObj.liftable?.canCarry) return false; // not liftable
-            return state.pickUpObject(
-                target.targetObj,
-                player,
-            );
+            if (!result.obj.liftable?.canCarry) return false; // not liftable
+            return pickUpObject(result.obj, player);
         case "i":
             // "inside" e.g. pick up the item within the object
-            if (!entityHasItem(target.targetObj)) return false;
-            return state.pickUpItem(target.targetObj, player);
+            if (!entityHasItem(result.obj)) return false;
+            return pickUpItem(result.obj, player);
         default:
             return false;
     }
 }
 
-
-function isPasteValid(result: ValidateInteractValid): result is ValidatePasteValid {
-    return (result as ValidatePasteValid).obj !== undefined;
-}
-function isYankValid(result: ValidateInteractValid): result is ValidateYankValid {
-    return (result as ValidateYankValid).targetObj !== undefined;
-}
-
-async function applyPasteCommand(
-    state: ServerWorldWrapper | LocalWorldWrapper,
+function applyPasteCommand(
     player: Player,
     action: VimAction,
     result: ValidateInteractValid,
 ) {
     const modifier = action.command![1] as ModifierKey;
     console.log(result);
+    if (result.obj === undefined) return false;
     switch (modifier) {
         case "a":
-            if (!isPasteValid(result)) return false;
-            return placeObject(
-                result.obj,
-                player,
-                result.targetPos!,
-            );
+            return placeObject(result.obj, player, result.pos!);
         case "i":
-            if (!isYankValid(result)) return false;
-            console.assert(result.targetObj !== undefined, "missing object!!!", result);
-            return placeItem(
-                result.targetObj,
-                player,
+            console.assert(
+                result.obj !== undefined,
+                "missing object!!!",
+                result,
             );
+            return placeItem(result.obj, player);
         default:
             return false;
     }
-};
+}
 
+// type ReturnTypes = {
+//     y: {
+//         a: ValidateYankResult;
+//         i: ValidateYankResult;
+//     };
+//     p: {
+//         a: ValidatePasteResult;
+//         i: ValidateYankResult;
+//     };
+//     d: {
+//         a: ValidateYankResult;
+//         i: ValidateYankResult;
+//     };
+//     c: {
+//         a: ValidateYankResult;
+//         i: ValidateYankResult;
+//     };
+//     basic: BasicInteractValidationResult;
+// };
 
-const interact = {
+// type Target = {
+//         targetObj: WorldEntity;
+//         lastPosBeforeObject: Vec2;
+//     }
+
+const interact: Record<
+    OperatorKey,
+    (
+        player: Player,
+        action: VimAction,
+        result: ValidateInteractValid,
+    ) => boolean
+> = {
     y: applyYankCommand,
     p: applyPasteCommand,
     c: applyYankCommand, // TODO:
     d: applyYankCommand, // TODO:
 };
 export default interact;
-
-

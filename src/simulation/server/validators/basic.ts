@@ -1,35 +1,21 @@
 import { Player } from "~/types/worldTypes";
 import { ClientSession } from "~/server/types";
-import { ClientActionMessage } from "~/types/wss/client";
-import { VimAction } from "~/fsm/types";
+import { ExpandedVimAction, VimAction } from "~/fsm/types";
 
-function validateActionSequence(client: ClientSession, player: Player, msg: ClientActionMessage) {
+function validateActionSequence(client: ClientSession, player: Player, action: ExpandedVimAction) {
     // basic validation:
-    console.log('basic validation:', msg, player);
-    if (msg.seq <= player.lastProcessedSeq) {
-        console.log('~~basic validation FAILED seq');
+    console.log('basic validation:', action, player);
+    if (action.seq <= player.lastProcessedSeq) {
         return false; // duplicate or replay
     }
 
-    if (!isFinite(msg.clientTime)) {
+    if (!isFinite(action.clientTime ?? 0)) {
         client.disconnect();
         return false;
     }
 
     return true;
 }
-
-// // TODO:
-// // tick gating (anti spam - enforce one action per tick)
-//
-// function tickGate() {
-//     const tick = getCurrentTick();
-//     // if already running an action for this player for this tick, queue action into the next tick instead
-//     if (player.lastActionTick === tick) {
-//       queueForNextTick(player, msg); 
-//       return;
-//     }
-// }
 
 // basic schema validation
 function validateActionSchema(action: VimAction): boolean {
@@ -47,14 +33,14 @@ function validateActionSchema(action: VimAction): boolean {
     }
 }
 
-export default function basicValidation(client: ClientSession, player: Player, msg: ClientActionMessage) {
-    if (!validateActionSequence(client, player, msg)) {
-        console.log('invalid action sequence! at:', player.lastProcessedSeq, 'msg:', msg.seq);
+export default function basicValidation(client: ClientSession, player: Player, action: ExpandedVimAction) {
+    if (!validateActionSequence(client, player, action)) {
+        console.log('invalid action sequence! at:', player.lastProcessedSeq, 'msg:', action.seq);
         return "INVALID_SEQUENCE";
     }
 
-    if (!validateActionSchema(msg.action)) {
-        console.log('invalid action schema!', msg.action);
+    if (!validateActionSchema(action)) {
+        console.log('invalid action schema!', action);
         return "INVALID_ACTION";
     }
     return null;

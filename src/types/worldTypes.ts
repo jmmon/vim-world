@@ -1,3 +1,5 @@
+import { ExpandedVimAction } from "~/fsm/types";
+
 export type Direction = "N" | "S" | "E" | "W";
 
 export type TileType = "GRASS" | "WATER" | "DIRT" | "CLIFF";
@@ -103,6 +105,19 @@ export interface Player {
     itemIds?: string[];
     carryingObjId?: string;
 }
+export type CommandLineState = {
+    buffer: string;
+    bufferRaw: string;
+    cursor: number;
+    handleKey: (this: CommandLineState, key: string) => void;
+    prompt: (this: CommandLineState) => void;
+    reset: (this: CommandLineState) => void; 
+}
+export interface ServerPlayer extends Player {
+    actionQueue: ExpandedVimAction[];
+    commandLineState: CommandLineState;
+}
+export const PLAYER_IGNORED_KEYS = ["actionQueue", "commandLineState"];
 
 export type SessionAggregate = {
     xpGained: number;
@@ -136,13 +151,13 @@ export type Vec2<T extends VecType = "world"> = T extends "local"
 export interface FindObjectsInRange {
     modifiedRange: number;
     dir: Direction;
-    lastPosBeforeObject: Vec2;
+    pos: Vec2;
 }
 export interface FindObjectsInRangeError extends FindObjectsInRange {
-    targetObj?: WorldEntity;
+    obj?: WorldEntity;
 }
 export interface FindObjectsInRangeValid extends FindObjectsInRange {
-    targetObj: WorldEntity;
+    obj: WorldEntity;
 }
 export type FindObjectsInRangeResult =
     | FindObjectsInRangeError

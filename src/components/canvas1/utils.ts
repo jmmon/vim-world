@@ -5,20 +5,26 @@ const EMA_SMOOTHING = 3; // default: 2; higher prefers more recent
 const EMA_INTERVAL = 5; // e.g seconds
 const MULTIPLIER = EMA_SMOOTHING / (1 + EMA_INTERVAL);
 
-const getEma = (curFps: number, prevFps: number) =>
-    curFps * MULTIPLIER + prevFps * (1 - MULTIPLIER);
-
+// const getEma = (curFps: number, prevFps: number) =>
+//     curFps * MULTIPLIER + prevFps * (1 - MULTIPLIER);
+export function buildGetEma(multiplier: number) {
+    return (curFps: number, prevFps: number) =>
+        curFps * multiplier + prevFps * (1 - multiplier);
+}
 
 export function initFpsTest(zero = 0, decimals = 2) {
     let lastTs = zero;
     let frames = 0;
     let prevEma = 0;
     let ema = 0;
+    const getEma = buildGetEma(MULTIPLIER);
 
-    return function coutFps(ts: number): undefined | { fps: string; ema: string; } {
+    return function coutFps(
+        ts: number,
+    ): undefined | { fps: string; ema: string } {
         frames++;
         if (ts - lastTs > 1000) {
-            const normalized = frames * 1000 / (ts - lastTs);
+            const normalized = (frames * 1000) / (ts - lastTs);
             frames = 0;
             lastTs = ts;
 
@@ -28,44 +34,42 @@ export function initFpsTest(zero = 0, decimals = 2) {
 
             return {
                 fps: roundToDecimals(normalized, decimals).toFixed(decimals),
-                ema: String(roundToDecimals(ema, decimals - 1)), 
+                ema: String(roundToDecimals(ema, decimals - 1)),
             };
         }
-    }
+    };
 }
 
-export const getRandomHSLColor = (text: string = crypto.randomUUID()) => {
-    return stringToHSLColor(text, {min: 20, max: 90}, {min: 20, max: 90});
-};
+export const getRandomHSLColor = (text: string = crypto.randomUUID()) =>
+    stringToHSLColor(text, { min: 20, max: 90 }, { min: 20, max: 90 });
 
 const stringToHSLColor = (
-  string: string,
-  saturation = { min: 20, max: 80 },
-  lightness = { min: 30, max: 80 },
+    string: string,
+    saturation = { min: 20, max: 80 },
+    lightness = { min: 30, max: 80 },
 ) => {
-  // max unique colors: 360 * (saturation.max - saturation.min) * (lightness.max - lightness.min)
-  // 360 * 80 * 60 = 1_728_000
+    // max unique colors: 360 * (saturation.max - saturation.min) * (lightness.max - lightness.min)
+    // 360 * 80 * 60 = 1_728_000
 
-  const hash = stringToHash(string);
-  const satHash = stringToHash(numberToString(hash));
-  const lightHash = stringToHash(numberToString(satHash + hash));
+    const hash = stringToHash(string);
+    const satHash = stringToHash(numberToString(hash));
+    const lightHash = stringToHash(numberToString(satHash + hash));
 
-  const satPercent = satHash % 100;
-  const lightPercent = lightHash % 100;
+    const satPercent = satHash % 100;
+    const lightPercent = lightHash % 100;
 
-  const hue = hash % 360;
-  const sat = Math.round(
-    saturation.min +
-      (Number(satPercent) * (saturation.max - saturation.min)) / 100,
-  );
-  const light = Math.round(
-    lightness.min +
-      (Number(lightPercent) * (lightness.max - lightness.min)) / 100,
-  );
+    const hue = hash % 360;
+    const sat = Math.round(
+        saturation.min +
+            (Number(satPercent) * (saturation.max - saturation.min)) / 100,
+    );
+    const light = Math.round(
+        lightness.min +
+            (Number(lightPercent) * (lightness.max - lightness.min)) / 100,
+    );
 
-  return `hsla(${hue}, ${sat}%, ${light}%, 1)`;
+    return `hsla(${hue}, ${sat}%, ${light}%, 1)`;
 };
-
 
 export const stringToHash = (string: string) => {
     let hash = 0;
@@ -73,9 +77,7 @@ export const stringToHash = (string: string) => {
         hash = string.charCodeAt(i) + ((hash << 5) - hash);
         hash = hash & hash;
     }
-    return hash < 0 
-        ? hash * -1 
-        : hash;
+    return hash < 0 ? hash * -1 : hash;
 };
 // export const hashStringToHex = (fn: (string: string) => number, string: string) => fn(string).toString(16);
 //
@@ -90,7 +92,7 @@ export const stringToHash = (string: string) => {
 //     h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
 //     h2  = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
 //     h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-//   
+//
 //     return 4294967296 * (2097151 & h2) + (h1 >>> 0);
 // };
 // export const cyrb64 = (seed = 0) => (str: string) => {
@@ -104,13 +106,13 @@ export const stringToHash = (string: string) => {
 //     h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
 //     h2  = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
 //     h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-//   
+//
 //     return (h2>>>0).toString(16).padStart(8, '0') + (h1>>>0).toString(16).padStart(8, '0');
 //     // return 4294967296 * (2097151 & h2) + (h1 >>> 0);
 // };
 
 // const hasher = crypto.createHash('sha256');
-// export const serverHash$ = server$((str: string) => 
+// export const serverHash$ = server$((str: string) =>
 //   crypto.createHash('sha256').update(str).digest('hex')
 // )
 
@@ -139,14 +141,12 @@ export const stringToHash = (string: string) => {
 // test();
 
 const numberToString = (number: number) => {
-  let numberAsStr = String(number);
-  let result = "";
-  while (numberAsStr.length > 1) {
-    const thisChar = String.fromCharCode(Number(numberAsStr.slice(-2)));
-    numberAsStr = numberAsStr.slice(0, -2);
-    result += thisChar;
-  }
-  return result;
+    let numberAsStr = String(number);
+    let result = "";
+    while (numberAsStr.length > 1) {
+        const thisChar = String.fromCharCode(Number(numberAsStr.slice(-2)));
+        numberAsStr = numberAsStr.slice(0, -2);
+        result += thisChar;
+    }
+    return result;
 };
-
-

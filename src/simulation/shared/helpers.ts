@@ -2,7 +2,8 @@ import { LocalWorldWrapper, Viewport } from "~/components/canvas1/types";
 import { PlayerCheckpoint } from "~/server/checkpointService";
 import { World, ServerWorldWrapper } from "~/server/types";
 import chunkService from "~/services/chunk";
-import { Direction, Player, Tile, Vec2 } from "~/types/worldTypes";
+import { Direction, PLAYER_IGNORED_KEYS, Player, ServerPlayer, Tile, Vec2 } from "~/types/worldTypes";
+import { ValidateMoveCorrection, ValidateMoveResult, ValidateMoveValid } from "../server/types";
 
 const _stringify = (data: Record<any, any>) =>
     JSON.stringify(
@@ -13,6 +14,34 @@ export const isSnapshotSame = <T extends PlayerCheckpoint | Player>(
     player: T,
     last: T,
 ) => _stringify(last) === _stringify(player);
+
+export function playerSnapshot(state: LocalWorldWrapper, player?: Player) {
+    return JSON.parse(JSON.stringify(player ?? state.client.player!));
+}
+
+export function mergePlayerState(
+    state: LocalWorldWrapper,
+    authoritativeState: Partial<ServerPlayer>,
+) {
+    const newPlayer = Object.fromEntries(
+        Object.entries(authoritativeState).filter(
+            ([k, v]) => !PLAYER_IGNORED_KEYS.includes(k) && v !== undefined,
+        ),
+    ) as Record<keyof Player, any>;
+    state.client.player = playerSnapshot(state, newPlayer);
+}
+
+export function isValidMove(
+    result: ValidateMoveResult,
+): result is ValidateMoveValid | ValidateMoveCorrection {
+    return (
+        result.ok ||
+        result.reason === "COLLISION" ||
+        result.reason === "OUT_OF_BOUNDS"
+    );
+}
+
+
 
 export function keyToDelta(key?: string): Vec2 | null {
     switch (key) {
@@ -107,7 +136,7 @@ export const isWithinBounds = (
         next.y < state.world.config.worldHeight);
 
 // collision will get the chunk that is needed
-function getWorldTile(world: World, pos: Vec2): Tile | undefined {
+function getWorldTile(world: Pick<World, "zone">, pos: Vec2): Tile | undefined {
     const chunk = chunkService.getChunk(pos.x, pos.y, world.zone);
     const { lx, ly } = chunkService.getLocalChunkCoords(pos);
     return chunk.tiles?.[ly]?.[lx];

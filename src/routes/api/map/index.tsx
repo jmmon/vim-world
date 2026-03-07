@@ -1,5 +1,7 @@
 import { RequestHandler } from "@builder.io/qwik-city";
 import { WORLD_WRAPPER } from "~/server/serverState";
+import { World } from "~/server/types";
+import { PLAYER_IGNORED_KEYS, Player, WorldEntity } from "~/types/worldTypes";
 
 // FIRST: need world state on server!
 // for now: send entire worldstate to client? map, objects, players?
@@ -14,14 +16,20 @@ import { WORLD_WRAPPER } from "~/server/serverState";
 // local generates same map from seed
 //
 // or are maps simply going to be hardcoded... would be cool to generate more though
+
 export const onGet: RequestHandler = async (reqEvent) => {
     // map objects are not serializable, convert to objects first
-    const prepped = {
+    const prepped: Omit<World<"Client">, "players" | "entities"> & {
+        players: Record<string, Player>;
+        entities: Record<string, WorldEntity>;
+    } = {
         ...WORLD_WRAPPER.world,
         entities: Object.fromEntries(WORLD_WRAPPER.world.entities.entries()),
-        players: Object.fromEntries(WORLD_WRAPPER.world.players.entries()),
-    }
+        players: Object.fromEntries(
+            Array.from(WORLD_WRAPPER.world.players.entries()).filter(
+                ([k]) => !PLAYER_IGNORED_KEYS.includes(k),
+            ),
+        ),
+    };
     reqEvent.json(200, prepped);
-}
-
-
+};

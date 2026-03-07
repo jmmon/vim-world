@@ -52,6 +52,16 @@ const SPECIAL_KEY_MAP = {
 };
 export const SPECIAL_KEY_VALUES = Object.values(SPECIAL_KEY_MAP);
 
+const getCancelCommand = (event: KeyboardEvent) =>  {
+    if (event.key === "[" && event.ctrlKey) {
+        return 'ctrl+[';
+    }
+    if (event.key === 'Escape') {
+        return SPECIAL_KEY_MAP['Escape'];
+    }
+    return false;
+}
+
 // TODO: handle modifier keys like control/alt
 // e.g. ctrl+y => <C-y> alt=y => <M-y>
 // shift+y also convert? right now it sends the capital letter which is probably fine
@@ -60,18 +70,14 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
     /* ---------------- NORMAL MODE ---------------- */
     normal(state, event, lastAction) {
         const key = event.key;
-        if (key === "[" && event.ctrlKey) {
-            // TODO: show some menu
-            if (state.buffer.length > 0 || state.count !== null) {
-                return {
-                    state: "__reset__",
-                };
-            }
+
+        const cancelCommand = getCancelCommand(event);
+        if (cancelCommand) {
             return {
                 state,
                 emit: {
                     type: "COMMAND",
-                    command: "ctrl+[",
+                    command: cancelCommand,
                 },
             };
         }
@@ -152,7 +158,7 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
     /* ---------------- OPERATOR MODE ---------------- */
     operator(state, event) {
         const key = event.key;
-        if (key === "[" && event.ctrlKey) {
+        if (getCancelCommand(event)) {
             // cancel current command
             return {
                 state: "__reset__",
@@ -181,7 +187,7 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
     /* ---------------- AWAITING CHAR ---------------- */
     awaitingChar(state, event) {
         const key = event.key;
-        if (key === "[" && event.ctrlKey) {
+        if (getCancelCommand(event)) {
             // cancel current command
             return {
                 state: "__reset__",
@@ -211,10 +217,15 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
     /* ---------------- COMMAND MODE ---------------- */
     command(state, event) {
         const key = event.key;
-        if (key === "[" && event.ctrlKey) {
+        const cancelCommandOrFalse = getCancelCommand(event);
+        if (cancelCommandOrFalse) {
             // cancel current command
             return {
                 state: "__reset__",
+                emit: {
+                    type: "COMMAND",
+                    command: cancelCommandOrFalse,
+                },
             };
         }
 

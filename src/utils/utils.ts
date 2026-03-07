@@ -7,5 +7,7 @@ export function roundToDecimals(value: number, decimals: number = 2) {
     return Math.round(value * factor) / factor;
 }
 
-
+export function logObj(obj: Record<any, any>) {
+    return Object.fromEntries(Object.entries(obj).filter(([_,v]) => !!v));
+}
 

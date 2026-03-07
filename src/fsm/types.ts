@@ -1,5 +1,6 @@
 export type VimMode = "normal" | "operator" | "awaitingChar" | "command";
-export type VimActionType = "MOVE" | "INTERACT" | "TARGET" | "COMMAND" | "COMMAND_PROMPT" | "COMMAND_PARTIAL";
+export type CommandVimActionType = "COMMAND" | "COMMAND_PROMPT" | "COMMAND_PARTIAL"
+export type VimActionType = "MOVE" | "INTERACT" | "TARGET" | CommandVimActionType;
 export type OperatorKey = "y" | "d" | "c" | "p";
 export type AwaitingCharKey = "f" | "F" | "t" | "T" | "g";
 export type MovementKey = "h" | "j" | "k" | "l" | "w" | "b";
@@ -13,7 +14,7 @@ export type TargetKey =
     | ")"
     | "<"
     | ">"
-    | '"'
+    | '"' 
     | "'"
     | "`";
 
@@ -31,6 +32,15 @@ export interface VimAction {
     key?: string;
     command?: string;
     count?: number;
+}
+export interface CommandVimAction extends VimAction {
+    type: CommandVimActionType,
+    command: string;
+}
+export interface ExpandedVimAction extends VimAction {
+    remaining: number;
+    seq: number;
+    clientTime?: number;
 }
 
 export type TransitionResult = {

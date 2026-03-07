@@ -1,6 +1,10 @@
-import { IsDirty, LocalWorldWrapper } from "~/components/canvas1/types";
-import { ModifierKey, OperatorKey, TargetKey, VimAction } from "../../fsm/types";
-import { ValidatePasteValid, ValidateYankValid } from "../server/types";
+import { ActionResult, LocalWorldWrapper } from "~/components/canvas1/types";
+import {
+    ModifierKey,
+    OperatorKey,
+    TargetKey,
+    VimAction,
+} from "../../fsm/types";
 import { basicInteractValidation } from "../shared/validators/interact";
 import applies from "../shared/actions";
 import sharedValidators from "../shared/validators";
@@ -10,28 +14,38 @@ import sharedValidators from "../shared/validators";
 // could also allow pushing them?? e.g. if pushing, process movement every 4 ticks or something
 // could allow sliding of the player!!! e.g. from x to x + 1 over some time, and if you stop pressing the key or didn't do high enough count, it will reset yours and the object's positioning
 
-export async function applyInteraction(
+export function applyInteraction(
     state: LocalWorldWrapper,
     action: VimAction,
-): Promise<Partial<IsDirty> | false> {
-    if (!state.physics.prediction) return false;
+): ActionResult {
+    if (!state.physics.prediction) return { reason: undefined, isDirty: false };
 
     const basicResult = basicInteractValidation(action);
 
-    if (!basicResult.ok) return false;
+    if (!basicResult.ok) return { reason: basicResult.reason, isDirty: false };
 
-    const [actionType, modifier, target] = [action.command![0], action.command![1], action.command![2]] as [OperatorKey, ModifierKey, TargetKey];
+    const [actionType, modifier, target] = [
+        action.command![0],
+        action.command![1],
+        action.command![2],
+    ] as [OperatorKey, ModifierKey, TargetKey];
 
-    const interactValidatorResult = await sharedValidators.interact[actionType][modifier](state, state.client.player!, target);
-    if (!interactValidatorResult || !interactValidatorResult?.ok) return false;
+    const interactValidatorResult = sharedValidators.interact[actionType][
+        modifier
+    ](state, state.client.player!, target);
+    if (!interactValidatorResult || !interactValidatorResult?.ok)
+        return { reason: interactValidatorResult.reason, isDirty: false };
 
-    if (actionType === 'p') {
-        await applies.interact[actionType](state, state.client.player!, action, interactValidatorResult as ValidatePasteValid)
-    } else {
-        await applies.interact[actionType](state, state.client.player!, action, interactValidatorResult as ValidateYankValid)
-    }
-    if (interactValidatorResult.ok) return { players: true, objects: true };
-    return false;
+    applies.interact[actionType](
+        state.client.player!,
+        action,
+        interactValidatorResult,
+    );
+
+    if (interactValidatorResult.ok)
+        return {
+            reason: interactValidatorResult.reason,
+            isDirty: { players: true, objects: true },
+        };
+    return { reason: undefined, isDirty: false };
 }
-
-

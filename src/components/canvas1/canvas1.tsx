@@ -1,33 +1,27 @@
 import { component$, useSignal, $, NoSerialize } from "@builder.io/qwik";
-import {
-    ServerMessage,
-    ServerOtherPlayerMessage,
-    ServerAckRejectionMessage,
-    ServerAckCorrectionMessage,
-} from "~/types/wss/server";
+import { ServerMessage, ServerOtherPlayerMessage } from "~/types/wss/server";
 import useSeq from "../../hooks/useSeq";
 import useVimFSM from "~/hooks/useVimFSM";
 import { useNavigate } from "@builder.io/qwik-city";
-import { applyActionToWorld } from "~/simulation/client/actions";
+// import { applyActionToWorld } from "~/simulation/client/actions";
 import ChooseUsername from "../choose-username/choose-username";
 import useWebSocket from "~/hooks/useWebSocket";
 import Menu from "../menu/menu";
 import useRenderLoop from "~/hooks/useRenderLoop";
+import useState, { handlers } from "../../hooks/useState";
+import { VimAction } from "~/fsm/types";
+import { expandAction } from "~/simulation/shared/loop/helpers";
 import { World } from "~/server/types";
-import useState from "../../hooks/useState";
-import useDispatch$ from "~/hooks/useDispatch";
+import { playerSnapshot } from "~/simulation/shared/helpers";
 
 type Canvas1Props = {
-    worldState: World;
+    worldState: World<'Client'>;
 };
 const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
-    const isReady = useSignal(false);
     const nav = useNavigate();
     const ws = useSignal<NoSerialize<WebSocket>>(undefined);
-    const dispatch$ = useDispatch$(ws);
-
     const getNextSeq = useSeq(); // action index
-    const state = useState(worldState, isReady, dispatch$);
+    const state = useState(worldState, ws);
 
     // so when I update cols, it causes component to rerender,
     // I guess because styles are used in the canvases below
@@ -40,19 +34,28 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
         state.ctx.world.entities,
     );
 
-
-    const onMessage$ = $((event: MessageEvent<string>) => {
+    const onMessage$ = $(async (event: MessageEvent<string>) => {
         // console.log("onMessage data:", event.data);
-        const data = JSON.parse(event.data) as ServerMessage;
-        console.log("onMessage:", data);
+        const serverMessage = JSON.parse(event.data) as ServerMessage;
+        console.log(
+            `onMessage: ${serverMessage.type}${
+                "subtype" in serverMessage ? "." + serverMessage?.subtype : ""
+            }${
+                "reason" in serverMessage ? " - " + serverMessage?.reason : ""
+            }:`,
+            serverMessage,
+        );
 
-        switch (data.type) {
+        switch (serverMessage.type) {
             case "CLOSE":
-                if (data.subtype === "START") {
-                    console.assert(state.ctx.client.player, 'Expected player on CLOSE_START!!');
+                if (serverMessage.subtype === "START") {
+                    console.assert(
+                        state.ctx.client.player,
+                        "Expected player on CLOSE_START!!",
+                    );
                     if (!state.ctx.client.player) break;
 
-                    dispatch$.checkpoint(state.ctx.client.player, true);
+                    state.ctx.dispatch.checkpoint(state.ctx.client.player, true);
                     state.ctx.client.timeSinceLastCheckpoint = Date.now();
                     break;
                 }
@@ -63,37 +66,26 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
                 state.ctx.show.afk = true;
                 break;
             case "ACK":
-                if (
-                    (data as ServerAckRejectionMessage)?.subtype === "REJECTION"
-                )
-                    console.log(
-                        "REJECTION:",
-                        (data as ServerAckRejectionMessage).reason,
-                    );
-                if (
-                    (data as ServerAckCorrectionMessage)?.subtype ===
-                    "CORRECTION"
-                )
-                    console.log(
-                        "CORRECTION:",
-                        (data as ServerAckCorrectionMessage).reason,
-                    );
-                state.ctx.onServerAck(data);
+                handlers.onServerAck(state.ctx, serverMessage);
                 break;
             case "PLAYER":
-                if (data.subtype === "MOVE") {
-                    state.ctx.onOtherPlayerMove(
-                        data as ServerOtherPlayerMessage<"MOVE">,
+                if (serverMessage.subtype === "MOVE") {
+                    handlers.onOtherPlayerMove(
+                        state.ctx,
+                        serverMessage as ServerOtherPlayerMessage<"MOVE">,
                     );
                 }
                 break;
             case "INIT":
                 // confirm that playerId has been saved on server
-                state.ctx.onInitConfirm(data);
+                handlers.onInitConfirm(state.ctx, serverMessage);
                 break;
 
             default:
-                console.warn("INVALID MESSAGE TYPE RECEIVED from server::", data);
+                console.warn(
+                    "INVALID MESSAGE TYPE RECEIVED from server::",
+                    serverMessage,
+                );
         }
     });
 
@@ -105,51 +97,51 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
             state.ctx.client.player,
         );
 
-        dispatch$.init(state.ctx.client.player!.id);
+        state.ctx.dispatch.init(state.ctx.client.player!.id);
     });
 
-    useWebSocket(isReady, onMessage$, onConnect$, ws);
+    useWebSocket(state, onMessage$, onConnect$, ws);
 
-    useVimFSM(
-        $(async (action) => {
-            const seq = await getNextSeq();
-            // Send to server; wipe local and server AFK state
-            dispatch$.action(seq, action);
-            state.ctx.show.afk = false;
-            state.ctx.client.afkStartTime = -1;
-            state.ctx.client.idleStartTime = Date.now();
+    const enqueueAction = $(async (action: VimAction) => {
+        const seq = await getNextSeq();
+        const now = Date.now();
 
-            console.log("onAction:", {
-                snapshotBefore: { ...state.ctx.client.player, pos: {...state.ctx.client.player?.pos} },
-                action,
-                seq,
-            });
+        // send to server for validation/correction
+        if (state.ctx.physics.serverAck) state.ctx.dispatch.action(seq, action);
 
-            if (state.ctx.physics.prediction) {
-                // Add to prediction buffer for corrected replay
-                const snapshotBefore = { ...state.ctx.client.player! };
-                state.ctx.client.predictionBuffer.push({
-                    seq,
-                    action,
-                    snapshotBefore,
-                });
-                // state.ctx.client.lastSnapshot = snapshotBefore;
-            }
+        // clear afk
+        state.ctx.show.afk = false;
+        state.ctx.client.afkStartTime = -1;
+        state.ctx.client.idleStartTime = now;
 
-            // Apply local prediction or command
-            const isDirty = await applyActionToWorld(state.ctx, action);
-            await state.ctx.updateIsDirty(isDirty);
-            console.log(
-                "afterAction:",
-                { ...state.ctx.client.player, pos: {...state.ctx.client.player?.pos} },
-                { ...state.ctx.client.isDirty },
+        const input = {
+            seq,
+            action,
+            snapshotBefore: playerSnapshot(state.ctx),
+        };
+        console.log("onAction:", JSON.stringify(input));
+
+        if (state.ctx.physics.prediction) {
+            // original actions stored for replay
+            state.ctx.client.inputBuffer.push(input);
+
+            // expanded actions for tick-gating
+            const expanded = expandAction(
+                { action, seq, clientTime: now },
+                state.ctx.client.lastProcessedSeq!,
             );
-        }),
-        isReady,
+            state.ctx.client.actionQueue.push(...expanded);
+        }
+    });
+
+    /** =======================================================
+     *          keyboard actions; apply to world
+     * ======================================================= */
+    useVimFSM(
+        enqueueAction,
         state.ctx,
     );
-
-    useRenderLoop(dispatch$, state);
+    useRenderLoop(state);
 
     // TODO: adjust width and height as needed based on camera settings
     const viewport = state.ctx.client.viewport;
@@ -189,7 +181,7 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
                     data-name="overlay"
                 />
                 <ChooseUsername state={state.ctx} />
-                <Menu state={state.ctx} />
+                <Menu ctx={state.ctx} />
             </div>
             <nav>
                 <a href="/test/offscreen-map">offscreen map</a>

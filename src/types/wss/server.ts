@@ -1,9 +1,15 @@
 import { PlayerCheckpoint } from "~/server/checkpointService";
-import { Direction, Player, Vec2 } from "../worldTypes";
+import { Direction, ServerPlayer, Vec2 } from "../worldTypes";
 import { ReasonCorrection, ReasonRejected } from "~/simulation/server/types";
 
+type ServerBaseMessage = {
+    type: string;
+    subtype?: string;
+    reason?: string;
+}
+
 type SubtypeOtherPlayerMessage = "MOVE" | "CONNECT";
-export type ServerOtherPlayerMessage<T extends SubtypeOtherPlayerMessage> = {
+export interface ServerOtherPlayerMessage<T extends SubtypeOtherPlayerMessage> extends ServerBaseMessage {
     type: "PLAYER";
     subtype: T;
     playerId: string;
@@ -11,50 +17,64 @@ export type ServerOtherPlayerMessage<T extends SubtypeOtherPlayerMessage> = {
     dir: Direction;
 };
 
-
-
-
-export type SubtypeServerAck = "CORRECTION" | "REJECTION" | "ACK" | "CHECKPOINT";
-export interface ServerAckBaseMessage {
+export type SubtypeServerAck =
+    | "CORRECTION"
+    | "REJECTION"
+    | "CHECKPOINT"
+    | "COMMAND"
+    | "COMMAND_PARTIAL"
+    | 'ACK';
+export interface ServerAckBaseMessage extends ServerBaseMessage {
     type: "ACK";
     seq?: number;
     accepted: boolean;
+    tick: number;
 }
+
 export interface ServerAckRejectionMessage extends ServerAckBaseMessage {
     subtype: "REJECTION";
-    reason: ReasonRejected;
+    reason: ReasonRejected | "UNHANDLED";
     seq: number;
     correction?: Vec2;
-    authoritativeState?: Partial<Player>;
+    authoritativeState?: Partial<ServerPlayer>;
 }
 export interface ServerAckCorrectionMessage extends ServerAckBaseMessage {
     subtype: "CORRECTION";
     reason: ReasonCorrection;
     seq: number;
     correction?: Vec2;
-    authoritativeState?: Partial<Player>;
+    authoritativeState?: Partial<ServerPlayer>;
 }
 export interface ServerAckValidMessage extends ServerAckBaseMessage {
     correction?: Vec2;
     seq: number;
-    authoritativeState?: Partial<Player>;
+    authoritativeState?: Partial<ServerPlayer>;
+    reason: undefined;
+}
+export interface ServerAckCommandMessage extends ServerAckBaseMessage {
+    subtype: "COMMAND" | "COMMAND_PARTIAL";
+    seq: number;
+    authoritativeState?: Partial<ServerPlayer>;
+    reason: undefined;
 }
 export interface ServerAckCheckpointMessage extends ServerAckBaseMessage {
-    type: "ACK";
-    accepted: boolean;
     subtype: "CHECKPOINT";
     checkpoint: PlayerCheckpoint;
+    reason: undefined;
 }
-export type ServerAckMessage<T extends SubtypeServerAck = "ACK"> = "ACK" extends T
-    ? ServerAckValidMessage
-    : "CORRECTION" extends T
-        ? ServerAckCorrectionMessage
-        : "CHECKPOINT" extends T
+export type ServerAckMessage<T extends SubtypeServerAck = 'ACK'> =
+    'ACK' extends T
+        ? ServerAckValidMessage
+        : "CORRECTION" extends T
+          ? ServerAckCorrectionMessage
+          : "CHECKPOINT" extends T
             ? ServerAckCheckpointMessage
-            : ServerAckRejectionMessage;
-
-
-
+            : "COMMAND" extends T
+              ? ServerAckCommandMessage
+              : "COMMAND_PARTIAL" extends T
+                ? ServerAckCommandMessage
+                : ServerAckRejectionMessage
+;
 
 type SubtypeConnectionMessage = "START" | "END";
 export type ServerConnectionMessage<
@@ -66,20 +86,16 @@ export type ServerConnectionMessage<
           subtype: T;
       };
 
-
-
 export type ServerAfkMessage = {
     type: "AFK";
 };
 
-
-
-
-export type ServerInitConfirmMessage = {
+export interface ServerInitConfirmMessage extends ServerBaseMessage {
     type: "INIT";
     subtype: "CONFIRM";
     checkpoint?: PlayerCheckpoint;
     playerId: string;
+    tick?: number;
 };
 
 
@@ -89,4 +105,3 @@ export type ServerMessage =
     | ServerConnectionMessage<SubtypeConnectionMessage>
     | ServerAfkMessage
     | ServerInitConfirmMessage;
-

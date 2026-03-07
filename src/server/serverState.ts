@@ -1,41 +1,34 @@
 import { MAP_CONFIG, zone } from "~/server/map";
-import { ClientSession, World, ServerWorldWrapper } from "./types";
-import { Player, Vec2 } from "~/types/worldTypes";
+import { ClientSession, ServerWorldWrapper, World, ClientPlayerCacheData } from "./types";
+import { Player, ServerPlayer } from "~/types/worldTypes";
 import { isWalkable, isWithinBounds, spiralSearch } from "~/simulation/shared/helpers";
-import { pickUpItem, pickUpObject } from "~/simulation/shared/actions/interact";
-import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact";
 import { entities } from "./objects";
 import { getServerPhysics } from "~/simulation/shared/physics";
+import { initCommandLineState } from "~/simulation/shared/actions/command";
 
-export const clients = new Map<string, ClientSession<undefined | 'withPlayerId'>>();
-const players = new Map<string, Player>();
+export const clients = new Map<string, ClientSession | ClientPlayerCacheData>();
+const players = new Map<string, ServerPlayer>();
 
-export const SERVER_WORLD: World = {
+export const SERVER_WORLD: World<'Server'> = {
     zone: zone,
     players,
     entities: entities,
     config: MAP_CONFIG,
 }
 
-export const WORLD_WRAPPER: ServerWorldWrapper = {
-    world: SERVER_WORLD,
-    physics: getServerPhysics(),
-    isWithinBounds(target: Vec2) {
-        return isWithinBounds(this, target);
-    },
-    isWalkable(target: Vec2) {
-        return isWalkable(this, target);
-    },
-    /**
-     * set player into world.players
-     * */
-    async addPlayer(player: Player) {
+export const serverhandlers = {
+    async addPlayer(ctx: ServerWorldWrapper, player: Player) {
         if (!player) return false;
         try {
             // shift pos if not walkable
-            await spiralSearch.call(this, player.pos, 128, (pos) => this.isWithinBounds(pos) && this.isWalkable(pos));
+            await spiralSearch.call(ctx, player.pos, 128, (pos) => isWithinBounds(ctx, pos) && isWalkable(ctx, pos));
 
-            this.world.players.set(player.id, player);
+            const serverPlayer: ServerPlayer = {
+                ...player,
+                actionQueue: [],
+                commandLineState: initCommandLineState(),
+            };
+            ctx.world.players.set(player.id, serverPlayer);
             console.log('added player:', player);
             return true;
         } catch(err) {
@@ -43,20 +36,30 @@ export const WORLD_WRAPPER: ServerWorldWrapper = {
             return false;
         }
     },
+    getPlayerById(ctx: ServerWorldWrapper, playerId?: string) {
+        if (!playerId) return undefined;
+        return ctx.world.players.get(playerId);
+    },
+}
 
-    findObjectInRangeByKey: findObjectInRangeByKey,
+export const WORLD_WRAPPER: ServerWorldWrapper = {
+    world: SERVER_WORLD,
+    physics: getServerPhysics(),
+    /**
+     * set player into world.players
+     * */
+
+    // findObjectInRangeByKey: findObjectInRangeByKey,
 
     // ya: maybe need a "carry" slot on player; put the itemId in the "carry" slot, remove its position while carried?
-    pickUpObject: pickUpObject,
+    // pickUpObject: pickUpObject,
     // yi: I guess remove the itemId from the object and add it to the player's items
-    pickUpItem: pickUpItem,
+    // pickUpItem: pickUpItem,
     // pa
     // placeObject: placeObject,
     // pi
     // placeItem: placeItem,
 };
-
-
 
 
 

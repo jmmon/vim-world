@@ -1,30 +1,35 @@
 import {
     VimAction,
 } from "../../fsm/types";
-import { ApplyActionDirtyResult, LocalWorldWrapper, MaybePromise } from "~/components/canvas1/types";
+import { ActionResult, LocalWorldWrapper } from "~/components/canvas1/types";
 import { applyMoveAction } from "./movement";
 import { applyCommandAction } from "./command";
 import { applyInteraction } from "./interact";
 
+type ApplyActionHandler = (ctx: LocalWorldWrapper, action: VimAction) => ActionResult;
 
 /**
  * doesn't draw anything, only runs collision and updates world state
  * */
 export function applyActionToWorld(
-    localWorldWrapper: LocalWorldWrapper,
+    ctx: LocalWorldWrapper,
     action: VimAction,
-): MaybePromise<ApplyActionDirtyResult> {
+): ActionResult {
+    // console.log('applyActionToWorld called with::', {ctx, action})
+
+    // basic validation first?? of action: "INVALID_ACTION"
+): ActionResult {
     switch (action.type) {
         case "MOVE":
-            return applyMoveAction(localWorldWrapper, action);
+            return applyMoveAction(ctx, action);
         case "INTERACT":
-            return applyInteraction(localWorldWrapper, action);
+            return applyInteraction(ctx, action);
         case "COMMAND_PROMPT":
         case "COMMAND_PARTIAL":
         case "COMMAND":
-            return applyCommandAction(localWorldWrapper, action);
+            return applyCommandAction(ctx, action as CommandVimAction);
         default:
-            return false;
+            return { reason: "UNHANDLED", isDirty: false, };
     }
 }
 

@@ -1,24 +1,32 @@
 import { RequestHandler } from "@builder.io/qwik-city";
 import checkpointService from "~/server/checkpointService";
-import { WORLD_WRAPPER } from "~/server/serverState";
+import { WORLD_WRAPPER, serverhandlers } from "~/server/serverState";
 
 export const onPost: RequestHandler = async (requestEvent) => {
-    // TODO: zod
     const formData: FormData = await requestEvent.request.formData();
 
-    const { checkpoint, isNew } = checkpointService.loadOrDefault(formData.get('playerId') as string);
-    const player = checkpointService.toPlayer({
-        ...checkpoint,
-        name: formData.get('name') as string,
-    });
+    const playerId = formData.get("playerId");
+    if (playerId === null || playerId === "" || playerId instanceof File) {
+        requestEvent.json(400, { message: `missing/invalid playerId` });
+        return;
+    }
+    const name = formData.get("name");
+    if (name instanceof File) {
+        requestEvent.json(400, { message: `invalid name` });
+        return;
+    }
 
-    const added = await WORLD_WRAPPER.addPlayer(player);
+    const { checkpoint, isNew } = checkpointService.loadOrDefault(
+        playerId,
+        name,
+    );
+    const player = checkpointService.toPlayer(checkpoint);
+
+    const added = await serverhandlers.addPlayer(WORLD_WRAPPER, player);
     if (!added) {
-        requestEvent.json(400, { message: 'Error instantiating player', });
+        requestEvent.json(400, { message: "Error instantiating player" });
         return;
     }
     // return player object
     requestEvent.json(200, { player, isNew });
-}
-
-
+};

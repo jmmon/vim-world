@@ -1,11 +1,8 @@
 import {
-    NoSerialize,
     QRL,
-    Signal,
     $,
     noSerialize,
     useOnDocument,
-    useSignal,
     useVisibleTask$,
 } from "@builder.io/qwik";
 import { VimAction } from "../fsm/types";
@@ -17,25 +14,19 @@ import { LocalWorldWrapper } from "~/components/canvas1/types";
  * ======================================================= */
 const useVimFSM = (
     onAction: QRL<(a: VimAction) => void>,
-    initialized: Signal<any>,
-    state: LocalWorldWrapper,
+    ctx: LocalWorldWrapper,
     timeoutMs = 1500,
 ) => {
-    const fsm = useSignal<NoSerialize<VimFSM>>();
-
     const onKeyDown$ = $((event: KeyboardEvent) => {
-        if (state.show.menu) return; // workaround; TODO: use fsm to interact with menu as well
-        fsm.value?.keyPress(event, !!initialized.value);
+        ctx.client.fsm?.keyPress(event, !!ctx.client.isReady);
     });
     useOnDocument("keydown", onKeyDown$);
 
     // eslint-disable-next-line qwik/no-use-visible-task
     useVisibleTask$(() => {
-        console.log("initializing fsm");
-        fsm.value ??= noSerialize(new VimFSM(onAction, timeoutMs));
+        console.log("initializing fsm...");
+        ctx.client.fsm ??= noSerialize(new VimFSM(onAction, timeoutMs));
     });
-
-    return fsm;
 };
 export default useVimFSM;
 
