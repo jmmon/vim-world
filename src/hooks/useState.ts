@@ -8,13 +8,13 @@ import {
 import { Player, Vec2 } from "~/types/worldTypes";
 import { pickUpItem, pickUpObject } from "~/simulation/shared/actions/interact";
 import { isWalkable, isWithinBounds } from "~/simulation/shared/helpers";
-import { ServerAckMessage, ServerAckType } from "~/types/messageTypes";
 import { applyActionToWorld } from "~/simulation/client/actions";
 import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact";
 import { getScaledTileSize } from "~/services/draw/utils";
 import chunkService from "~/services/chunk";
 import { setPlayerPos } from "~/simulation/client/movement";
 import { ClientPhysicsMode, getClientPhysics } from "~/simulation/shared/physics";
+import { ServerAckMessage, SubtypeServerAck } from "~/types/wss/server";
 // import { VimAction } from "~/fsm/types";
 // import useSeq from "./useSeq";
 // import { dispatch } from "./useWebSocket";
@@ -125,7 +125,12 @@ function useState(world: World, isReady: Signal<boolean>) {
         // placeItem: $(placeItem),
         // placeItem: $(placeItem),
 
-        onServerAck: $(async function (this: LocalWorldWrapper, { authoritativeState, seq }: ServerAckMessage<ServerAckType>) {
+        onServerAck: $(async function (
+            this: LocalWorldWrapper,
+            msg: ServerAckMessage<SubtypeServerAck>,
+        ) {
+            const { seq, authoritativeState } = msg;
+
             if (seq < (this.client.lastProcessedSeq ?? -1)) return;
             const predictionArr = [...this.client.predictionBuffer];
 

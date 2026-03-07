@@ -1,4 +1,5 @@
-import { ServerAfkMessage, ServerConnectionMessage } from "~/types/messageTypes";
+import { ServerAfkMessage, ServerConnectionMessage } from "~/types/wss/server";
+
 import { clients } from "../serverState";
 
 

@@ -1,13 +1,15 @@
 import WebSocket from "ws";
 import {
+    ServerAckMessage,
+    ServerInitConfirmMessage,
+    ServerOtherPlayerMessage,
+} from "~/types/wss/server";
+import {
     ClientActionMessage,
     ClientCheckpointMessage,
     ClientInitMessage,
     ClientMessage,
-    ServerAckMessage,
-    ServerInitConfirmMessage,
-    ServerOtherPlayerMessage,
-} from "~/types/messageTypes";
+} from "~/types/wss/client";
 import { WORLD_WRAPPER, clients } from "../serverState";
 import checkpointService from "../checkpointService";
 import { Player } from "~/types/worldTypes";

@@ -1,4 +1,4 @@
-import { ClientActionMessage } from "~/types/messageTypes";
+import { ClientActionMessage } from "~/types/wss/client";
 import { Direction, Player, Vec2 } from "~/types/worldTypes";
 import { ApplyActionResult, ApplyInteractResult, ApplyMoveResult, ValidateMoveCorrection, ValidatePasteValid, ValidateYankValid } from "./types";
 import { WORLD_WRAPPER } from "~/server/serverState";

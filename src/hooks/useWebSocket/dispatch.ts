@@ -1,8 +1,8 @@
 import { NoSerialize } from "@builder.io/qwik";
 import { Player } from "~/types/worldTypes";
 import { VimAction } from "~/fsm/types";
-import { ClientActionMessage, ClientCheckpointMessage, ClientInitMessage } from "~/types/messageTypes";
 import { PlayerCheckpoint } from "~/server/checkpointService";
+import { ClientActionMessage, ClientCheckpointMessage, ClientInitMessage } from "~/types/wss/client";
 
 function action(
     ws: NoSerialize<WebSocket> | null,

@@ -11,7 +11,7 @@ import {
     ServerInitConfirmMessage,
     ServerAckRejectionMessage,
     ServerAckCorrectionMessage,
-} from "~/types/messageTypes";
+} from "~/types/wss/server";
 import useSeq from "../../hooks/useSeq";
 import useVimFSM from "~/hooks/useVimFSM";
 import { useNavigate } from "@builder.io/qwik-city";

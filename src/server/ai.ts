@@ -5,7 +5,7 @@
 // small chance to change direction, otherwise keep the same direction
 // small chance to do w/b?
 
-import { ServerOtherPlayerMessage } from "~/types/messageTypes";
+import { ServerOtherPlayerMessage } from "~/types/wss/server";
 import { Direction, Player } from "~/types/worldTypes";
 
 // import { HOT_PINK } from "~/components/canvas1/constants";

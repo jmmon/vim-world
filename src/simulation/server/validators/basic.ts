@@ -1,6 +1,6 @@
 import { Player } from "~/types/worldTypes";
 import { ClientData } from "~/server/types";
-import { ClientActionMessage } from "~/types/messageTypes";
+import { ClientActionMessage } from "~/types/wss/client";
 import { VimAction } from "~/fsm/types";
 
 function validateActionSequence(client: ClientData, player: Player, msg: ClientActionMessage) {
