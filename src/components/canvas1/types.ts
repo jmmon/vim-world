@@ -5,6 +5,8 @@ import { ServerAckMessage, ServerInitConfirmMessage, ServerOtherPlayerMessage, S
 import { Player, Vec2, WorldEntity } from "~/types/worldTypes";
 import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact";
 import { PhysicsMode } from "~/simulation/shared/physics";
+import { PlayerCheckpoint } from "~/server/checkpointService";
+import useDispatch$ from "~/hooks/useDispatch";
 
 export interface Prediction {
     seq: number;
@@ -12,6 +14,7 @@ export interface Prediction {
     snapshotBefore: Player;
 }
 export type IsDirty = {
+    overlay: boolean,
     players: boolean,
     objects: boolean,
     map: boolean,
@@ -19,8 +22,21 @@ export type IsDirty = {
 export type ApplyActionDirtyResult = Partial<IsDirty> | boolean;
 export type MaybePromise<T> = T | Promise<T>;
 
+export type Viewport = {
+    origin: Vec2,
+    width: number; // px
+    height: number; // px
+}
+export type VimSettings = {
+    sidescrolloff: number,
+    scrolloff: number,
+    lines: number,
+    columns: number,
+}
+
 export type ClientData = {
-    player?: Player; // not really needed??? but might be better to look up once only
+    settings: VimSettings;
+    player?: Player;
     username?: string;
     usernameHash?: string; // needed??
     lastProcessedSeq?: number;
@@ -31,6 +47,8 @@ export type ClientData = {
     predictionBuffer: Prediction[];
     commandBuffer: string;
     lastSnapshot?: Player;
+    lastAckCheckpoint?: PlayerCheckpoint;
+    viewport: Viewport;
 };
 export type InitializeClientData = {
     player: Player;
@@ -48,9 +66,7 @@ export type InterfaceData = {
 };
 
 export type LocalWorldWrapper = InterfaceData & {
-    world: World & {
-        lastScale: number;
-    };
+    world: World;
     client: ClientData;
     physics: PhysicsMode;
     isWithinBounds: QRL<(target: Vec2) => boolean>;
@@ -60,6 +76,7 @@ export type LocalWorldWrapper = InterfaceData & {
         (desiredScale: number) => { actualScale: number; tileSize: number }
     >;
     markAllDirty: QRL<() => void>;
+    clearAllDirty: QRL<() => void>;
     updateScale: QRL<(newScale: number, newTileSize: number) => void>;
     findObjectInRangeByKey: QRL<
         (player: Player, key: string) => ReturnType<typeof findObjectInRangeByKey>
@@ -84,5 +101,7 @@ export type LocalWorldWrapper = InterfaceData & {
     onServerAck: QRL<(msg: ServerAckMessage<SubtypeServerAck>) => void>; 
     onOtherPlayerMove: QRL<(msg: ServerOtherPlayerMessage<"MOVE">) => void>;
     onInitConfirm: QRL<(data: ServerInitConfirmMessage) => void>;
+    updateViewportDimensions: QRL<() => boolean>;
+    updateIsDirty: QRL<(isDirty: ApplyActionDirtyResult) => void>;
     dispatch: ReturnType<typeof useDispatch$>;
 };

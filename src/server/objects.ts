@@ -1,4 +1,4 @@
-import { CHUNK_SIZE, MAP_CONFIG, MapConfig, Zone, mulberry32, zone } from "~/server/map";
+import { MAP_CONFIG, MapConfig, Zone, mulberry32, zone } from "~/server/map";
 import chunkService from "~/services/chunk";
 import { Item, Vec2, WorldEntity } from "~/types/worldTypes";
 import { base58 } from "./base58";
@@ -155,8 +155,8 @@ const findWalkableTiles = (zone: Zone, mapConfig: MapConfig) =>
                         tileRow.forEach((tile, cx) => {
                             if (tile.collision?.solid) return;
                             accum.push({
-                                x: x * CHUNK_SIZE + cx,
-                                y: y * CHUNK_SIZE + cy
+                                x: x * mapConfig.chunkWidth + cx,
+                                y: y * mapConfig.chunkHeight + cy
                             });
                         });
                     })

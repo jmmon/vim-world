@@ -112,31 +112,26 @@ export type SessionAggregate = {
     achievementsUnlocked: string[];
 };
 
-export type MapDimensions = {
-    worldWidthBlocks: number;
-    worldHeightBlocks: number;
-    tileSize: number;
-    viewportWidthPx: number;
-    viewportHeightPx: number;
-    viewportWidthBlocks: number;
-    viewportHeightBlocks: number;
-    scale: number;
-};
-type VecType = "local" | "chunk" | "world";
+type VecType = "local" | "chunk" | "world" | "pixels";
 export type Vec2<T extends VecType = "world"> = T extends "local"
     ? {
-          localX: number;
-          localY: number;
+          lx: number;
+          ly: number;
       }
     : T extends "chunk"
       ? {
             cx: number;
             cy: number;
         }
-      : {
-            x: number;
-            y: number;
-        };
+      : T extends "pixels"
+        ? {
+              px: number;
+              py: number;
+          }
+        : {
+              x: number;
+              y: number;
+          };
 
 export interface FindObjectsInRange {
     modifiedRange: number;

@@ -1,10 +1,4 @@
-import {
-    component$,
-    useSignal,
-    $,
-    NoSerialize,
-    CSSProperties,
-} from "@builder.io/qwik";
+import { component$, useSignal, $, NoSerialize } from "@builder.io/qwik";
 import {
     ServerMessage,
     ServerOtherPlayerMessage,
@@ -35,6 +29,10 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
     const getNextSeq = useSeq(); // action index
     const state = useState(worldState, isReady, dispatch$);
 
+    // so when I update cols, it causes component to rerender,
+    // I guess because styles are used in the canvases below
+    //
+    // could update width/height via refs instead of styles
     console.log(
         "canvas1 component init: players:",
         state.ctx.world.players,
@@ -115,29 +113,37 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
     useVimFSM(
         $(async (action) => {
             const seq = await getNextSeq();
-            // 1. Add to prediction buffer // for serverAck to replay if needed
-            const snapshotBefore = { ...state.ctx.client.player! };
-            state.ctx.client.predictionBuffer.push({
-                seq,
-                action,
-                snapshotBefore,
-            });
-            state.ctx.client.lastSnapshot = snapshotBefore;
-            console.log("onAction:", { snapshotBefore, action, seq });
-
-            // 2. Apply local prediction
-            const isDirty = await applyActionToWorld(state.ctx, action);
-            state.ctx.client.isDirty = {
-                ...state.ctx.client.isDirty,
-                ...isDirty
-            };
-            console.log("afterAction:", { ...state.ctx.client.player });
-
             // Send to server; wipe local and server AFK state
             dispatch$.action(seq, action);
             state.ctx.show.afk = false;
             state.ctx.client.afkStartTime = -1;
             state.ctx.client.idleStartTime = Date.now();
+
+            console.log("onAction:", {
+                snapshotBefore: { ...state.ctx.client.player, pos: {...state.ctx.client.player?.pos} },
+                action,
+                seq,
+            });
+
+            if (state.ctx.physics.prediction) {
+                // Add to prediction buffer for corrected replay
+                const snapshotBefore = { ...state.ctx.client.player! };
+                state.ctx.client.predictionBuffer.push({
+                    seq,
+                    action,
+                    snapshotBefore,
+                });
+                // state.ctx.client.lastSnapshot = snapshotBefore;
+            }
+
+            // Apply local prediction or command
+            const isDirty = await applyActionToWorld(state.ctx, action);
+            await state.ctx.updateIsDirty(isDirty);
+            console.log(
+                "afterAction:",
+                { ...state.ctx.client.player, pos: {...state.ctx.client.player?.pos} },
+                { ...state.ctx.client.isDirty },
+            );
         }),
         isReady,
         state.ctx,
@@ -145,48 +151,82 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
 
     useRenderLoop(dispatch$, state);
 
-    const dimensions = state.ctx.world.dimensions;
-    const canvasStyle: CSSProperties = { position: "absolute", top: 0, left: 0, imageRendering: "pixelated" };
+    // TODO: adjust width and height as needed based on camera settings
+    const viewport = state.ctx.client.viewport;
     return (
-        <div
-            style={{
-                position: "relative",
-                width: dimensions.viewportWidthPx + "px",
-                height: dimensions.viewportHeightPx + "px",
-            }}
-        >
-            <canvas
-                ref={state.refs.map}
-                width={dimensions.viewportWidthPx}
-                height={dimensions.viewportHeightPx}
-                style={canvasStyle}
-                data-name="map"
-            />
-            <canvas
-                ref={state.refs.objects}
-                width={dimensions.viewportWidthPx}
-                height={dimensions.viewportHeightPx}
-                style={canvasStyle}
-                data-name="objects"
-            />
-            <canvas
-                ref={state.refs.players}
-                width={dimensions.viewportWidthPx}
-                height={dimensions.viewportHeightPx}
-                style={canvasStyle}
-                data-name="players"
-            />
-            <canvas
-                ref={state.refs.overlay}
-                width={dimensions.viewportWidthPx}
-                height={dimensions.viewportHeightPx}
-                style={canvasStyle}
-                data-name="overlay"
-            />
-            <ChooseUsername initializeSelfData={initializeSelfData} />
-            <Menu state={state.ctx} />
-        </div>
+        <>
+            <div
+                ref={state.refs.container}
+                class="view-container"
+                style={{
+                    position: "relative",
+                    width: viewport.width + "px",
+                    height: viewport.height + "px",
+                }}
+            >
+                <canvas
+                    ref={state.refs.map}
+                    width={viewport.width}
+                    height={viewport.height}
+                    data-name="map"
+                />
+                <canvas
+                    ref={state.refs.objects}
+                    width={viewport.width}
+                    height={viewport.height}
+                    data-name="objects"
+                />
+                <canvas
+                    ref={state.refs.players}
+                    width={viewport.width}
+                    height={viewport.height}
+                    data-name="players"
+                />
+                <canvas
+                    ref={state.refs.overlay}
+                    width={viewport.width}
+                    height={viewport.height}
+                    data-name="overlay"
+                />
+                <ChooseUsername state={state.ctx} />
+                <Menu state={state.ctx} />
+            </div>
+            <nav>
+                <a href="/test/offscreen-map">offscreen map</a>
+            </nav>
+        </>
     );
+
+    // return (
+    //     <>
+    //         <div
+    //             ref={state.refs.container}
+    //             class="view-container"
+    //         >
+    //             <canvas
+    //                 ref={state.refs.map}
+    //                 data-name="map"
+    //             />
+    //             <canvas
+    //                 ref={state.refs.objects}
+    //                 data-name="objects"
+    //             />
+    //             <canvas
+    //                 ref={state.refs.players}
+    //                 data-name="players"
+    //             />
+    //             <canvas
+    //                 ref={state.refs.overlay}
+    //                 data-name="overlay"
+    //             />
+    //             <ChooseUsername state={state.ctx} />
+    //             <Menu state={state.ctx} />
+    //         </div>
+    //         <nav>
+    //             <a href="/test/offscreen-map">offscreen map</a>
+    //         </nav>
+    //     </>
+    // );
 });
 
 export default Canvas1;

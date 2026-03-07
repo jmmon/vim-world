@@ -1,3 +1,16 @@
 @import "tailwindcss";
 
+.view-container {
+    position: relative;
+    width: 1024px;
+    height: 1024px;
 
+    canvas {
+        image-rendering: pixelated;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 1024px;
+        height: 1024px;
+    }
+}

@@ -1,33 +1,47 @@
 import chunkService from "~/services/chunk";
-import { MapDimensions, Tile } from "~/types/worldTypes";
+import { Tile } from "~/types/worldTypes";
+
+export const TILE_SIZE_PX = 32; // px
+
+export const CHUNK_WIDTH = 32; // tiles
+export const CHUNK_HEIGHT = CHUNK_WIDTH; // tiles
+
+const SCALE_DEFAULT = 1;
 
 export const zone: Zone = {
     seed: 1234567,
     ruleset: "forest-v1",
 };
 export const MAP_CONFIG: MapConfig = {
-    width: 4,
-    height: 4,
-};
+    width: 4, // chunks
+    height: 4, // chunks
 
-const TILE_SIZE_PX = 32; // px
-export const CHUNK_SIZE = 32; // tiles
-const SCALE_DEFAULT = 1;
-
-const WORLD_WIDTH_BLOCKS = CHUNK_SIZE * MAP_CONFIG.width;
-const WORLD_HEIGHT_BLOCKS = CHUNK_SIZE * MAP_CONFIG.height;
-
-export const DIMENSIONS: MapDimensions = {
-    worldWidthBlocks: WORLD_WIDTH_BLOCKS,
-    worldHeightBlocks: WORLD_HEIGHT_BLOCKS,
     tileSize: TILE_SIZE_PX,
-    viewportWidthPx: CHUNK_SIZE * TILE_SIZE_PX,
-    viewportHeightPx: CHUNK_SIZE * TILE_SIZE_PX,
-    viewportWidthBlocks: CHUNK_SIZE,
-    viewportHeightBlocks: CHUNK_SIZE,
-    scale: SCALE_DEFAULT,
-};
+    chunkWidth: CHUNK_WIDTH,
+    chunkHeight: CHUNK_HEIGHT,
 
+    scale: SCALE_DEFAULT, // what should this do?
+    lastScale: SCALE_DEFAULT,
+
+    get chunkWidthPx() {
+        return this.chunkWidth * this.tileSize;
+    },
+    get chunkHeightPx() {
+        return this.chunkHeight * this.tileSize;
+    },
+    get worldWidth() {
+        return this.width * this.chunkWidth;
+    },
+    get worldHeight() {
+        return this.height * this.chunkHeight;
+    },
+    get worldWidthPx() {
+        return this.worldWidth * this.tileSize;
+    },
+    get worldHeightPx() {
+        return this.worldHeight * this.tileSize;
+    }
+};
 
 
 type IgnoreEdgesOpts = Partial<{ ignoreEdges: Array<"N" | "S" | "W" | "E"> }>;
@@ -54,6 +68,18 @@ export function getChunkSeed(worldSeed: number, cx: number, cy: number) {
 export interface MapConfig {
     width: number;
     height: number;
+
+    tileSize: number;
+    chunkWidth: number;
+    chunkHeight: number;
+    scale: number; // what should this do?
+    lastScale: number;
+    chunkWidthPx: number;
+    chunkHeightPx: number;
+    worldWidth: number;
+    worldHeight: number;
+    worldWidthPx: number;
+    worldHeightPx: number;
 }
 export type Zone = {
     seed: number;
@@ -65,6 +91,7 @@ export interface Chunk {
     cy: number;
     tiles: Tile[][];
     seed: number;
+    dirty: boolean;
     // playerIds: [],
     // staticEntityIds: [],
 }
@@ -139,7 +166,7 @@ function addBorders(rng: () => number, chunk: Chunk, rulesetId: RuleSetId) {
         }
     }
 }
-addBorders(() => 1, { cx: 0, cy: 0, tiles: [[]], seed: 123 }, "dungeon-v1");
+addBorders(() => 1, { cx: 0, cy: 0, tiles: [[]], seed: 123, dirty: false }, "dungeon-v1");
 
 // TODO: addWorldBorders
 
@@ -310,12 +337,12 @@ function spreadTiles(
     const ruleset = RULESETS[rulesetId];
     if (!ruleset) throw new Error(`Unknown ruleset: ${rulesetId}`);
 
-    for (let y = 0; y < CHUNK_SIZE; y++) {
+    for (let y = 0; y < CHUNK_WIDTH; y++) {
         if (opts?.ignoreEdges?.includes("N") && y === 0) continue;
-        if (opts?.ignoreEdges?.includes("S") && y === CHUNK_SIZE - 1) continue;
-        for (let x = 0; x < CHUNK_SIZE; x++) {
+        if (opts?.ignoreEdges?.includes("S") && y === CHUNK_WIDTH - 1) continue;
+        for (let x = 0; x < CHUNK_WIDTH; x++) {
             if (opts?.ignoreEdges?.includes("W") && x === 0) continue;
-            if (opts?.ignoreEdges?.includes("E") && x === CHUNK_SIZE - 1) continue;
+            if (opts?.ignoreEdges?.includes("E") && x === CHUNK_WIDTH - 1) continue;
             chunk.tiles[y][x] = spread(chunk, x, y, rng, ruleset.baseTiles);
         }
     }
@@ -389,10 +416,10 @@ function reduceOrphans(
 ) {
     for (let y = 0; y < chunk.tiles.length; y++) {
         if (opts?.ignoreEdges?.includes("N") && y === 0) continue;
-        if (opts?.ignoreEdges?.includes("S") && y === CHUNK_SIZE - 1) continue;
+        if (opts?.ignoreEdges?.includes("S") && y === CHUNK_WIDTH - 1) continue;
         for (let x = 0; x < chunk.tiles[0].length; x++) {
             if (opts?.ignoreEdges?.includes("W") && x === 0) continue;
-            if (opts?.ignoreEdges?.includes("E") && x === CHUNK_SIZE - 1) continue;
+            if (opts?.ignoreEdges?.includes("E") && x === CHUNK_WIDTH - 1) continue;
             chunk.tiles[y][x] = replaceWithSurround(rng, chunk, x, y, rulesetId);
         }
     }
@@ -460,16 +487,16 @@ export function generateChunk(
 
     const tiles: Tile[][] = [];
 
-    for (let y = 0; y < CHUNK_SIZE; y++) {
+    for (let y = 0; y < CHUNK_WIDTH; y++) {
         const row: Tile[] = [];
-        for (let x = 0; x < CHUNK_SIZE; x++) {
+        for (let x = 0; x < CHUNK_WIDTH; x++) {
             const tile = generateBaseTile(rng, rulesetId /*worldX, worldY*/);
             row.push(tile);
         }
         tiles.push(row);
     }
 
-    const chunk = { cx: cx, cy: cy, tiles, seed };
+    const chunk = { cx: cx, cy: cy, tiles, seed, dirty: true, };
     if (ADD_BORDERS) addBorders(rng, chunk, rulesetId);
     // TODO: addWorldBorders around map config edges instead of single chunk edges
     spreadMap(rng, chunk, rulesetId, 5, ADD_BORDERS ? IGNORE_EDGES_OPTS : undefined);

@@ -1,6 +1,17 @@
-import { drawOffscreenMap, drawVisibleMap } from "./map";
+import { drawOffscreenMap, drawVisibleMap, initOffscreenCanvas } from "./map";
 import { drawObjects } from "./objects";
-import { closeAfk, closeDevStats, closeHelp, drawAfk, drawDevStats, drawFps, drawHelp, drawHelpHint, drawStatus } from "./overlay";
+import {
+    closeAfk,
+    closeDevStats,
+    closeHelp,
+    drawAfk,
+    drawChunkOverlay,
+    drawDevStats,
+    drawFps,
+    drawHelp,
+    drawHelpHint,
+    drawStatus,
+} from "./overlay";
 import { drawPlayers } from "./players";
 import { clearAll } from "./utils";
 
@@ -12,6 +23,7 @@ const draw = {
     objects: drawObjects,
 
     // maps
+    initOffscreenDimensions: initOffscreenCanvas,
     offscreenMap: drawOffscreenMap,
     visibleMap: drawVisibleMap,
 
@@ -28,9 +40,9 @@ const draw = {
 
     devStats: drawDevStats,
     closeDevStats: closeDevStats,
+    chunkOverlay: drawChunkOverlay,
 
     clearAll: clearAll,
-}
+};
 export default draw;
-
 

@@ -1,5 +1,5 @@
 import { findObjectInRangeByKey } from "~/simulation/shared/validators/interact";
-import { MapDimensions, Player, Vec2, WorldEntity } from "~/types/worldTypes";
+import { Player, Vec2, WorldEntity } from "~/types/worldTypes";
 import { MapConfig, Zone } from "./map";
 import { PhysicsMode } from "../simulation/shared/physics";
 
@@ -8,7 +8,6 @@ export type World = {
     entities: Map<string, WorldEntity>,
     zone: Zone;
     config: MapConfig;
-    dimensions: MapDimensions;  // derived/merged with MapConfig?
 };
 
 export type ServerWorldWrapper = {

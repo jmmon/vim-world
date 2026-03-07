@@ -2,10 +2,14 @@ import { useComputed$, useVisibleTask$ } from "@builder.io/qwik";
 import { initFpsTest } from "~/components/canvas1/utils";
 import draw from "~/services/draw";
 import { GameState } from "~/hooks/useState";
+import chunkService from "~/services/chunk";
 import useDispatch$ from "./useDispatch";
 import { isSnapshotSame } from "~/simulation/shared/helpers";
 import checkpointService from "~/server/checkpointService";
 
+/** =======================================================
+ *                        MAIN LOOP
+ * ======================================================= */
 export default function useRenderLoop(
     dispatch$: ReturnType<typeof useDispatch$>,
     state: GameState,
@@ -34,17 +38,28 @@ export default function useRenderLoop(
     });
 
     // eslint-disable-next-line qwik/no-use-visible-task
-    useVisibleTask$(({ cleanup }) => {
+    useVisibleTask$(async ({ cleanup }) => {
         const zero = Number(document.timeline.currentTime);
         const countFps = initFpsTest(zero, 1);
         state.ctx.client.timeSinceLastCheckpoint = Date.now();
         console.log("starting main loop:");
 
+        await state.ctx.updateViewportDimensions(); // initialize viewport dimensions
+
+        // init canvas dimensions and visible chunks
+        if (!state.refs.offscreenMap.value) {
+            console.log("initializing offscreen dimensions...");
+            state.refs.offscreenMap.value = draw.initOffscreenDimensions(state);
+            chunkService.handleVisibleChunksChange(
+                { x: 0, y: 0 },
+                state.ctx.world.config,
+            );
+        }
+
         // initialize offscreen canvas of map tiles /// is this needed?? offscreen map?
         function renderMap() {
             console.log("~~ RENDER MAP ~~ EXPECT to happen RARELY");
-            const offscreenCanvas = draw.offscreenMap(state.ctx);
-            state.refs.offscreenMap.value = offscreenCanvas;
+            draw.offscreenMap(state);
             draw.visibleMap(state);
             if (!state.ctx.show.helpHint) return;
             draw.helpHint(state);
@@ -52,7 +67,6 @@ export default function useRenderLoop(
 
         let lastFps = "0";
         let lastEma = "0";
-
         const CHECKPOINT_INTERVAL = 5 * 1000;
         function saveCheckpoint() {
             const now = Date.now();
@@ -88,7 +102,7 @@ export default function useRenderLoop(
 
         let isCancelled = false;
         // main client loop
-        (function loop(ts: number) {
+        (async function loop(ts: number) {
             if (isCancelled) return console.log("~~ loop cancelled");
             requestAnimationFrame(loop);
             const result = countFps(ts);
@@ -129,15 +143,16 @@ export default function useRenderLoop(
             }
 
             if (state.ctx.client.isDirty.map) renderMap();
+            if (state.ctx.client.isDirty.overlay) draw.chunkOverlay(state);
             if (state.ctx.client.isDirty.objects) draw.objects(state);
             if (state.ctx.client.isDirty.players) draw.players(state);
 
+            state.ctx.client.isDirty.overlay = false;
             state.ctx.client.isDirty.objects = false;
             state.ctx.client.isDirty.players = false;
             state.ctx.client.isDirty.map = false;
 
-
-            state.ctx.world.lastScale = state.ctx.world.dimensions.scale;
+            state.ctx.world.config.lastScale = state.ctx.world.config.scale;
 
             // handle checkpoints
             if (!state.ctx.client.player) return;
@@ -150,5 +165,3 @@ export default function useRenderLoop(
         });
     });
 }
-
-

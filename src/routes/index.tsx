@@ -7,6 +7,7 @@ export default component$(() => {
         <div class="p-16 flex flex-col gap-4">
             <nav class="flex gap-4">
                 <Link class="text-3xl" href="/canvas1" autofocus >Canvas 1</Link>
+                <Link class="text-2xl" href="/test/offscreen-map">Offscreen Map</Link>
             </nav>
 
             <h1>Hi 👋</h1>

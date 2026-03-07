@@ -1,7 +1,9 @@
 import { roundToDecimals } from "~/utils/utils";
 import { generateOldDimensions, hasScaleChanged } from "./utils";
-import { MapDimensions } from "~/types/worldTypes";
 import { GameState } from "~/hooks/useState";
+import { MapConfig } from "~/server/map";
+import { Viewport } from "~/components/canvas1/types";
+import chunkService, { __visibleChunks } from "../chunk";
 
 // probably should not be using viewportWidthPx, instead use viewportWidthBlocks * tileSize * scale
 
@@ -36,7 +38,8 @@ function getBoxStyles(
 
 // has about 10 total chars wide + padding
 function getFpsStyles(
-    dimensions: MapDimensions,
+    viewport: Viewport,
+    { scale }: MapConfig,
     canvas: HTMLCanvasElement,
     fps: string, // length of 2-4
     ema?: string,
@@ -50,11 +53,11 @@ function getFpsStyles(
         2,
         (6 + fps.length) * 0.9,
         12,
-        dimensions.scale,
+        scale,
     );
     return {
         ctx: canvas.getContext("2d")!,
-        x: dimensions.viewportWidthPx - styles.width,
+        x: viewport.width - styles.width,
         y: 0,
         lines: LINES,
         ...styles,
@@ -63,12 +66,13 @@ function getFpsStyles(
 
 function closeFps(
     state: GameState,
-    dimensions: MapDimensions,
+    viewport: Viewport,
+    config: MapConfig,
     fps: string,
     ema?: string,
 ) {
     const canvas = state.refs.overlay.value!;
-    const d = getFpsStyles(dimensions, canvas, fps, ema);
+    const d = getFpsStyles(viewport, config, canvas, fps, ema);
     d.ctx.clearRect(d.x, d.y, d.width, d.height);
     return d;
 }
@@ -76,10 +80,16 @@ function closeFps(
 export function drawFps(state: GameState, fps: string, ema?: string) {
     if (hasScaleChanged(state.ctx)) {
         // clear old rect
-        closeFps(state, generateOldDimensions(state.ctx.world), fps, ema);
+        closeFps(state, ...generateOldDimensions(state.ctx), fps, ema);
     }
     // clear new rect
-    const d = closeFps(state, state.ctx.world.dimensions, fps, ema);
+    const d = closeFps(
+        state,
+        state.ctx.client.viewport,
+        state.ctx.world.config,
+        fps,
+        ema,
+    );
 
     // background
     d.ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
@@ -134,19 +144,19 @@ const STAT_MAP = [
     },
     {
         name: "collision",
-        getValue: (state: GameState) => (state.ctx.physics.collision ? "YES" : "NO"),
+        getValue: (state: GameState) =>
+            state.ctx.physics.collision ? "YES" : "NO",
     },
     {
         name: "prediction",
-        getValue: (state: GameState) => (state.ctx.physics.prediction ? "YES" : "NO"),
+        getValue: (state: GameState) =>
+            state.ctx.physics.prediction ? "YES" : "NO",
     },
 ];
 
 const STAT_NAME_LONGEST = STAT_MAP.sort(
     (a, b) => b.name.length - a.name.length,
 )[0].name.length;
-
-
 
 function statText(
     text: string,
@@ -177,7 +187,8 @@ type D = {
     lines: number;
 };
 function getDevStatsStyles(
-    dimensions: MapDimensions,
+    viewport: Viewport,
+    { scale }: MapConfig,
     canvas: HTMLCanvasElement,
 ): D {
     const LINES = STAT_MAP.length;
@@ -190,23 +201,28 @@ function getDevStatsStyles(
         2,
         (STAT_NAME_LONGEST + 2) * 0.9,
         12,
-        dimensions.scale,
+        scale,
     );
-    const fpsYEnd = 2 * styles.fontSize + 12 * dimensions.scale;
+    const fpsYEnd = 2 * styles.fontSize + 12 * scale;
 
     return {
         ctx: canvas.getContext("2d")!,
-        x: dimensions.viewportWidthPx - styles.width,
-        y: fpsYEnd + 10 * dimensions.scale, // slight gap from the fps window
+        x: viewport.width - styles.width,
+        y: fpsYEnd + 10 * scale, // slight gap from the fps window
         lines: LINES,
         ...styles,
     };
 }
 
-export function closeDevStats(state: GameState, dimensions?: MapDimensions) {
+export function closeDevStats(
+    state: GameState,
+    viewport?: Viewport,
+    config?: MapConfig,
+) {
     const canvas = state.refs.overlay.value!;
     const d = getDevStatsStyles(
-        dimensions ?? state.ctx.world.dimensions,
+        viewport ?? state.ctx.client.viewport,
+        config ?? state.ctx.world.config,
         canvas,
     );
     d.ctx.clearRect(d.x, d.y, d.width, d.height);
@@ -216,7 +232,7 @@ export function closeDevStats(state: GameState, dimensions?: MapDimensions) {
 export async function drawDevStats(state: GameState) {
     if (hasScaleChanged(state.ctx)) {
         // clear old rect
-        closeDevStats(state, generateOldDimensions(state.ctx.world));
+        closeDevStats(state, ...generateOldDimensions(state.ctx));
     }
     // clear new rect
     const d = closeDevStats(state);
@@ -242,40 +258,41 @@ export async function drawDevStats(state: GameState) {
 // ****************************************************************
 
 type RectDimensions = { left: number; top: number; w: number; h: number };
-function generateHelpDimensions(dimensions: MapDimensions): RectDimensions {
+function generateHelpDimensions(
+    viewport: Viewport,
+    { tileSize }: MapConfig,
+): RectDimensions {
     const heightTiles = 8;
     const bottomPaddingTiles = 0.5;
     const xPaddingTiles = 0.5;
     return {
-        left: dimensions.tileSize * xPaddingTiles,
+        left: tileSize * xPaddingTiles,
         top:
-            dimensions.tileSize *
-            (dimensions.viewportHeightBlocks -
-                heightTiles -
-                bottomPaddingTiles), // 6 tiles up from bottom
-        w:
-            dimensions.tileSize *
-            (dimensions.viewportWidthBlocks - 2 * xPaddingTiles),
-        h: dimensions.tileSize * heightTiles,
+            tileSize *
+            (viewport.height / tileSize - heightTiles - bottomPaddingTiles), // 6 tiles up from bottom
+        w: tileSize * (viewport.width / tileSize - 2 * xPaddingTiles),
+        h: tileSize * heightTiles,
     };
 }
 
 function closeOldHelp(state: GameState, ctx: CanvasRenderingContext2D) {
     if (hasScaleChanged(state.ctx)) {
         const HELP = generateHelpDimensions(
-            generateOldDimensions(state.ctx.world),
+            ...generateOldDimensions(state.ctx),
         );
         ctx.clearRect(HELP.left, HELP.top, HELP.w, HELP.h);
     }
 }
 
 const HELP_DIMENSIONS: Record<string, RectDimensions> = {};
-const getHelpDimensions = (dimensions: MapDimensions) => {
-    if (!HELP_DIMENSIONS[dimensions.tileSize]) {
-        HELP_DIMENSIONS[dimensions.tileSize] =
-            generateHelpDimensions(dimensions);
+const getHelpDimensions = (viewport: Viewport, config: MapConfig) => {
+    if (!HELP_DIMENSIONS[config.tileSize]) {
+        HELP_DIMENSIONS[config.tileSize] = generateHelpDimensions(
+            viewport,
+            config,
+        );
     }
-    return HELP_DIMENSIONS[dimensions.tileSize];
+    return HELP_DIMENSIONS[config.tileSize];
 };
 const HELP_TEXT = [
     "h - Move left",
@@ -294,30 +311,29 @@ const ROWS = 6;
 export function drawHelp(state: GameState) {
     const ctx = state.refs.overlay.value!.getContext("2d")!;
     closeOldHelp(state, ctx);
+    const { config } = state.ctx.world;
 
-    const HELP = getHelpDimensions(state.ctx.world.dimensions);
+    const HELP = getHelpDimensions(state.ctx.client.viewport, config);
     ctx.clearRect(HELP.left, HELP.top, HELP.w, HELP.h);
     ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
     ctx.fillRect(HELP.left, HELP.top, HELP.w, HELP.h);
 
-    ctx.font = `bold ${18 * state.ctx.world.dimensions.scale}px mono`;
+    ctx.font = `bold ${18 * config.scale}px mono`;
     ctx.fillStyle = "white";
     const helpTextPadding = {
         x: 1,
         y: 1,
     };
-    const leftPadding =
-        HELP.left + state.ctx.world.dimensions.tileSize * helpTextPadding.x;
-    const topPadding = HELP.top + 20 * state.ctx.world.dimensions.scale;
-    const columnPadding = 224 * state.ctx.world.dimensions.scale;
+    const leftPadding = HELP.left + config.tileSize * helpTextPadding.x;
+    const topPadding = HELP.top + 20 * config.scale;
+    const columnPadding = 224 * config.scale;
     for (let i = 0; i < HELP_TEXT.length; i++) {
         const col = Math.floor(i / ROWS);
         const row = i % ROWS;
         ctx.fillText(
             HELP_TEXT[i],
             leftPadding + col * columnPadding,
-            topPadding +
-                state.ctx.world.dimensions.tileSize * (helpTextPadding.y + row),
+            topPadding + config.tileSize * (helpTextPadding.y + row),
         );
     }
 }
@@ -326,7 +342,10 @@ export function closeHelp(state: GameState) {
     const ctx = state.refs.overlay.value!.getContext("2d")!;
     closeOldHelp(state, ctx);
 
-    const HELP = generateHelpDimensions(state.ctx.world.dimensions);
+    const HELP = generateHelpDimensions(
+        state.ctx.client.viewport,
+        state.ctx.world.config,
+    );
     ctx.clearRect(HELP.left, HELP.top, HELP.w, HELP.h);
 }
 
@@ -344,7 +363,8 @@ const TEXT_HELP_HINT = [
 export function drawHelpHint(state: GameState) {
     const ctx = state.refs.overlay.value!.getContext("2d")!;
     if (hasScaleChanged(state.ctx)) {
-        const { tileSize } = generateOldDimensions(state.ctx.world);
+        const [_, { tileSize }] = generateOldDimensions(state.ctx);
+        // clear old rect
         ctx.clearRect(
             tileSize * 0.5,
             tileSize * 0.5,
@@ -352,29 +372,30 @@ export function drawHelpHint(state: GameState) {
             tileSize * 2.5,
         );
     }
+    const { config } = state.ctx.world;
+    // clear new rect
     ctx.clearRect(
-        state.ctx.world.dimensions.tileSize * 0.5,
-        state.ctx.world.dimensions.tileSize * 0.5,
-        state.ctx.world.dimensions.tileSize * 4,
-        state.ctx.world.dimensions.tileSize * 2.5,
+        config.tileSize * 0.5,
+        config.tileSize * 0.5,
+        config.tileSize * 4,
+        config.tileSize * 2.5,
     );
     ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
     ctx.fillRect(
-        state.ctx.world.dimensions.tileSize * 0.5,
-        state.ctx.world.dimensions.tileSize * 0.5,
-        state.ctx.world.dimensions.tileSize * 4,
-        state.ctx.world.dimensions.tileSize * 2.5,
+        config.tileSize * 0.5,
+        config.tileSize * 0.5,
+        config.tileSize * 4,
+        config.tileSize * 2.5,
     );
-    ctx.font = `bold ${16 * state.ctx.world.dimensions.scale}px mono`;
+    ctx.font = `bold ${16 * config.scale}px mono`;
     for (let i = 0; i < TEXT_HELP_HINT.length; i++) {
         ctx.fillStyle = TEXT_HELP_HINT[i].color;
         ctx.fillText(
             TEXT_HELP_HINT[i].text,
-            state.ctx.world.dimensions.tileSize * 0.5 +
-                state.ctx.world.dimensions.tileSize / 4,
-            state.ctx.world.dimensions.tileSize * 1 +
-                state.ctx.world.dimensions.tileSize / 8 +
-                ((state.ctx.world.dimensions.tileSize * 3) / 4) * i,
+            config.tileSize * 0.5 + config.tileSize / 4,
+            config.tileSize * 1 +
+                config.tileSize / 8 +
+                ((config.tileSize * 3) / 4) * i,
         );
     }
 }
@@ -386,27 +407,28 @@ export function drawHelpHint(state: GameState) {
 // ****************************************************************
 
 /** @returns [x, y, width, height] array */
-function getAfkRect(dimensions: MapDimensions) {
+function getAfkRect(viewport: Viewport, { tileSize }: MapConfig) {
     return [
-        dimensions.tileSize * 6.5,
-        dimensions.tileSize / 2,
-        dimensions.viewportWidthPx - dimensions.tileSize * 13,
-        dimensions.tileSize * 5,
-    ] as const;
+        tileSize * 6.5,
+        tileSize / 2,
+        viewport.width - tileSize * 13,
+        tileSize * 5,
+    ] as const; // x, y, width, height
 }
 
 function clearAfkRect(
-    dimensions: MapDimensions,
+    viewport: Viewport,
+    config: MapConfig,
     ctx: CanvasRenderingContext2D,
 ) {
-    ctx.clearRect(...getAfkRect(dimensions));
+    ctx.clearRect(...getAfkRect(viewport, config));
 }
 // generateOldDimensions(state.ctx.world)
 export function closeAfk(state: GameState) {
     const ctx = state.refs.overlay.value!.getContext("2d")!;
-    clearAfkRect(state.ctx.world.dimensions, ctx);
+    clearAfkRect(state.ctx.client.viewport, state.ctx.world.config, ctx);
     if (!hasScaleChanged(state.ctx)) return;
-    clearAfkRect(generateOldDimensions(state.ctx.world), ctx);
+    clearAfkRect(...generateOldDimensions(state.ctx), ctx);
 }
 
 export function drawAfk(state: GameState) {
@@ -414,12 +436,15 @@ export function drawAfk(state: GameState) {
 
     const ctx = state.refs.overlay.value!.getContext("2d")!;
 
-    const dimensions = getAfkRect(state.ctx.world.dimensions);
+    const dimensions = getAfkRect(
+        state.ctx.client.viewport,
+        state.ctx.world.config,
+    );
 
     ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
     ctx.fillRect(...dimensions);
 
-    ctx.font = `bold ${24 * state.ctx.world.dimensions.scale}px mono`;
+    ctx.font = `bold ${24 * state.ctx.world.config.scale}px mono`;
     ctx.textAlign = "center";
     ctx.fillStyle = "red";
     ctx.fillText(
@@ -435,31 +460,35 @@ export function drawAfk(state: GameState) {
 //
 // ****************************************************************
 
-function getStatusStyles(dimensions: MapDimensions, canvas: HTMLCanvasElement) {
+function getStatusStyles(
+    viewport: Viewport,
+    { scale }: MapConfig,
+    canvas: HTMLCanvasElement,
+) {
     const LINES = 2;
     const FONT_SIZE = 16;
-    const styles = getBoxStyles(
-        LINES,
-        FONT_SIZE,
-        10,
-        0,
-        0,
-        0,
-        dimensions.scale,
-    );
+    const styles = getBoxStyles(LINES, FONT_SIZE, 10, 0, 0, 0, scale);
     return {
         ctx: canvas.getContext("2d")!,
         x: 0,
-        y: dimensions.viewportHeightPx - styles.height,
+        y: viewport.height - styles.height,
         rowGap: 0,
         ...styles,
-        width: dimensions.viewportWidthPx,
+        width: viewport.width,
     };
 }
 
-function closeStatus(state: GameState, dimensions?: MapDimensions) {
+function closeStatus(
+    state: GameState,
+    viewport?: Viewport,
+    config?: MapConfig,
+) {
     const canvas = state.refs.overlay.value!;
-    const d = getStatusStyles(dimensions ?? state.ctx.world.dimensions, canvas);
+    const d = getStatusStyles(
+        viewport ?? state.ctx.client.viewport,
+        config ?? state.ctx.world.config,
+        canvas,
+    );
     d.ctx.clearRect(d.x, d.y, d.width, d.height);
     return d;
 }
@@ -467,7 +496,7 @@ function closeStatus(state: GameState, dimensions?: MapDimensions) {
 export function drawStatus(state: GameState) {
     if (hasScaleChanged(state.ctx)) {
         // clear old rect
-        closeStatus(state, generateOldDimensions(state.ctx.world));
+        closeStatus(state, ...generateOldDimensions(state.ctx));
     }
     // clear new rect
     const d = closeStatus(state);
@@ -510,4 +539,53 @@ export function drawStatus(state: GameState) {
         d.x + d.leftPadding,
         d.y + d.fontSize * 2 - 2,
     );
+}
+
+const CHUNK_OVERLAY = {
+    width: 160,
+    height: 160,
+};
+export function drawChunkOverlay(state: GameState) {
+    const { cx, cy } = chunkService.getChunkSlot(
+        state.ctx.client.player?.pos ?? { x: 0, y: 0 },
+    );
+    const canvas = state.refs.overlay.value!;
+    const ctx = canvas.getContext("2d")!;
+    ctx.clearRect(0, 0, CHUNK_OVERLAY.width, CHUNK_OVERLAY.height);
+
+    // draw background
+    ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
+    ctx.fillRect(0, 0, CHUNK_OVERLAY.width, CHUNK_OVERLAY.height);
+    const FONT_SIZE = 16;
+
+    // current chunk slot
+    ctx.font = `bold ${FONT_SIZE}px mono`;
+    ctx.textAlign = "left";
+    ctx.fillStyle = "rgba(255, 31, 31, 0.85)";
+    ctx.fillText(`chunk: ${cx},${cy}`, 6, FONT_SIZE + 2);
+    const viewportOriginSlot = `${
+        state.ctx.client.viewport.origin.x / state.ctx.world.config.tileSize
+    },${state.ctx.client.viewport.origin.y / state.ctx.world.config.tileSize}`;
+    const viewportOrigin = `${state.ctx.client.viewport.origin.x},${state.ctx.client.viewport.origin.y}`;
+    ctx.fillText(
+        `${viewportOriginSlot} (${viewportOrigin}px)`,
+        6,
+        (FONT_SIZE + 2) * 2,
+    );
+
+    // visible chunks:
+    if (!__visibleChunks.length) return;
+
+    console.log("drawing chunk overlay::", { visibleChunks: __visibleChunks });
+    const [minX, minY] = chunkService.parseKey(__visibleChunks?.[0]);
+    __visibleChunks.forEach((key) => {
+        const [cx, cy] = chunkService.parseKey(key);
+        const col = cx - minX;
+        const row = cy - minY;
+        ctx.fillText(
+            `${cx},${cy}`,
+            6 + col * 40,
+            (FONT_SIZE + 2) * 2 + 26 * (row + 1),
+        );
+    });
 }

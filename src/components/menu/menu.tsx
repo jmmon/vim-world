@@ -12,7 +12,7 @@ import { roundToDecimals } from "~/utils/utils";
 export default component$(({ state }: { state: LocalWorldWrapper }) => {
     const dialogRef = useSignal<HTMLDialogElement>();
     const inputRef = useSignal<HTMLInputElement>();
-    const scale = useSignal(state.world.dimensions.scale);
+    const scale = useSignal(state.world.config.scale);
 
     useTask$(({ track }) => {
         const isOpen = track(() => state.show.menu);
@@ -31,7 +31,7 @@ export default component$(({ state }: { state: LocalWorldWrapper }) => {
         const { actualScale, tileSize } = await state.getScaledTileSize(
             scale.value,
         );
-        if (actualScale !== state.world.dimensions.scale) {
+        if (actualScale !== state.world.config.scale) {
             await state.updateScale(actualScale, tileSize);
             state.markAllDirty();
         }

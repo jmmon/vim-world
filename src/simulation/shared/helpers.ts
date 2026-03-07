@@ -1,4 +1,4 @@
-import { LocalWorldWrapper } from "~/components/canvas1/types";
+import { LocalWorldWrapper, Viewport } from "~/components/canvas1/types";
 import { PlayerCheckpoint } from "~/server/checkpointService";
 import { World, ServerWorldWrapper } from "~/server/types";
 import chunkService from "~/services/chunk";
@@ -70,26 +70,47 @@ export const addPos = (pos: Vec2, delta: Vec2): Vec2 => ({
     x: pos.x + delta.x,
     y: pos.y + delta.y,
 });
-// export const subtractPos = (pos: Vec2, delta: Vec2): Vec2 => ({
-//     x: pos.x - delta.x,
-//     y: pos.y - delta.y,
-// });
+export const subtractPos = (next: Vec2, prev: Vec2): Vec2 => ({
+    x: next.x - prev.x,
+    y: next.y - prev.y,
+});
 
-// TODO: take chunks into account
-// 
-export const isWithinBounds = (state: ServerWorldWrapper | LocalWorldWrapper, next: Vec2): boolean =>
-    state.physics.collision === false || 
-    next.x >= 0 &&
-    next.y >= 0 &&
-    next.x < state.world.dimensions.worldWidthBlocks &&
-    next.y < state.world.dimensions.worldHeightBlocks;
+/** @returns pixel offset from viewport origin
+ * @example both negative values mean it's outside the viewport
+ * @example both values greater than viewport width/height mean it's outside the viewport */
+export function getViewportCoordsAsPx(
+    posPx: Vec2,
+    viewportOriginPx: Vec2,
+): Vec2<"pixels"> {
+    const { x: px, y: py } = subtractPos(posPx, viewportOriginPx);
+    return { px, py };
+}
 
+/**
+ * @example obj is at 32,32 === 1024,1024px */
+export function isWithinViewport(
+    viewport: Viewport,
+    { px: x, py: y }: Vec2<"pixels">,
+) {
+    const { px, py } = getViewportCoordsAsPx({ x, y }, viewport.origin);
+    return px >= 0 && py >= 0 && px < viewport.width && py < viewport.height;
+}
+
+export const isWithinBounds = (
+    state: ServerWorldWrapper | LocalWorldWrapper,
+    next: Vec2,
+): boolean =>
+    state.physics.collision === false ||
+    (next.x >= 0 &&
+        next.y >= 0 &&
+        next.x < state.world.config.worldWidth &&
+        next.y < state.world.config.worldHeight);
 
 // collision will get the chunk that is needed
 function getWorldTile(world: World, pos: Vec2): Tile | undefined {
     const chunk = chunkService.getChunk(pos.x, pos.y, world.zone);
-    const { localX, localY } = chunkService.getLocalChunkCoords(pos);
-    return chunk.tiles?.[localY]?.[localX];
+    const { lx, ly } = chunkService.getLocalChunkCoords(pos);
+    return chunk.tiles?.[ly]?.[lx];
 }
 
 export function isWalkable(
@@ -107,7 +128,7 @@ export function isWalkable(
     // later: e.g. chunk static entities, world dynamic entities
     // object collision
     const entity = Array.from(state.world.entities.values()).find(
-        ({pos}) => pos && pos.x === next.x && pos.y === next.y,
+        ({ pos }) => pos && pos.x === next.x && pos.y === next.y,
     );
     if (entity?.collision?.solid) {
         console.error("reached unwalkable object:", entity);
@@ -127,14 +148,18 @@ export function isWalkable(
     return true;
 }
 
-
 const DIRECTIONS = [
     { dx: 0, dy: -1 }, // UP
-    { dx: 1, dy: 0 },  // RIGHT
-    { dx: 0, dy: 1 },  // DOWN
+    { dx: 1, dy: 0 }, // RIGHT
+    { dx: 0, dy: 1 }, // DOWN
     { dx: -1, dy: 0 }, // LEFT
 ];
-export async function spiralSearch(this: ServerWorldWrapper, pos: Vec2, maxRadius = Infinity, returnConditionFn: (pos: Vec2) => Promise<boolean> | boolean) {
+export async function spiralSearch(
+    this: ServerWorldWrapper,
+    pos: Vec2,
+    maxRadius = Infinity,
+    returnConditionFn: (pos: Vec2) => Promise<boolean> | boolean,
+) {
     if (await returnConditionFn(pos)) return;
 
     let stepLength = 1;
@@ -162,6 +187,3 @@ export async function spiralSearch(this: ServerWorldWrapper, pos: Vec2, maxRadiu
 
     throw new Error(`!!no walkable tiles found in ${maxRadius} radius!!`);
 }
-
-
-

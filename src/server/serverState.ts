@@ -1,4 +1,4 @@
-import { DIMENSIONS, MAP_CONFIG, zone } from "~/server/map";
+import { MAP_CONFIG, zone } from "~/server/map";
 import { ClientSession, World, ServerWorldWrapper } from "./types";
 import { Player, Vec2 } from "~/types/worldTypes";
 import { isWalkable, isWithinBounds, spiralSearch } from "~/simulation/shared/helpers";
@@ -11,7 +11,6 @@ export const clients = new Map<string, ClientSession<undefined | 'withPlayerId'>
 const players = new Map<string, Player>();
 
 export const SERVER_WORLD: World = {
-    dimensions: DIMENSIONS,
     zone: zone,
     players,
     entities: entities,

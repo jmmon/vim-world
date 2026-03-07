@@ -1,54 +1,60 @@
-import { MapDimensions, WorldEntity } from "~/types/worldTypes";
-import { LocalWorldWrapper } from "../../components/canvas1/types";
+import { WorldEntity } from "~/types/worldTypes";
+import { LocalWorldWrapper, Viewport } from "../../components/canvas1/types";
 import { GameState } from "~/hooks/useState";
-import { CHUNK_SIZE } from "~/server/map";
+import { MapConfig } from "~/server/map";
 
-export const getScaledTileSize = (scaleDecimal: number) => {
-    const tileSize = Math.round(CHUNK_SIZE * scaleDecimal);
-    const actualScale = tileSize / CHUNK_SIZE;
+export const getScaledTileSize = (config: MapConfig, scaleDecimal: number) => {
+    const tileSize = Math.round(config.chunkWidth * scaleDecimal);
+    const actualScale = tileSize / config.chunkWidth;
 
     return { tileSize, actualScale };
-}
+};
 
 const COMPARE_GRANULARITY = 1000;
 export function hasScaleChanged(state: LocalWorldWrapper) {
     return (
         0 !==
         Math.round(
-            (state.world.dimensions.scale - state.world.lastScale) *
+            (state.world.config.scale - state.world.config.lastScale) *
                 COMPARE_GRANULARITY,
         ) /
             COMPARE_GRANULARITY
     );
 }
 
-export function closeOldCanvas(
+export function generateOldDimensions(state: LocalWorldWrapper): [
+    Viewport,
+    MapConfig,
+] {
+    const tileSize = state.world.config.tileSize * state.world.config.lastScale;
+    const config: MapConfig = {
+        ...state.world.config,
+        tileSize,
+        scale: state.world.config.lastScale,
+        lastScale: state.world.config.lastScale,
+    };
+    const viewport: Viewport = {
+        width: state.client.viewport.width,
+        height: state.client.viewport.height,
+        origin: state.client.viewport.origin,
+    };
+    return [
+        viewport,
+        config,
+    ];
+}
+
+export function clearOldCanvas(
     state: LocalWorldWrapper,
     ctx: CanvasRenderingContext2D,
 ) {
     // clear old rect
     if (hasScaleChanged(state)) {
-        const { viewportWidthPx, viewportHeightPx } = generateOldDimensions(
-            state.world,
+        const [ viewport ] = generateOldDimensions(
+            state,
         );
-        ctx.clearRect(0, 0, viewportWidthPx, viewportHeightPx);
+        ctx.clearRect(0, 0, viewport.width, viewport.height);
     }
-}
-
-export function generateOldDimensions(
-    world: LocalWorldWrapper["world"],
-): MapDimensions {
-    const tileSize = world.dimensions.tileSize * world.lastScale;
-    return {
-        worldWidthBlocks: world.dimensions.worldWidthBlocks,
-        worldHeightBlocks: world.dimensions.worldHeightBlocks,
-        tileSize,
-        viewportWidthPx: tileSize * world.dimensions.worldWidthBlocks,
-        viewportHeightPx: tileSize * world.dimensions.worldWidthBlocks,
-        viewportWidthBlocks: CHUNK_SIZE,
-        viewportHeightBlocks: CHUNK_SIZE,
-        scale: world.lastScale,
-    };
 }
 
 export function entityHasItem(obj: WorldEntity): obj is WorldEntity {
@@ -76,14 +82,18 @@ export function shadeColor(color: string, percent: number /** 0-100 */) {
 }
 
 export function clearAll(state: GameState) {
-    const { viewportWidthPx: canvasWidth, viewportHeightPx: canvasHeight } = generateOldDimensions(
-        state.ctx.world,
-    );
-    [[canvasWidth, canvasHeight], [state.ctx.world.dimensions.viewportWidthPx, state.ctx.world.dimensions.viewportHeightPx]].forEach((canvasSize) => {
-        state.refs.map.value!.getContext("2d")!.clearRect(0, 0, canvasSize[0], canvasSize[1]);
-        state.refs.objects.value!.getContext("2d")!.clearRect(0, 0, canvasSize[0], canvasSize[1]);
-        state.refs.players.value!.getContext("2d")!.clearRect(0, 0, canvasSize[0], canvasSize[1]);
-        state.refs.overlay.value!.getContext("2d")!.clearRect(0, 0, canvasSize[0], canvasSize[1]);
+    const [ viewport ] = generateOldDimensions(state.ctx);
+    [
+        [viewport.width, viewport.height], // old
+        [
+            state.ctx.client.viewport.width, // current
+            state.ctx.client.viewport.height,
+        ],
+    ].forEach(([x, y]) => {
+        state.refs.map.value!.getContext("2d")!.clearRect(0, 0, x, y);
+        state.refs.objects.value!.getContext("2d")!.clearRect(0, 0, x, y);
+        state.refs.players.value!.getContext("2d")!.clearRect(0, 0, x, y);
+        state.refs.overlay.value!.getContext("2d")!.clearRect(0, 0, x, y);
     });
 }
 
