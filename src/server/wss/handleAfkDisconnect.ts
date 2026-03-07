@@ -41,12 +41,13 @@ export function closeAfkPlayer(clientId: string) {
     client.ws.close();
 }
 
+const OPEN_STATES = [WebSocket.OPEN, WebSocket.CLOSING];
 export function terminateAfkPlayer(clientId: string) {
     if (!hasTimePassed(clientId, DISCONNECT_TIME + TERMINATE_TIME)) return;
 
     const client = clients.get(clientId)!;
 
-    if ([client.ws.OPEN, client.ws.CLOSING].includes(client.ws.readyState)) {
+    if (OPEN_STATES.includes(client.ws.readyState)) {
         const msg: ServerConnectionMessage<'END'> = { type: "CLOSE", subtype: "END" };
         client.ws.send(JSON.stringify(msg));
         client.ws.terminate();

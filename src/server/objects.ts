@@ -124,8 +124,8 @@ const entitiesList: WorldEntity[] = [
 
 
 function buildId(rng: () => number) {
-    const decimal = rng();
-    const number17 = BigInt(decimal.toString().substring(2).padEnd(17, '0'));
+    const random = rng().toString().substring(2).padEnd(17, '0');
+    const number17 = BigInt(random);
     return base58(number17).padEnd(11, '0'); // NOTE: 0 is not valid base58 but this will keep all ids at 11. Probably not needed but just in case
 }
 
@@ -138,7 +138,7 @@ function buildItems(zone: Zone) {
     _items = ITEMS.map((i) => ({
         ...i,
         id: `${i.kind}-${buildId(rng)}`,
-        prevId: i.id,
+        prevId: i.id, // needed to reinsert items into entity containers
     }));
     return _items;
 }
@@ -216,12 +216,12 @@ function entityFactory(zone: Zone) {
 
 export const entities = entityFactory(zone);
 
-console.log(
-    'entities:: expect positions within world 0-127::',
-    Array.from(entities.values()).map(
-        (e) => ({ ...e, chunkCoords: chunkService.getChunkSlot(e.pos!)})
-    )
-);
+// console.log(
+//     'entities:: expect positions within world 0-127::',
+//     Array.from(entities.values()).map(
+//         (e) => ({ ...e, chunkCoords: chunkService.getChunkSlot(e.pos!)})
+//     )
+// );
 
 
 // console.log('EXPECT first entity/item IDs to be stable across builds::', JSON.stringify(Array.from(entities.values()), null, 2));

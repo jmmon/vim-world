@@ -27,7 +27,7 @@ export default function useRenderLoop(
     });
 
     // eslint-disable-next-line qwik/no-use-visible-task
-    useVisibleTask$(() => {
+    useVisibleTask$({ cleanup }) => {
         const zero = Number(document.timeline.currentTime);
         const countFps = initFpsTest(zero, 1);
         state.ctx.client.timeSinceLastCheckpoint = Date.now();
@@ -46,10 +46,11 @@ export default function useRenderLoop(
         let lastFps = "0";
         let lastEma = "0";
 
+        const CHECKPOINT_INTERVAL = 5 * 1000;
         function saveCheckpoint() {
             const now = Date.now();
             const difference = now - state.ctx.client.timeSinceLastCheckpoint;
-            if (difference >= 5 * 1000) {
+            if (difference >= CHECKPOINT_INTERVAL) {
                 console.log("fps:", lastFps, "ema:", lastEma);
 
                 state.ctx.client.timeSinceLastCheckpoint += difference;
@@ -80,16 +81,21 @@ export default function useRenderLoop(
             }
         }
 
+        let isCancelled = false;
         // main client loop
         (function loop(ts: number) {
+            if (isCancelled) return console.log("~~ loop cancelled");
             requestAnimationFrame(loop);
             const result = countFps(ts);
             if (result) {
                 lastFps = result.fps;
                 lastEma = result.ema;
             }
-            
-            if (state.ctx.world.lastScale !== state.ctx.world.dimensions.scale) {
+
+            if (
+                state.ctx.world.config.lastScale !==
+                state.ctx.world.config.scale
+            ) {
                 draw.clearAll(state);
             }
 
@@ -103,7 +109,6 @@ export default function useRenderLoop(
 
             needsRedrawAfk = wasAfkShowing !== state.ctx.show.afk;
             if (needsRedrawAfk) {
-                console.log("redrawing AFK!");
                 renderAfk();
                 needsRedrawAfk = false;
                 wasAfkShowing = state.ctx.show.afk;
@@ -118,21 +123,14 @@ export default function useRenderLoop(
                 draw.closeDevStats(state);
             }
 
+            if (state.ctx.client.isDirty.map) renderMap();
+            if (state.ctx.client.isDirty.objects) draw.objects(state);
+            if (state.ctx.client.isDirty.players) draw.players(state);
 
-            if (state.ctx.client.isDirty.objects) {
-                state.ctx.client.isDirty.objects = false;
-                draw.objects(state);
-            }
+            state.ctx.client.isDirty.objects = false;
+            state.ctx.client.isDirty.players = false;
+            state.ctx.client.isDirty.map = false;
 
-            if (state.ctx.client.isDirty.players) {
-                state.ctx.client.isDirty.players = false;
-                draw.players(state);
-            }
-
-            if (state.ctx.client.isDirty.map) {
-                state.ctx.client.isDirty.map = false;
-                renderMap();
-            }
 
             state.ctx.world.lastScale = state.ctx.world.dimensions.scale;
 
@@ -140,6 +138,10 @@ export default function useRenderLoop(
             if (state.ctx.client.player && isSnapshotChanged$.value)
                 saveCheckpoint();
         })(zero);
+        cleanup(() => {
+            isCancelled = true;
+            console.log("turning off loop...");
+        });
     });
 }
 

@@ -50,7 +50,7 @@ function useState(world: World, isReady: Signal<boolean>) {
                 map: true,
             },
             predictionBuffer: [],
-            commandBuffer: '',
+            commandBuffer: "",
             lastSnapshot: undefined,
         },
         show: {
@@ -130,33 +130,33 @@ function useState(world: World, isReady: Signal<boolean>) {
             const predictionArr = [...this.client.predictionBuffer];
 
             const index = predictionArr.findIndex((p) => p.seq === seq);
-            if (index === -1) return;
+            if (this.physics.prediction && index === -1) return console.log('~prediction running, but buffer is missing:', seq);
             this.client.lastProcessedSeq = seq;
 
             // NOTE: skip if results of the changes matched: for full prediction on the client
             // - if no client visual prediction, then the resultState and authState would NOT match since client would be behind
 
-            const predicted =
+            const result =
                 predictionArr[predictionArr.findIndex((p) => p.seq === seq + 1)]
                     ?.snapshotBefore || this.client.player;
 
-            const isPredictedMatchingAuthoritative = 
+            const isPredictionMatching =
+                this.physics.prediction &&
                 authoritativeState?.pos &&
                 authoritativeState.dir &&
-                predicted.pos.x === authoritativeState.pos.x &&
-                predicted.pos.y === authoritativeState.pos.y &&
-                predicted.dir === authoritativeState.dir;
-
+                result.pos.x === authoritativeState.pos.x &&
+                result.pos.y === authoritativeState.pos.y &&
+                result.dir === authoritativeState.dir;
 
             // Prediction matched — just drop it
-            if (!authoritativeState || isPredictedMatchingAuthoritative) {
+            if (!authoritativeState || isPredictionMatching) {
                 // clear everything before it as well
                 predictionArr.splice(0, index + 1);
                 this.client.predictionBuffer = predictionArr;
                 console.log("~~ results are same: remaining predictions:", {
                     remaining: [...predictionArr],
                     index,
-                    resultState: { ...predicted },
+                    resultState: { ...result },
                 });
                 return;
                 // no need to replay anything since there was no correction
@@ -178,15 +178,11 @@ function useState(world: World, isReady: Signal<boolean>) {
                 objects: false,
                 map: changed,
             };
-            console.log('EXPECT MAP DIRTY if prediction is running:', anyDirty);
-
-            // console.log("EXPECT POSITION DIFFERENCE::", {
-            //     lastAckedSnapshot: { ...this.client.lastSnapshot },
-            //     currentPlayer: { ...this.client.player },
-            // });
 
             this.client.lastSnapshot = { ...this.client.player! };
 
+            console.log("EXPECT MAP DIRTY if prediction is running:", anyDirty);
+            console.log('EXPECT all properties on player::', this.client.player);
 
             // Remove confirmed actions including this seq
             predictionArr.splice(0, index + 1);

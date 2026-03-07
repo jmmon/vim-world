@@ -13,7 +13,7 @@ export const useWebSocket = (
     const isStartingInBrowser = useSignal(false);
 
     const cleanup$ = $(() => {
-        console.log('~~ and beforeUnload')
+        console.log('~~ ws cleanup runs')
         if (ws.value) {
             ws.value.close();
             ws.value = undefined;
@@ -44,7 +44,6 @@ export const useWebSocket = (
             onMessage(event);
         };
         cleanup(() => {
-            console.log('useWebSocket cleanup!!');
             cleanup$();
         })
     });

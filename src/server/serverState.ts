@@ -264,36 +264,37 @@ export const WORLD_WRAPPER: ServerWorldWrapper = {
 //
 
 
-
-// Ok so i want to have settings for rowOffset and colOffset (set to 8 for example to keep 8 rows and 8 cols on screen before cursor hits edge)
-// - if set to 0, pan one chunk at a time once the user goes past the edge
-// else pan one movement amount once they get to the limit e.g. 8 away from the edge
-//
-// I guess I could render a 3x3 grid of chunks offscreen, then pan across them
-// always keep up to 9 buffered
-
-
-
 // tutorial levels: show ghosts of other players within the tutorials
 //
 // outer world will have actual multiplayer interaction of some sort
 
 
 
-// Ok so to get a camera origin for offset panning, need to load multiple chunks
-// I guess ~3x3 chunks loaded at a time
-// allows zoom level on client where their camera might reveal more than one chunk at a time
+
+// ================================
+// CAMERA
+// ================================
+
+// should add a blit setting to test enabling blit (render 3x3 grid offscreen) vs disabling blit (no offscreen, just rerender the viewport canvas)
+
+// allows zoom level on client where their camera might reveal more than one chunk at a time e.g. 40x40 vs 20x20 viewport
+// - this is set by co/columns or lines
 //
-// might want some function pan(dir, cells) which could shift the map over and render the missing rows/cols
+// on init: SOMETIMES:: not updating viewport if player logged in outside of viewport!!
 
-
-// camera origin will be e.g. topleft of viewport and will be in world coords, e.g. 33,33 (2,2 of chunk 1,1)
-// viewport width/height will determine screen size to know which chunks need to be rendered
-
-
-
-// first can work on loading/unloading chunks
-// e.g. get player position and local chunk, and get 3x3 around that chunk: these will be loaded
-// if moving to chunk i2, unload chunk i0 and load chunk i3
-
-
+//
+//
+//
+//
+//
+//
+//  NOTE: currently tile spreading is restricted only to the one chunk! that's why we see hard edges at chunk borders
+//
+//
+//
+// TODO:
+// Esc should cancel the command display mode... clear the buffer
+// need to make sure to parse the command on serverside and send the nice string back; instead of parsing on the clientside
+// - will enable backspace etc
+// - more TODO: arrow keys etc in parsing...
+//

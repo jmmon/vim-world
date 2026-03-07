@@ -1,13 +1,12 @@
 import { drawOffscreenMap, drawVisibleMap } from "./map";
 import { drawObjects } from "./objects";
 import { closeAfk, closeDevStats, closeHelp, drawAfk, drawDevStats, drawFps, drawHelp, drawHelpHint, drawStatus } from "./overlay";
-import { drawPlayer, drawPlayers } from "./players";
+import { drawPlayers } from "./players";
 import { clearAll } from "./utils";
 
 const draw = {
     // players
     players: drawPlayers,
-    player: drawPlayer,
 
     // objects
     objects: drawObjects,

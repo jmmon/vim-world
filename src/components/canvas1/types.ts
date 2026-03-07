@@ -16,6 +16,8 @@ export type IsDirty = {
     objects: boolean,
     map: boolean,
 };
+export type ApplyActionDirtyResult = Partial<IsDirty> | boolean;
+export type MaybePromise<T> = T | Promise<T>;
 
 export type ClientData = {
     player?: Player; // not really needed??? but might be better to look up once only

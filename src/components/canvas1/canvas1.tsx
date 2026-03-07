@@ -144,9 +144,6 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
 
     useWebSocket(isReady, onMessage$, onConnect$, ws);
 
-    /** =======================================================
-     *          keyboard actions; apply to world
-     * ======================================================= */
     useVimFSM(
         $(async (action) => {
             const seq = await getNextSeq();

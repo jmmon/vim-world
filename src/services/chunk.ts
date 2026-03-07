@@ -3,7 +3,7 @@ import { Player, Vec2 } from "~/types/worldTypes";
 
 // server AND client: chunk cache
 const chunkCache = new Map<ChunkKey, Chunk>();
-type ChunkKey = `${number},${number}`;
+export type ChunkKey = `${number},${number}`;
 
 // generateBaseTile: world coords matter later for biomes & paths
 function getChunkByWorldCoords(worldX: number, worldY: number, zone: Zone): Chunk {
@@ -32,7 +32,7 @@ function worldCoordsFromChunkSlot(key: ChunkKey) {
 
 
 /* get all chunks in map for entity placement */
-function getMap(zone: Zone, config: MapConfig) {
+function getMap(zone: Zone, config: MapConfig): Chunk[][] {
     const chunkMap: Chunk[][] = [];
     for (let y = 0; y < config.height; y++) {
         chunkMap.push([]);

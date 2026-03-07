@@ -18,7 +18,7 @@ export function drawPlayers(state: GameState) {
     );
 }
 
-export function drawPlayer(
+function drawPlayer(
     state: GameState,
     player: Player,
 ) {

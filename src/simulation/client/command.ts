@@ -1,4 +1,8 @@
-import { LocalWorldWrapper } from "~/components/canvas1/types";
+import {
+    LocalWorldWrapper,
+    ApplyActionDirtyResult,
+    MaybePromise,
+} from "~/components/canvas1/types";
 import { VimAction } from "../../fsm/types";
 import { SPECIAL_KEY_VALUES, SpecialKeyValues } from "~/fsm/transtionTable";
 
@@ -22,7 +26,7 @@ const QUIT_ACTIONS = [
 export function applyCommandAction(
     state: LocalWorldWrapper,
     action: VimAction,
-): false {
+): MaybePromise<ApplyActionDirtyResult> {
     if (action.type === "COMMAND_PROMPT") {
         state.client.commandBuffer = ":";
         return false;
@@ -34,6 +38,7 @@ export function applyCommandAction(
         state.client.commandBuffer = ":" + command2;
         return false;
     }
+    state.client.commandBuffer = "";
 
     // should these be commands??
     if (action.command === "g?") {
@@ -46,11 +51,7 @@ export function applyCommandAction(
         return false;
     }
 
-    state.client.commandBuffer = "";
-    if (
-        action.command === "help" ||
-        action.command === "h"
-    ) {
+    if (action.command === "help" || action.command === "h") {
         state.show.help = !state.show.help;
         return false;
     }
@@ -59,8 +60,6 @@ export function applyCommandAction(
     if (action.command!.endsWith("!")) {
         action.command = action.command!.slice(0, -1);
     }
-    // console.assert("abc!".replace(/!$/, "") === 'abc', 'oops, wrong regex!!', 'abc!'.replace(/!$/, ""));
-    // console.assert("abc!!".replace(/!$/, "") === 'abc!', 'oops, wrong regex!!', 'abc!!'.replace(/!$/, ""));
     if (QUIT_ACTIONS.includes(action.command!)) {
         console.log(
             "TODO: quit command: save checkpoint then redirect to homepage",
@@ -76,44 +75,47 @@ function parseCommand(input: string): string {
     const buffer: string[] = [];
     let cursorIndex = 0;
 
-
     // TODO: <Del>, <Tab>, <Enter>, <LEFT>, <RIGHT>, <UP>, <DOWN>
     for (const token of tokens) {
         if (SPECIAL_KEY_VALUES.includes(token)) {
-            switch(token as SpecialKeyValues) {
-                case '<BS>': 
+            switch (token as SpecialKeyValues) {
+                case "<BS>":
                     cursorIndex = Math.max(0, cursorIndex - 1);
                     buffer.pop(); // remove the previous token
                     break;
-                case '<Del>':
+                case "<Del>":
                     // TODO: if char on the right of cursorIndex, remove it
                     if (buffer[cursorIndex + 1]) {
                         buffer.splice(cursorIndex + 1, 1);
                     }
                     break;
-                case '<LEFT>':
+                case "<LEFT>":
                     // TODO:
                     cursorIndex = Math.max(0, cursorIndex - 1);
                     break;
-                case '<RIGHT>':
+                case "<RIGHT>":
                     // TODO: check Math.min
                     cursorIndex = Math.min(buffer.length - 1, cursorIndex + 1);
                     break;
-                case '<UP>':
-                case '<DOWN>':
-                case '<Tab>':
-                case '<CR>':
+                case " ":
+                    buffer.splice(cursorIndex, 0, token);
+                    cursorIndex++;
+                    break;
+
+                case "<UP>":
+                case "<DOWN>":
+                case "<Tab>":
+                case "<CR>":
                 default:
                     // ignore
                     break;
             }
-
         } else {
             buffer.splice(cursorIndex, 0, token); // insert (token);
-            cursorIndex ++;
+            cursorIndex++;
         }
     }
 
-    return buffer.join('');
+    return buffer.join("");
 }
 

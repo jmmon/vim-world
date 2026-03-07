@@ -68,13 +68,12 @@ export function shadeColor(color: string, percent: number /** 0-100 */) {
     G = Math.min(255, Math.round(G));
     B = Math.min(255, Math.round(B));
 
-    const RR = R.toString(16).padStart(2, '0');
-    const GG = G.toString(16).padStart(2, '0');
-    const BB = B.toString(16).padStart(2, '0');
+    const RR = R.toString(16).padStart(2, "0");
+    const GG = G.toString(16).padStart(2, "0");
+    const BB = B.toString(16).padStart(2, "0");
 
     return "#" + RR + GG + BB;
 }
-
 
 export function clearAll(state: GameState) {
     const { viewportWidthPx: canvasWidth, viewportHeightPx: canvasHeight } = generateOldDimensions(

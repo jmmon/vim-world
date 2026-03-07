@@ -28,6 +28,8 @@ export async function applyMoveAction(
 
     const steps = action.count ?? 1;
     const p = state.client.player!;
+
+    const prevDir = p.dir;
     p.dir = deltaToDir(delta); // commit facing change
 
     let next: Vec2 = p.pos;
@@ -50,9 +52,9 @@ export async function applyMoveAction(
     const changed = setPlayerPos(p, next, state.world.config); // commit step
 
     return {
-        players: (processed > 0),
         map: changed,
         objects: changed,
+        players: prevDir !== p.dir || processed > 0,
     };
 };
 

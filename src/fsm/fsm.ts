@@ -3,6 +3,7 @@ import { VimAction, VimFSMState } from "./types";
 import { resetCtx, transitionTable } from "./transtionTable";
 
 export type ActionFunction = (action: VimAction) => void | Promise<void>;
+
 export class VimFSM {
     state: VimFSMState = {
         mode: "normal",
@@ -15,7 +16,7 @@ export class VimFSM {
 
     constructor(
         private onAction: ActionFunction | QRL<ActionFunction>,
-        private timeoutMs = 1500,
+        private timeoutMs = 1000,
     ) {}
 
     reset() {
@@ -26,30 +27,27 @@ export class VimFSM {
         }
     }
 
+    isBrowserHotkey({key, shiftKey, ctrlKey}: KeyboardEvent) {
+        /** refresh */
+        return ctrlKey && key === 'r' || key === 'R' || 
+        /** hard refresh */
+        ctrlKey && shiftKey && key === 'r' || key === 'R' || 
+        /** function keys */
+        key[0] === 'F' && Number(key.slice(1)) >= 1 && Number(key.slice(1)) <= 12;
+        // ...(Array.from({ length: 12 }, (_, i) => key === `F${i + 1}`)),
+    };
+    isIgnoredKey({key, shiftKey, ctrlKey, altKey}: KeyboardEvent) {
+        return (key === "Shift" && shiftKey) || 
+            (key === "Control" && ctrlKey) ||
+            (key === "Alt" && altKey);
+    }
+
     keyPress(event: KeyboardEvent, initialized = false) {
         if (!initialized) return;
-        const { key, shiftKey, ctrlKey, altKey } = event;
-        // console.log('look for f12!:', {key});
-
-        const ALLOW_BROWSER_HOTKEYS = [
-            /** refresh */
-            ctrlKey && key === 'r' || key === 'R',
-            /** hard refresh */
-            ctrlKey && shiftKey && key === 'r' || key === 'R',
-            /** function keys */
-            ...(Array.from({length: 12}, (_, i) => key === `F${i + 1}`)),
-        ];
-        if (ALLOW_BROWSER_HOTKEYS.some(Boolean)) return; // completely ignore these
-
+        if (this.isBrowserHotkey(event)) return; // completely ignore these
         event.preventDefault(); // prevent browser default hotkeys
-
         // skip if modifier and no key
-        const IGNORE_LIST = [
-            (key === "Shift" && shiftKey),
-            (key === "Control" && ctrlKey),
-            (key === "Alt" && altKey),
-        ]
-        if (IGNORE_LIST.some(Boolean)) return;
+        if (this.isIgnoredKey(event)) return;
 
         if (this.timeoutId) clearTimeout(this.timeoutId);
         this.timeoutId = window.setTimeout(this.reset, this.timeoutMs);

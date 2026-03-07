@@ -12,7 +12,9 @@ import { VimAction } from "../fsm/types";
 import { VimFSM } from "../fsm/fsm";
 import { LocalWorldWrapper } from "~/components/canvas1/types";
 
-// wrapper around VimFSM class
+/** =======================================================
+ *          keyboard actions; apply to world
+ * ======================================================= */
 const useVimFSM = (
     onAction: QRL<(a: VimAction) => void>,
     initialized: Signal<any>,
@@ -22,7 +24,7 @@ const useVimFSM = (
     const fsm = useSignal<NoSerialize<VimFSM>>();
 
     const onKeyDown$ = $((event: KeyboardEvent) => {
-        if (state.show.menu) return;
+        if (state.show.menu) return; // workaround; TODO: use fsm to interact with menu as well
         fsm.value?.keyPress(event, !!initialized.value);
     });
     useOnDocument("keydown", onKeyDown$);

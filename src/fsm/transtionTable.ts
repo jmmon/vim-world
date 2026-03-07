@@ -9,13 +9,11 @@ import {
     TargetKey,
 } from "./types";
 
-export function resetCtx(): VimFSMState {
-    return {
-        mode: "normal",
-        buffer: [],
-        count: null,
-    };
-}
+export const resetCtx = (): VimFSMState => ({
+    mode: "normal",
+    buffer: [],
+    count: null,
+})
 
 export const MOVEMENT_KEYS: MovementKey[] = ["h", "j", "k", "l", "w", "b"];
 export const AWAITING_CHAR_KEYS: AwaitingCharKey[] = ["f", "F", "t", "T", "g"];
