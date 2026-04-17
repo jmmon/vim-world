@@ -132,11 +132,12 @@ export function drawFps(state: GameState, fps: string, ema?: string) {
 
 function getFormattedTime(value: number) {
     return value === -1
-        ? "?"
+        ? "---"
         : roundToDecimals((Date.now() - value) / 1000, 1).toFixed(1);
 }
 
 const STAT_MAP = [
+// pos is displayed in bottom statusbar now:: row:col
     // {
     //     name: "x",
     //     getValue: (state: GameState) => state.ctx.client.player?.pos.x ?? "?",

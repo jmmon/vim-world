@@ -390,16 +390,12 @@ export const handlers = {
         handlers.markAllDirty(ctx);
 
         const now = Date.now();
-        console.assert(
-            now - ctx.client.lastInit > 5000,
-            "!!initializing called many times!!",
-        );
         console.log(
             "initialized localWorld with client data, NOW READY for websocket!::",
             data,
         );
 
-        ctx.client.lastInit = now;
+        ctx.client.idleStartTime = now;
         ctx.client.isReady = true;
         return true;
     },
@@ -448,7 +444,6 @@ function useState(world: World<"Client">, ws: Signal<NoSerialize<WebSocket>>,) {
         dispatch: dispatch$,
         client: {
             isReady: false,
-            lastInit: 0,
             settings: {
                 scrolloff: 10,
                 sidescrolloff: 10,
@@ -474,7 +469,7 @@ function useState(world: World<"Client">, ws: Signal<NoSerialize<WebSocket>>,) {
             usernameHash: undefined,
             lastProcessedSeq: undefined,
             afkStartTime: -1,
-            idleStartTime: Date.now(),
+            idleStartTime: -1,
             timeSinceLastCheckpoint: Date.now(),
             isDirty: {
                 overlay: true,

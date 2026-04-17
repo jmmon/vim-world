@@ -17,11 +17,15 @@ export const SERVER_WORLD: World<'Server'> = {
 }
 
 export const serverhandlers = {
-    async addPlayer(ctx: ServerWorldWrapper, player: Player) {
+    addPlayer(ctx: ServerWorldWrapper, player: Player) {
         if (!player) return false;
         try {
             // shift pos if not walkable
-            await spiralSearch.call(ctx, player.pos, 128, (pos) => isWithinBounds(ctx, pos) && isWalkable(ctx, pos));
+            spiralSearch(
+                player.pos,
+                128,
+                (pos) => isWithinBounds(ctx, pos) && isWalkable(ctx, pos)
+            );
 
             const serverPlayer: ServerPlayer = {
                 ...player,
@@ -45,20 +49,6 @@ export const serverhandlers = {
 export const WORLD_WRAPPER: ServerWorldWrapper = {
     world: SERVER_WORLD,
     physics: getServerPhysics(),
-    /**
-     * set player into world.players
-     * */
-
-    // findObjectInRangeByKey: findObjectInRangeByKey,
-
-    // ya: maybe need a "carry" slot on player; put the itemId in the "carry" slot, remove its position while carried?
-    // pickUpObject: pickUpObject,
-    // yi: I guess remove the itemId from the object and add it to the player's items
-    // pickUpItem: pickUpItem,
-    // pa
-    // placeObject: placeObject,
-    // pi
-    // placeItem: placeItem,
 };
 
 
@@ -281,8 +271,6 @@ export const WORLD_WRAPPER: ServerWorldWrapper = {
 
 // allows zoom level on client where their camera might reveal more than one chunk at a time e.g. 40x40 vs 20x20 viewport
 // - this is set by co/columns or lines
-//
-// on init: SOMETIMES:: not updating viewport if player logged in outside of viewport!!
 
 //
 //
@@ -300,3 +288,44 @@ export const WORLD_WRAPPER: ServerWorldWrapper = {
 // - will enable backspace etc
 // - more TODO: arrow keys etc in parsing...
 //
+//
+//
+//
+// ================================
+// LOOP TICKS
+// ================================
+//
+// ok: for ticks: how to incrementally add this functionality?
+//
+// 1. 
+// server tick: allow unlimited steps per tick
+// client: do no prediction, only correcting based on acks
+// => should run the exact same as current
+//
+// 1.a.
+// set steps per tick to 3
+// client: now has to ack the partial steps
+// also, client tick needs to sync with current servertick! on init and I guess while it acks
+// => should still function as normal
+//
+// 2.
+// revert to unlimited steps for both client and server
+// client tick
+// enable client visual prediction
+// enable client collision
+// => should still run exact same
+// ... also: visual prediction should cancel once we receive a collision from server ...
+//
+// 2.a.
+// reduce the steps per tick to e.g. 3 again for server and client
+// => should all work, with and without prediction/collision on client
+//
+//
+
+
+
+//
+//
+//
+//
+// NOTE: idleTime: don't start until after player has loaded. e.g. set to -1 to show a "-" and then only increment if it is >= 0 (set to 0 after user has loaded)

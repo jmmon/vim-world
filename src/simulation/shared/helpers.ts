@@ -183,13 +183,12 @@ const DIRECTIONS = [
     { dx: 0, dy: 1 }, // DOWN
     { dx: -1, dy: 0 }, // LEFT
 ];
-export async function spiralSearch(
-    this: ServerWorldWrapper,
+export function spiralSearch(
     pos: Vec2,
     maxRadius = Infinity,
-    returnConditionFn: (pos: Vec2) => Promise<boolean> | boolean,
+    returnConditionFn: (pos: Vec2) => boolean,
 ) {
-    if (await returnConditionFn(pos)) return;
+    if (returnConditionFn(pos)) return;
 
     let stepLength = 1;
     let dirIndex = 0;
@@ -203,7 +202,7 @@ export async function spiralSearch(
                 pos.x += dx;
                 pos.y += dy;
 
-                if (await returnConditionFn(pos)) return;
+                if (returnConditionFn(pos)) return;
 
                 steps++;
             }

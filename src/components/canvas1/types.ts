@@ -41,7 +41,6 @@ export type VimSettings = {
 export type ClientData = {
     fsm: NoSerialize<VimFSM>;
     isReady: boolean;
-    lastInit: number;
     settings: VimSettings;
     player?: Player;
     username?: string;

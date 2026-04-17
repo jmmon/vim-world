@@ -22,7 +22,7 @@ export const onPost: RequestHandler = async (requestEvent) => {
     );
     const player = checkpointService.toPlayer(checkpoint);
 
-    const added = await serverhandlers.addPlayer(WORLD_WRAPPER, player);
+    const added = serverhandlers.addPlayer(WORLD_WRAPPER, player);
     if (!added) {
         requestEvent.json(400, { message: "Error instantiating player" });
         return;
