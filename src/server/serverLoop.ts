@@ -60,8 +60,12 @@ const setupAtTickEndForPlayer = (
     ) => {
         if (!action) return;
         if (reason !== undefined && action.remaining > 0) {
-            player.lastProcessedSeq = Math.max(player.lastProcessedSeq, action.seq + 1); // update seq if breaking early
-            // console.log('atTickEnd: broke early, incrementing seq to:', player.lastProcessedSeq);
+            // breaking early drops the rest of this action, so the ack should
+            // carry the action's own sequence rather than its partial seq + 1
+            player.lastProcessedSeq = Math.max(
+                player.lastProcessedSeq,
+                action.finalSeq ?? action.seq,
+            );
         }
 
         // update checkpoint cache

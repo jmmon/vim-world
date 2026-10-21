@@ -44,6 +44,8 @@ export interface CommandVimAction extends VimAction {
 export interface ExpandedVimAction extends VimAction {
     remaining: number;
     seq: number;
+    /** sequence this step belongs to, carried on partials whose seq is still the previous action's */
+    finalSeq?: number;
     clientTime?: number;
 }
 

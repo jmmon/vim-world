@@ -5,27 +5,26 @@ import { MOVEMENT_CONFIG } from "./loop";
 export function expandAction({seq, action, clientTime}: Pick<ClientActionMessage, 'seq' | 'action' | 'clientTime'>, prevSeq: number) {
     const totalSteps = Math.min(MOVEMENT_CONFIG.MAX_MACRO_COUNT, action.count ?? 1); // TODO: limit by level or something
     const parts = Math.ceil(totalSteps / MOVEMENT_CONFIG.maxCountPerTick);
-    const remainder = totalSteps % MOVEMENT_CONFIG.maxCountPerTick;
-    
 
-    // e.g. 10j => 
-    //      4 parts,
-    //      raminder of 1
+    // e.g. 10j =>
+    //      4 parts of 3 + 1
     // i = 0, 1, 2, 3
 
-    const expanded = Array.from<unknown, ExpandedVimAction>({ length: parts }, (_, i) => ({
+const expanded = Array.from<unknown, ExpandedVimAction>({ length: parts }, (_, i) => ({
         type: action.type,
         ...(action.key ? {
             key: action.key,
-        }: {}),
+        } : {}),
         ...(action.command ? {
             command: action.command,
-        }: {}),
+        } : {}),
         clientTime,
-        count: parts - i > 1 
-            ? MOVEMENT_CONFIG.maxCountPerTick 
-            : remainder,
+        count: Math.min(
+            MOVEMENT_CONFIG.maxCountPerTick,
+            totalSteps - i * MOVEMENT_CONFIG.maxCountPerTick,
+        ),
         remaining: parts - 1 - i,
+        finalSeq: seq,
         seq: i === parts - 1
             ? seq // last sends current seq
             : prevSeq, // partials send prev seq aka lastProcessedSeq

@@ -73,7 +73,12 @@ export function processPlayerTick<
         if (reason === "COLLISION" || reason === "OUT_OF_BOUNDS") {
             // break early, no need to replay remaining partials
             player.actionQueue.splice(0, partial.remaining);
-            player.lastProcessedSeq = partial.seq; // update on last
+            // the dropped steps belong to this partial's action, not to the
+            // partial's own seq, which still points at the previous action
+            player.lastProcessedSeq = Math.max(
+                player.lastProcessedSeq ?? -1,
+                partial.finalSeq ?? partial.seq,
+            );
             if (isBrowser) console.log(
                 `~~ breaking early, tick ${tick} dropping remaining action steps::`,
                 JSON.stringify(partial),
