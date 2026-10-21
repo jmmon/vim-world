@@ -20,6 +20,7 @@ export const MOVEMENT_CONFIG = {
     tickMs: 1000 / TICKS_PER_SECOND,
     maxCountPerTick: 3, // 10j => 4 ticks: 3j x 3 + 1j x 1
     MAX_MACRO_COUNT: 20, // should be adjusted by level
+    maxQueuedSteps: 64, // drain rate is 3 steps/tick, so this is far above a real player
 } as const;
 
 // NOTE:

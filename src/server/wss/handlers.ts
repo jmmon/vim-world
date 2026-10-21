@@ -10,8 +10,9 @@ import checkpointService  from "../checkpointService";
 import { ServerPlayer } from "~/types/worldTypes";
 import { closeAfkPlayer } from "./handleAfkDisconnect";
 import { expandAction } from "~/simulation/shared/loop/helpers";
+import { MOVEMENT_CONFIG } from "~/simulation/shared/loop/loop";
 import { createClientData, getClientAndPlayer, hasPlayerId } from "./helpers";
-import { message } from "./ack";
+import { message as messenger } from "./ack";
 
 
 export const onConnect = (ws: WebSocket) => {
@@ -58,9 +59,18 @@ export const onMessage = (clientId: string) => (message: WebSocket.RawData) => {
             break;
         case('ACTION'):
             if (result === false || !result.player) return;
-            // later: queue action
-            // handleServerAction(clientId, clientMessage);
-            enqueueClientAction(result.player, clientMessage);
+            if (enqueueClientAction(result.player, clientMessage)) break;
+            // queue is saturated: skip the action and tell the client it was dropped
+            result.player.lastProcessedSeq = Math.max(
+                result.player.lastProcessedSeq,
+                clientMessage.seq,
+            );
+            messenger.ack.send(result.client, result.player, 'INVALID_ACTION', {
+                ...clientMessage.action,
+                remaining: 0,
+                seq: clientMessage.seq,
+                clientTime: clientMessage.clientTime,
+            });
             break;
         case('CHECKPOINT'):
             if (clientMessage.subtype === 'SAVE') {
@@ -81,7 +91,11 @@ export function enqueueClientAction(
     msg: ClientActionMessage
 ) {
     const steps = expandAction(msg, player.lastProcessedSeq);
+    if (player.actionQueue.length + steps.length > MOVEMENT_CONFIG.maxQueuedSteps) {
+        return false;
+    }
     player.actionQueue.push(...steps);
+    return true;
 }
 
 
@@ -184,7 +198,7 @@ function handleInit(clientId: string, { playerId }: ClientInitMessage) {
     const checkpoint = checkpointService._loadCheckpoint(playerId); // default or existing
     console.assert(checkpoint, `!!No checkpoint found for playerId ${playerId}!!`);
 
-    message.ack.init(client, playerId, checkpoint);
+    messenger.ack.init(client, playerId, checkpoint);
 }
 
 
@@ -194,7 +208,7 @@ function handleSave(clientId: string, { checkpoint, isClosing }: Pick<ClientChec
     if (client.playerId !== checkpoint.playerId) return;
 
     const savedData = checkpointService.update(checkpoint);
-    if (!!savedData) message.ack.checkpoint(client, savedData)
+    if (!!savedData) messenger.ack.checkpoint(client, savedData)
     if (isClosing) closeAfkPlayer(clientId);
 }
 

@@ -3,8 +3,7 @@ import { ClientActionMessage } from "~/types/wss/client";
 import { MOVEMENT_CONFIG } from "./loop";
 
 export function expandAction({seq, action, clientTime}: Pick<ClientActionMessage, 'seq' | 'action' | 'clientTime'>, prevSeq: number) {
-    // const count = Math.min(MOVEMENT_CONFIG.MAX_MACRO_COUNT, action.count ?? 1); // TODO: limit by level or something
-    const totalSteps = action.count ?? 1;
+    const totalSteps = Math.min(MOVEMENT_CONFIG.MAX_MACRO_COUNT, action.count ?? 1); // TODO: limit by level or something
     const parts = Math.ceil(totalSteps / MOVEMENT_CONFIG.maxCountPerTick);
     const remainder = totalSteps % MOVEMENT_CONFIG.maxCountPerTick;
     
