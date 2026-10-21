@@ -23,8 +23,8 @@
     "serve": "node server/entry.node-server",
     "serve.clean": "qwik build && node server/entry.node-server",
     "start": "vite --open --mode ssr",
-    "test.unit": "vitest components",
-    "test.unit.ui": "vitest --ui components",
+    "test.unit": "vitest run",
+    "test.unit.ui": "vitest --ui",
     "qwik": "qwik"
   },
   "devDependencies": {
