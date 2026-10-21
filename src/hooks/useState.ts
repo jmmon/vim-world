@@ -119,7 +119,9 @@ export const handlers = {
                 ).checkpoint;
                 return true;
             case "COMMAND_PARTIAL":
-                // update the statusbar as chars are typed
+                // the statusbar is driven locally while predicting; the server
+                // echo only takes over when prediction is off
+                if (ctx.physics.prediction) return true;
                 ctx.client.commandLineDisplay =
                     ":" + msg.authoritativeState!.commandLineState!.buffer;
                 return true;
@@ -127,15 +129,6 @@ export const handlers = {
                 // should run the command in case we aren't running command prediction
                 if (ctx.physics.prediction) return true;
 
-                if (
-                    (msg.authoritativeState?.commandLineState?.buffer ||
-                        "")[0] === ":"
-                ) {
-                    msg.authoritativeState!.commandLineState!.buffer.replace(
-                        ":",
-                        "",
-                    );
-                }
                 const command =
                     msg.authoritativeState?.commandLineState?.buffer || "";
                 console.assert(command.length, "no command found");
