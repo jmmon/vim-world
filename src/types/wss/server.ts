@@ -1,5 +1,5 @@
 import { PlayerCheckpoint } from "~/server/checkpointService";
-import { Direction, ServerPlayer, Vec2 } from "../worldTypes";
+import { Direction, Player, ServerPlayer, Vec2 } from "../worldTypes";
 import { ReasonCorrection, ReasonRejected } from "~/simulation/server/types";
 
 type ServerBaseMessage = {
@@ -15,6 +15,13 @@ export interface ServerOtherPlayerMessage<T extends SubtypeOtherPlayerMessage> e
     playerId: string;
     pos: Vec2;
     dir: Direction;
+};
+
+/** a player entering the world; carries the full record so receivers can render it */
+export interface ServerPlayerConnectMessage extends ServerBaseMessage {
+    type: "PLAYER";
+    subtype: "CONNECT";
+    player: Player;
 };
 
 export type SubtypeServerAck =
@@ -100,7 +107,8 @@ export interface ServerInitConfirmMessage extends ServerBaseMessage {
 
 
 export type ServerMessage =
-    | ServerOtherPlayerMessage<SubtypeOtherPlayerMessage>
+    | ServerOtherPlayerMessage<"MOVE">
+    | ServerPlayerConnectMessage
     | ServerAckMessage<SubtypeServerAck>
     | ServerConnectionMessage<SubtypeConnectionMessage>
     | ServerAfkMessage

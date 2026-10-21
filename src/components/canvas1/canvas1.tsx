@@ -1,5 +1,9 @@
 import { component$, useSignal, $, NoSerialize } from "@builder.io/qwik";
-import { ServerMessage, ServerOtherPlayerMessage } from "~/types/wss/server";
+import {
+    ServerMessage,
+    ServerOtherPlayerMessage,
+    ServerPlayerConnectMessage,
+} from "~/types/wss/server";
 import useSeq from "../../hooks/useSeq";
 import useVimFSM from "~/hooks/useVimFSM";
 import { useNavigate } from "@builder.io/qwik-city";
@@ -72,6 +76,11 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
                     handlers.onOtherPlayerMove(
                         state.ctx,
                         serverMessage as ServerOtherPlayerMessage<"MOVE">,
+                    );
+                } else if (serverMessage.subtype === "CONNECT") {
+                    handlers.onPlayerConnect(
+                        state.ctx,
+                        serverMessage as ServerPlayerConnectMessage,
                     );
                 }
                 break;

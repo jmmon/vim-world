@@ -1,7 +1,7 @@
 import { ReasonCorrection, ReasonRejected } from "~/simulation/server/types";
 import { Player, ServerPlayer } from "~/types/worldTypes";
 import { ClientSession } from "../types";
-import { ServerAckMessage, ServerInitConfirmMessage, ServerOtherPlayerMessage } from "~/types/wss/server";
+import { ServerAckMessage, ServerInitConfirmMessage, ServerOtherPlayerMessage, ServerPlayerConnectMessage } from "~/types/wss/server";
 import { PlayerCheckpoint } from "../checkpointService";
 import { currentServerTick } from "../serverLoop";
 import { ExpandedVimAction } from "~/fsm/types";
@@ -146,6 +146,23 @@ function dispatchMoveToOthers(clientId: string, player: Player) {
     });
 }
 
+/** tells everyone else about a player entering the world */
+function dispatchPlayerConnect(clientId: string, player: Player) {
+    const {
+        actionQueue: _actionQueue,
+        commandLineState: _commandLineState,
+        ...serializable
+    } = player as ServerPlayer;
+    const playerConnect: ServerPlayerConnectMessage = {
+        type: "PLAYER",
+        subtype: "CONNECT",
+        player: serializable,
+    };
+    clients.forEach((client, key) => {
+        if (key !== clientId) client.ws.send(JSON.stringify(playerConnect));
+    });
+}
+
 const ack = {
     valid: sendAckValid,
     correction: sendCorrection,
@@ -158,7 +175,8 @@ const ack = {
 };
 export const message = {
     ack,
-    playerMove: dispatchMoveToOthers
+    playerMove: dispatchMoveToOthers,
+    playerConnect: dispatchPlayerConnect,
 }
 // export default ack;
 

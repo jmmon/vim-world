@@ -18,6 +18,7 @@ import {
     ServerAckMessage,
     ServerInitConfirmMessage,
     ServerOtherPlayerMessage,
+    ServerPlayerConnectMessage,
     SubtypeServerAck,
 } from "~/types/wss/server";
 import useDispatch$ from "./useDispatch";
@@ -330,6 +331,21 @@ export const handlers = {
         otherPlayer.pos = data.pos;
         otherPlayer.dir = data.dir;
 
+        ctx.client.isDirty.players = true;
+    },
+
+    /** a player entered the world after us; add them so they can be rendered */
+    onPlayerConnect: function (
+        ctx: LocalWorldWrapper,
+        data: ServerPlayerConnectMessage,
+    ) {
+        const { player } = data;
+        if (!player?.id || player.id === ctx.client.player?.id) return;
+
+        const isNew = !ctx.world.players.has(player.id);
+        ctx.world.players.set(player.id, player);
+
+        if (isNew) console.log("other player joined:", player.name, player.id);
         ctx.client.isDirty.players = true;
     },
 

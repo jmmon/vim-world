@@ -5,7 +5,7 @@ import {
     ClientInitMessage,
     ClientMessage,
 } from "~/types/wss/client";
-import { WORLD_WRAPPER, clients } from "../serverState";
+import { WORLD_WRAPPER, clients, serverhandlers } from "../serverState";
 import checkpointService  from "../checkpointService";
 import { ServerPlayer } from "~/types/worldTypes";
 import { closeAfkPlayer } from "./handleAfkDisconnect";
@@ -214,6 +214,10 @@ function handleInit(clientId: string, { playerId }: ClientInitMessage) {
     console.assert(checkpoint, `!!No checkpoint found for playerId ${playerId}!!`);
 
     messenger.ack.init(client, playerId, checkpoint);
+
+    // let the other clients render this player
+    const player = serverhandlers.getPlayerById(WORLD_WRAPPER, playerId);
+    if (player) messenger.playerConnect(clientId, player);
 }
 
 
