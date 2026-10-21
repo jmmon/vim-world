@@ -10,6 +10,7 @@ import chunkService, {
 import { TileType, } from "~/types/worldTypes";
 
 type TileDrawer = (
+    state: GameState,
     tileSize: number,
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -19,6 +20,7 @@ type TileDrawer = (
 ) => void;
 
 const drawTile: TileDrawer = function (
+    _state,
     tileSize: number,
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -32,28 +34,29 @@ const drawTile: TileDrawer = function (
 
 // draws some edges to make it look more 3d
 const drawCliffTile: TileDrawer = function (
+    state,
     tileSize: number,
     ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
+    lx: number,
+    ly: number,
     adjustedColor: string,
     chunk: Chunk,
 ) {
     ctx.fillStyle = adjustedColor;
-    ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+    ctx.fillRect(lx * tileSize, ly * tileSize, tileSize, tileSize);
 
-    const nearbyTiles = getSurroundingTiles(chunk.tiles, x, y);
+    const nearbyTiles = getSurroundingTiles(state.ctx.world.zone, chunk, lx, ly);
     const nearbyCliffDirections = Object.entries(nearbyTiles).reduce<
         Record<string, "CLIFF" | "OTHER">
     >((accum, cur) => {
-        if (cur[1]?.type === "CLIFF") accum[cur[0]] = "CLIFF";
+        if (!cur[1]) return accum;
+        if (cur[1].type === "CLIFF") accum[cur[0]] = "CLIFF";
         else if (cur[1] !== undefined) accum[cur[0]] = "OTHER";
         return accum;
     }, {});
 
     const darker = shadeColor(adjustedColor, -25);
     const rng = chunkService.getChunkRng(chunk.seed);
-        
 
     /// ok, basically like what I have except:
     // if cliff to South, then hide this tile's bottom dark box
@@ -66,8 +69,8 @@ const drawCliffTile: TileDrawer = function (
         const height = 14;
         ctx.fillStyle = darker;
         ctx.fillRect(
-            x * tileSize,
-            (y + 1) * tileSize - height,
+            lx * tileSize,
+            (ly + 1) * tileSize - height,
             tileSize,
             height,
         );
@@ -80,12 +83,12 @@ const drawCliffTile: TileDrawer = function (
         ctx.fillStyle = darker;
 
         ctx.beginPath();
-        ctx.moveTo((x + 1) * tileSize, y * tileSize);
-        ctx.lineTo((x + 1) * tileSize - 1, y * tileSize);
-        ctx.lineTo((x + 1) * tileSize - width, (y + 0.5) * tileSize - width);
-        ctx.lineTo((x + 1) * tileSize - 1, (y + 0.5) * tileSize);
-        ctx.lineTo((x + 1) * tileSize - width2, (y + 1) * tileSize - width2);
-        ctx.lineTo((x + 1) * tileSize, (y + 1) * tileSize);
+        ctx.moveTo((lx + 1) * tileSize, ly * tileSize);
+        ctx.lineTo((lx + 1) * tileSize - 1, ly * tileSize);
+        ctx.lineTo((lx + 1) * tileSize - width, (ly + 0.5) * tileSize - width);
+        ctx.lineTo((lx + 1) * tileSize - 1, (ly + 0.5) * tileSize);
+        ctx.lineTo((lx + 1) * tileSize - width2, (ly + 1) * tileSize - width2);
+        ctx.lineTo((lx + 1) * tileSize, (ly + 1) * tileSize);
         ctx.closePath();
         ctx.fill();
 
@@ -110,8 +113,8 @@ const drawCliffTile: TileDrawer = function (
         const height = 14;
         ctx.fillStyle = darker;
         ctx.fillRect(
-            (x + 1) * tileSize - width,
-            (y + 1) * tileSize - height,
+            (lx + 1) * tileSize - width,
+            (ly + 1) * tileSize - height,
             width,
             height,
         );
@@ -120,7 +123,7 @@ const drawCliffTile: TileDrawer = function (
         // show tile's left dark edge
         const width = 3;
         ctx.fillStyle = darker;
-        ctx.fillRect(x * tileSize, y * tileSize, width, tileSize);
+        ctx.fillRect(lx * tileSize, ly * tileSize, width, tileSize);
     } else if (
         nearbyCliffDirections.W === "CLIFF" &&
         nearbyCliffDirections.SW !== "CLIFF"
@@ -129,13 +132,13 @@ const drawCliffTile: TileDrawer = function (
         const width = 3;
         const height = 14;
         ctx.fillStyle = darker;
-        ctx.fillRect(x * tileSize, (y + 1) * tileSize - height, width, height);
+        ctx.fillRect(lx * tileSize, (ly + 1) * tileSize - height, width, height);
     }
     if (nearbyCliffDirections.N !== "CLIFF") {
         // show tile's top dark edge
         ctx.fillStyle = darker;
         const height = 1;
-        ctx.fillRect(x * tileSize, y * tileSize, tileSize, height);
+        ctx.fillRect(lx * tileSize, ly * tileSize, tileSize, height);
     }
 }
 
@@ -176,6 +179,7 @@ function drawChunk(
             const y = ly + worldCellOffset.y;
 
             tileMap[chunk.tiles[ly][lx].type](
+                state,
                 tileSize,
                 ctx,
                 x,

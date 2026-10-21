@@ -1,5 +1,6 @@
 import chunkService from "~/services/chunk";
-import { Tile } from "~/types/worldTypes";
+import { getTileByWorldCoords, getWorldCoordsFromChunkLocal, isPosWithinMapgen } from "~/simulation/shared/helpers";
+import { Tile, Vec2 } from "~/types/worldTypes";
 
 export const TILE_SIZE_PX = 32; // px
 
@@ -143,7 +144,7 @@ const RULESETS: Record<RuleSetId, Ruleset> = {
 
 // use on chunk.tiles
 // could refactor to border the map instead of the chunk??
-function addBorders(rng: () => number, chunk: Chunk, rulesetId: RuleSetId) {
+function addBorders(zone: Zone, rng: () => number, chunk: Chunk, _worldPos: Vec2,) {
     const h = chunk.tiles.length;
 
     const w = chunk.tiles[0].length;
@@ -152,21 +153,20 @@ function addBorders(rng: () => number, chunk: Chunk, rulesetId: RuleSetId) {
     // console.log('addBorders: n: expect range between chunksize / 2', n, 'chunkSize:', chunk.tiles.length, 'r:', r, 'v:', v);
 
     for (let x = 0; x < w; x++) {
-        chunk.tiles[0][x] = generateBorderTile(rulesetId); // top
-        chunk.tiles[h - 1][x] = generateBorderTile(rulesetId); // bottom
+        chunk.tiles[0][x] = generateBorderTile(zone.ruleset); // top
+        chunk.tiles[h - 1][x] = generateBorderTile(zone.ruleset); // bottom
     }
 
     // leave one opening on left and right sides, divergent from center
     for (let y = 0; y < h; y++) {
         if (y !== openingLocation) {
-            chunk.tiles[y][0] = generateBorderTile(rulesetId); // left
+            chunk.tiles[y][0] = generateBorderTile(zone.ruleset); // left
         }
         if (y !== h - 1 - openingLocation) {
-            chunk.tiles[y][w - 1] = generateBorderTile(rulesetId); // right
+            chunk.tiles[y][w - 1] = generateBorderTile(zone.ruleset); // right
         }
     }
 }
-addBorders(() => 1, { cx: 0, cy: 0, tiles: [[]], seed: 123, dirty: false }, "dungeon-v1");
 
 // TODO: addWorldBorders
 
@@ -245,42 +245,57 @@ function pickWeighted(rng: () => number, tileOptions: TileRule[]) {
     return tileOptions[tileOptions.length - 1];
 }
 
+
 export function getSurroundingTiles(
-    map: Tile[][],
-    x: number,
-    y: number,
+    zone: Zone,
+    chunk: Chunk,
+    lx: number,
+    ly: number,
 ): {
-    N?: Tile; 
-    NE?: Tile;
-    E?: Tile;
-    SE?: Tile;
-    S?: Tile;
-    SW?: Tile;
-    W?: Tile
-    NW?: Tile;
+    N?: Tile | false;
+    NE?: Tile | false;
+    E?: Tile | false;
+    SE?: Tile | false;
+    S?: Tile | false;
+    SW?: Tile | false;
+    W?: Tile | false;
+    NW?: Tile | false;
 } {
+    console.log({lx, ly, cx: chunk.cx, cy: chunk.cy});
+    const n = getWorldCoordsFromChunkLocal(chunk, lx, ly - 1);
+    const e = getWorldCoordsFromChunkLocal(chunk, lx + 1, ly);
+    const s = getWorldCoordsFromChunkLocal(chunk, lx, ly + 1);
+    const w = getWorldCoordsFromChunkLocal(chunk, lx - 1, ly);
+
+    const withinEast = isPosWithinMapgen(e);
+    const withinNorth = isPosWithinMapgen(n);
+    const withinWest = isPosWithinMapgen(w);
+    const withinSouth = isPosWithinMapgen(s);
+    console.log({n, e, w, s}, {withinEast, withinWest, withinNorth, withinSouth});
+    // getTileByWorldCoords: causes a loop since it calls generateChunk
     return {
-        N: map[y - 1]?.[x],
-        NE: map[y - 1]?.[x + 1],
-        E: map[y]?.[x + 1],
-        SE: map[y + 1]?.[x + 1],
-        S: map[y + 1]?.[x],
-        SW: map[y + 1]?.[x - 1],
-        W: map[y]?.[x - 1],
-        NW: map[y - 1]?.[x - 1],
+        N: withinNorth && getTileByWorldCoords(zone, n),
+        NE: withinNorth && withinEast && getTileByWorldCoords(zone, getWorldCoordsFromChunkLocal(chunk, lx + 1, ly - 1)),
+        E: withinEast && getTileByWorldCoords(zone, e),
+        SE: withinSouth && withinEast && getTileByWorldCoords(zone, getWorldCoordsFromChunkLocal(chunk, lx + 1, ly + 1)),
+        S: withinSouth && getTileByWorldCoords(zone, s),
+        SW: withinSouth && withinWest && getTileByWorldCoords(zone, getWorldCoordsFromChunkLocal(chunk, lx - 1, ly + 1)),
+        W: withinWest && getTileByWorldCoords(zone, w),
+        NW: withinNorth && withinWest && getTileByWorldCoords(zone, getWorldCoordsFromChunkLocal(chunk, lx - 1, ly - 1)),
     };
 }
 
 function spread(
+    zone: Zone,
     chunk: Chunk,
-    x: number,
-    y: number,
+    lx: number, // local position within this chunk
+    ly: number,
     rng: () => number,
-    tileOptions: TileRule[],
+    ruleset: Ruleset,
 ) {
     // check each surrounding tile,
-    const surrounding = getSurroundingTiles(chunk.tiles, x, y);
-    const rulesetTilesMap = tileOptions.reduce<Record<string, TileRule>>(
+    const surrounding = getSurroundingTiles(zone, chunk, lx, ly);
+    const rulesetTilesMap = ruleset.baseTiles.reduce<Record<string, TileRule>>(
         (accum, rule) => {
             accum[rule.type] = rule;
             return accum;
@@ -325,49 +340,49 @@ function spread(
         r -= weight;
     }
 
-    return chunk.tiles[y][x];
+    return chunk.tiles[ly][lx];
 }
 
 function spreadTiles(
+    zone: Zone,
     rng: () => number,
     chunk: Chunk,
-    rulesetId: RuleSetId,
     opts?: IgnoreEdgesOpts,
 ) {
-    const ruleset = RULESETS[rulesetId];
-    if (!ruleset) throw new Error(`Unknown ruleset: ${rulesetId}`);
+    const ruleset = RULESETS[zone.ruleset];
+    if (!ruleset) throw new Error(`Unknown ruleset: ${zone.ruleset}`);
 
-    for (let y = 0; y < CHUNK_WIDTH; y++) {
-        if (opts?.ignoreEdges?.includes("N") && y === 0) continue;
-        if (opts?.ignoreEdges?.includes("S") && y === CHUNK_WIDTH - 1) continue;
-        for (let x = 0; x < CHUNK_WIDTH; x++) {
-            if (opts?.ignoreEdges?.includes("W") && x === 0) continue;
-            if (opts?.ignoreEdges?.includes("E") && x === CHUNK_WIDTH - 1) continue;
-            chunk.tiles[y][x] = spread(chunk, x, y, rng, ruleset.baseTiles);
+    for (let ly = 0; ly < CHUNK_WIDTH; ly++) {
+        if (opts?.ignoreEdges?.includes("N") && ly === 0) continue;
+        if (opts?.ignoreEdges?.includes("S") && ly === CHUNK_WIDTH - 1) continue;
+        for (let lx = 0; lx < CHUNK_WIDTH; lx++) {
+            if (opts?.ignoreEdges?.includes("W") && lx === 0) continue;
+            if (opts?.ignoreEdges?.includes("E") && lx === CHUNK_WIDTH - 1) continue;
+            chunk.tiles[ly][lx] = spread(zone, chunk, lx, ly, rng, ruleset);
         }
     }
 }
 function spreadMap(
+    zone: Zone,
     rng: () => number,
     chunk: Chunk,
-    rulesetId: RuleSetId,
     count: number,
     opts?: IgnoreEdgesOpts,
 ) {
     for (let i = 0; i < count; i++) {
-        spreadTiles(rng, chunk, rulesetId, opts);
+        spreadTiles(zone, rng, chunk, opts);
     }
 }
 
 function replaceWithSurround(
+    zone: Zone,
     rng: () => number,
     chunk: Chunk,
-    x: number,
-    y: number,
-    rulesetId: RuleSetId,
+    lx: number,
+    ly: number,
 ) {
-    const ruleset = RULESETS[rulesetId];
-    const surrounding = getSurroundingTiles(chunk.tiles, x, y);
+    const ruleset = RULESETS[zone.ruleset];
+    const surrounding = getSurroundingTiles(zone, chunk, lx, ly);
     const rulesetTilesMap = ruleset.baseTiles.reduce<Record<string, TileRule>>(
         (accum, rule) => {
             accum[rule.type] = rule;
@@ -377,9 +392,9 @@ function replaceWithSurround(
     );
     const map = Object.values(surrounding).reduce<
         Record<string, { tile: Tile; count: number }>
-    >((accum, tile?: Tile) => {
-        if (!tile?.type) return accum;
-        const result = accum[tile?.type] || {
+    >((accum, tile?: Tile | false) => {
+        if (!tile) return accum;
+        const result = accum[tile.type] || {
             tile,
             count: 0,
         };
@@ -405,35 +420,35 @@ function replaceWithSurround(
         r -= count;
     }
 
-    return chunk.tiles[y][x];
+    return chunk.tiles[ly][lx];
 }
 
 function reduceOrphans(
+    zone: Zone,
     rng: () => number,
     chunk: Chunk,
-    rulesetId: RuleSetId,
     opts?: IgnoreEdgesOpts,
 ) {
-    for (let y = 0; y < chunk.tiles.length; y++) {
-        if (opts?.ignoreEdges?.includes("N") && y === 0) continue;
-        if (opts?.ignoreEdges?.includes("S") && y === CHUNK_WIDTH - 1) continue;
-        for (let x = 0; x < chunk.tiles[0].length; x++) {
-            if (opts?.ignoreEdges?.includes("W") && x === 0) continue;
-            if (opts?.ignoreEdges?.includes("E") && x === CHUNK_WIDTH - 1) continue;
-            chunk.tiles[y][x] = replaceWithSurround(rng, chunk, x, y, rulesetId);
+    for (let ly = 0; ly < chunk.tiles.length; ly++) {
+        if (opts?.ignoreEdges?.includes("N") && ly === 0) continue;
+        if (opts?.ignoreEdges?.includes("S") && ly === CHUNK_WIDTH - 1) continue;
+        for (let lx = 0; lx < chunk.tiles[0].length; lx++) {
+            if (opts?.ignoreEdges?.includes("W") && lx === 0) continue;
+            if (opts?.ignoreEdges?.includes("E") && lx === CHUNK_WIDTH - 1) continue;
+            chunk.tiles[ly][lx] = replaceWithSurround(zone, rng, chunk, lx, ly);
         }
     }
 }
 
 function reduceMapOrphans(
+    zone: Zone,
     rng: () => number,
     chunk: Chunk,
-    rulesetId: RuleSetId,
     count: number,
     opts?: IgnoreEdgesOpts,
 ) {
     for (let i = 0; i < count; i++) {
-        reduceOrphans(rng, chunk, rulesetId, opts);
+        reduceOrphans(zone, rng, chunk, opts);
     }
 }
 
@@ -471,18 +486,20 @@ function generateBorderTile(rulesetId: RuleSetId): Tile {
 
 // generateBaseTile: world coords matter later for biomes & paths
 const ADD_BORDERS = false;
+const SPREAD_COUNT = 5;
+const REDUCE_ORPHANS_COUNT = 2;
 const IGNORE_EDGES_OPTS: IgnoreEdgesOpts = {
     ignoreEdges: ["N", "S", "E", "W"]
 };
 export function generateChunk(
-    worldSeed: number,
-    worldX: number,
-    worldY: number,
-    rulesetId: RuleSetId,
+    zone: Zone,
+    x: number,
+    y: number,
 ): Chunk {
-    const { cx, cy } = chunkService.getChunkSlot({ x: worldX, y: worldY });
+    const worldPos = { x, y };
+    const { cx, cy } = chunkService.getChunkSlot(worldPos);
 
-    const seed = getChunkSeed(worldSeed, cx, cy);
+    const seed = getChunkSeed(zone.seed, cx, cy);
     const rng = mulberry32(seed);
 
     const tiles: Tile[][] = [];
@@ -490,17 +507,17 @@ export function generateChunk(
     for (let y = 0; y < CHUNK_WIDTH; y++) {
         const row: Tile[] = [];
         for (let x = 0; x < CHUNK_WIDTH; x++) {
-            const tile = generateBaseTile(rng, rulesetId /*worldX, worldY*/);
+            const tile = generateBaseTile(rng, zone.ruleset /*worldX, worldY*/);
             row.push(tile);
         }
         tiles.push(row);
     }
 
     const chunk = { cx: cx, cy: cy, tiles, seed, dirty: true, };
-    if (ADD_BORDERS) addBorders(rng, chunk, rulesetId);
+    if (ADD_BORDERS) addBorders(zone, rng, chunk, worldPos);
     // TODO: addWorldBorders around map config edges instead of single chunk edges
-    spreadMap(rng, chunk, rulesetId, 5, ADD_BORDERS ? IGNORE_EDGES_OPTS : undefined);
-    reduceMapOrphans(rng, chunk, rulesetId, 2, ADD_BORDERS ? IGNORE_EDGES_OPTS : undefined);
+    // spreadMap(zone, rng, chunk, SPREAD_COUNT, ADD_BORDERS ? IGNORE_EDGES_OPTS : undefined);
+    // reduceMapOrphans(zone, rng, chunk, REDUCE_ORPHANS_COUNT, ADD_BORDERS ? IGNORE_EDGES_OPTS : undefined);
     return chunk;
 }
 

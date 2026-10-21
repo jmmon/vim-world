@@ -4,6 +4,7 @@ import { World, ServerWorldWrapper } from "~/server/types";
 import chunkService from "~/services/chunk";
 import { Direction, PLAYER_IGNORED_KEYS, Player, ServerPlayer, Tile, Vec2 } from "~/types/worldTypes";
 import { ValidateMoveCorrection, ValidateMoveResult, ValidateMoveValid } from "../server/types";
+import { Chunk, MAP_CONFIG } from "~/server/map";
 
 const _stringify = (data: Record<any, any>) =>
     JSON.stringify(
@@ -115,6 +116,11 @@ export function getViewportCoordsAsPx(
     return { px, py };
 }
 
+export const getWorldCoordsFromChunkLocal = ({cx, cy}: Chunk, lx: number, ly: number): Vec2 => ({
+    x: cx * MAP_CONFIG.chunkWidth + lx,
+    y: cy * MAP_CONFIG.chunkHeight + ly,
+});
+
 /**
  * @example obj is at 32,32 === 1024,1024px */
 export function isWithinViewport(
@@ -136,10 +142,16 @@ export const isWithinBounds = (
         next.y < state.world.config.worldHeight);
 
 // collision will get the chunk that is needed
-function getWorldTile(world: Pick<World, "zone">, pos: Vec2): Tile | undefined {
-    const chunk = chunkService.getChunk(pos.x, pos.y, world.zone);
+export function getTileByWorldCoords(zone: World["zone"], pos: Vec2): Tile | undefined {
+    const chunk = chunkService.getChunk(pos.x, pos.y, zone);
     const { lx, ly } = chunkService.getLocalChunkCoords(pos);
     return chunk.tiles?.[ly]?.[lx];
+}
+
+export function isPosWithinMapgen(pos: Vec2) {
+    const chunkPos = chunkService.getChunkSlot(pos)
+    const key = chunkService.genKey(chunkPos);
+    return chunkService.isChunkWithinMapgen(key);
 }
 
 export function isWalkable(
@@ -148,7 +160,7 @@ export function isWalkable(
 ) {
     if (state.physics.collision === false) return true;
     // tile collision
-    const tile = getWorldTile(state.world, next);
+    const tile = getTileByWorldCoords(state.world.zone, next);
     if (tile?.collision?.solid) {
         console.error("unwalkable tile!", { tile });
         return false;

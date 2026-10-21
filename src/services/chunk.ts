@@ -6,18 +6,19 @@ const chunkCache = new Map<ChunkKey, Chunk>();
 export type ChunkKey = `${number},${number}`;
 
 // generateBaseTile: world coords matter later for biomes & paths
-function getChunkByWorldCoords(worldX: number, worldY: number, zone: Zone): Chunk {
-    const { cx, cy } = getChunkSlot({x: worldX, y: worldY});
-    const key: ChunkKey = `${cx},${cy}`;
+function getAndLoadChunkByWorldCoords(worldX: number, worldY: number, zone: Zone): Chunk {
+    const chunkPos = getChunkSlot({x: worldX, y: worldY});
+    const key = genKey(chunkPos);
     if (!chunkCache.has(key)) {
-        const chunk = generateChunk(zone.seed, worldX, worldY, zone.ruleset);
+        const chunk = generateChunk(zone, worldX, worldY);
         chunkCache.set(key, chunk);
     }
     return chunkCache.get(key)!;
 }
+
 function getChunkByKey(key: ChunkKey, zone: Zone) {
     const worldCoords = getWorldCoordsByChunkKey(key);
-    return getChunkByWorldCoords(worldCoords.x, worldCoords.y, zone);
+    return getAndLoadChunkByWorldCoords(worldCoords.x, worldCoords.y, zone);
 }
 
 
@@ -25,9 +26,8 @@ function unloadChunk(key: ChunkKey) {
     chunkCache.delete(key);
 }
 
-function parseKey(key: ChunkKey) {
-    return key.split(',').map(Number) as [number, number];
-}
+const parseKey = (key: ChunkKey) => key.split(',').map(Number) as [number, number];
+const genKey = ({cx, cy}: Vec2<"chunk">): ChunkKey  =>`${cx},${cy}`;
 
 /** @returns cell coords */
 function getWorldCoordsByChunkKey(key: ChunkKey) {
@@ -42,7 +42,7 @@ function getMap(zone: Zone, config: MapConfig): Chunk[][] {
     for (let y = 0; y < config.height; y++) {
         chunkMap.push([]);
         for (let x = 0; x < config.width; x++) {
-            chunkMap[y][x] = getChunkByWorldCoords(x * CHUNK_WIDTH, y * CHUNK_HEIGHT, zone);
+            chunkMap[y][x] = getAndLoadChunkByWorldCoords(x * CHUNK_WIDTH, y * CHUNK_HEIGHT, zone);
         }
     }
     return chunkMap
@@ -73,7 +73,7 @@ const getChunkOrigin = (worldPos: Vec2): Vec2 => {
 const isSameChunkByPos = (pos1: Vec2, pos2: Vec2) =>
     isSameChunk(getChunkSlot(pos1), getChunkSlot(pos2));
 
-/** @returns coords within a chunk 
+/** @returns coords within a chunk
  * @example: world coords: 1, 1 => chunk coords: 1, 1
  * @example: world coords: 33, 1 => chunk coords: 1, 1
  * @example: world coords: 65, 1 => chunk coords: 1, 1
@@ -101,9 +101,29 @@ function isChunkWithinBounds(mapConfig: MapConfig, key: ChunkKey): boolean {
         y < mapConfig.height;
 }
 
+let __viewportChunks: ChunkKey[];
+function setMapgenChunks(pos: Vec2, viewRadius = VIEW_RADIUS) {
+    const { cx, cy } = getChunkSlot(pos);
+    const viewportChunks: ChunkKey[] = []
+
+    for (let dx = -viewRadius; dx <= viewRadius; dx++) {
+        for (let dy = -viewRadius; dy <= viewRadius; dy++) {
+            const key: ChunkKey = `${cx + dx},${cy + dy}`;
+            viewportChunks.push(key);
+        }
+    }
+    __viewportChunks = viewportChunks;
+    console.log('expect 5x5 range::', {__viewportChunks})
+}
+
+function isChunkWithinMapgen(key: ChunkKey) {
+    if (!__viewportChunks) setMapgenChunks({x: 0, y: 0}, VIEW_RADIUS + 1);
+    return __viewportChunks.includes(key);
+}
+
 /** should always be sorted left => right, top => bottom */
 let __visibleChunks: ChunkKey[] = [];
-const VIEW_RADIUS = 1; // 3x3; 2 => 5x5
+export const VIEW_RADIUS = 1; // 3x3; 2 => 5x5
 function setVisibleChunks(pos: Vec2, mapConfig: MapConfig) {
     const { cx, cy } = getChunkSlot(pos);
     const visibleChunkSlots: ChunkKey[] = [];
@@ -134,8 +154,9 @@ function unloadInvisibleChunks(visibleChunks: ChunkKey[]) {
     }
 }
 
-function handleChunkChange(playerPos: Vec2, mapConfig: MapConfig) {
+function handleVisibleChunksChange(playerPos: Vec2, mapConfig: MapConfig) {
     setVisibleChunks(playerPos, mapConfig);
+    setMapgenChunks(playerPos, VIEW_RADIUS + 1);
     unloadInvisibleChunks(__visibleChunks);
     ensureChunksLoaded(__visibleChunks);
     // console.log('done setting visible chunks::', __visibleChunks);
@@ -145,18 +166,22 @@ function handleChunkChange(playerPos: Vec2, mapConfig: MapConfig) {
 
 const chunkService = {
     parseKey,
-    getChunk: getChunkByWorldCoords,
+    genKey,
+    getChunk: getAndLoadChunkByWorldCoords,
     getChunkByKey,
     getChunkSlot,
     getChunkOrigin,
     getChunkRng,
     getChunkRngByPos,
     getLocalChunkCoords,
+    isChunkWithinBounds,
     getMap,
-    handleVisibleChunksChange: handleChunkChange,
+    handleVisibleChunksChange,
     isSameChunk,
     isSameChunkByPos,
     getWorldCoordsByChunkKey,
+    setMapgenChunks,
+    isChunkWithinMapgen,
     /** run every frame or when player crosses chunk boundary */
 };
 
