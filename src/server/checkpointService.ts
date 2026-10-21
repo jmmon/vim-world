@@ -83,7 +83,7 @@ function update(checkpointData: PlayerCheckpoint): PlayerCheckpoint | false {
 
 function toPlayer(data: PlayerCheckpoint, lastProcessedSeq: number = -1) {
     const player: Player = {
-        level: 1,
+        level: data.level,
         name: data.name,
         id: data.playerId,
         pos: {
@@ -101,7 +101,7 @@ function toPlayer(data: PlayerCheckpoint, lastProcessedSeq: number = -1) {
 
 function fromPlayer(p: Player, lastSeenAt: number) {
     const checkpoint: PlayerCheckpoint = {
-        level: 1,
+        level: p.level,
         name: p.name,
         playerId: p.id,
         x: p.pos.x,
