@@ -76,10 +76,10 @@ const setupAtTickEndForPlayer = (
 function serverTick() {
     const now = Date.now();
     for (const client of clients.values()) {
-        if (!('playerId' in client)) return;
+        if (!('playerId' in client)) continue;
 
         const player = serverhandlers.getPlayerById(WORLD_WRAPPER, client.playerId);
-        if (!player) return;
+        if (!player) continue;
 
         client.callTicks ??= setupCallTicksForPlayer(
             WORLD_WRAPPER,
