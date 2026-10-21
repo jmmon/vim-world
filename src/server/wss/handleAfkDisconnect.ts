@@ -3,18 +3,45 @@ import { ServerAfkMessage, ServerConnectionMessage } from "~/types/wss/server";
 import { clients } from "../serverState";
 import { removeClient } from "./handlers";
 
+export type AfkTimings = {
+    /** idle time before the client is warned */
+    afkMs: number;
+    /** idle time before the server asks it to checkpoint and close */
+    disconnectMs: number;
+    /** grace period after the close request before the socket is killed */
+    terminateMs: number;
+    /** reads the clock, injectable so the ladder can be driven in tests */
+    now: () => number;
+};
 
-const AFK_TIME = 1 * 60 * 1000;
-const DISCONNECT_TIME = 2 * 60 * 1000;
-const TERMINATE_TIME = 10 * 1000; // 10s
+const DEFAULT_TIMINGS: AfkTimings = {
+    afkMs: 1 * 60 * 1000,
+    disconnectMs: 2 * 60 * 1000,
+    terminateMs: 10 * 1000, // 10s
+    now: () => Date.now(),
+};
 
+let timings: AfkTimings = { ...DEFAULT_TIMINGS };
 
-function hasTimePassed(clientId: string, time: number) {
-    if (!clients.has(clientId)) return false;
-    return Date.now() > (clients.get(clientId)!.lastMessageTime + time);
+/** override the ladder timings; returns a reset for teardown */
+export function configureAfkTimings(
+    overrides: Partial<AfkTimings> = {},
+): () => void {
+    timings = { ...DEFAULT_TIMINGS, ...overrides };
+    return () => {
+        timings = { ...DEFAULT_TIMINGS };
+    };
 }
+
+function idleFor(clientId: string): number | undefined {
+    const client = clients.get(clientId);
+    if (!client) return undefined;
+    return timings.now() - client.lastMessageTime;
+}
+
 export function markAfkPlayer(clientId: string) {
-    if (!hasTimePassed(clientId, AFK_TIME)) return;
+    const idle = idleFor(clientId);
+    if (idle === undefined || idle <= timings.afkMs) return;
 
     const client = clients.get(clientId)!;
 
@@ -26,7 +53,8 @@ export function markAfkPlayer(clientId: string) {
 
 
 export function startCloseAfkPlayer(clientId: string) {
-    if (!hasTimePassed(clientId, DISCONNECT_TIME)) return;
+    const idle = idleFor(clientId);
+    if (idle === undefined || idle <= timings.disconnectMs) return;
 
     const client = clients.get(clientId)!;
     const msg: ServerConnectionMessage<"START"> = { type: "CLOSE", subtype: "START" };
@@ -45,7 +73,8 @@ export function closeAfkPlayer(clientId: string) {
 
 const OPEN_STATES = [WebSocket.OPEN, WebSocket.CLOSING];
 export function terminateAfkPlayer(clientId: string) {
-    if (!hasTimePassed(clientId, DISCONNECT_TIME + TERMINATE_TIME)) return;
+    const idle = idleFor(clientId);
+    if (idle === undefined || idle <= timings.disconnectMs + timings.terminateMs) return;
 
     const client = clients.get(clientId)!;
 
@@ -59,5 +88,3 @@ export function terminateAfkPlayer(clientId: string) {
         console.log('~~ terminateAfkPlayer:', clientId);
     }
 }
-
-
