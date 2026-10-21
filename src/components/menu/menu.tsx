@@ -43,7 +43,6 @@ export default component$<MenuProps>(({ ctx }) => {
         }
         ctx.show.menu = false;
     });
-    });
 
     return (
         <>
@@ -99,8 +98,8 @@ export default component$<MenuProps>(({ ctx }) => {
                                             onSubmit();
                                             break;
                                         case "[":
-                                            if (state.show.menu)
-                                                state.show.menu = false;
+                                            if (ctx.show.menu)
+                                                ctx.show.menu = false;
                                             break;
                                     }
                                 }

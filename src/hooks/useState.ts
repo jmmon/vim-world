@@ -446,6 +446,7 @@ function useState(world: World<"Client">, ws: Signal<NoSerialize<WebSocket>>,) {
         physics: getClientPhysics(ClientPhysicsMode.NONE),
         dispatch: dispatch$,
         client: {
+            fsm: undefined,
             isReady: false,
             settings: {
                 scrolloff: 10,

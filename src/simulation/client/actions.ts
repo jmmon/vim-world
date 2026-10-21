@@ -1,12 +1,11 @@
 import {
+    CommandVimAction,
     VimAction,
 } from "../../fsm/types";
 import { ActionResult, LocalWorldWrapper } from "~/components/canvas1/types";
 import { applyMoveAction } from "./movement";
 import { applyCommandAction } from "./command";
 import { applyInteraction } from "./interact";
-
-type ApplyActionHandler = (ctx: LocalWorldWrapper, action: VimAction) => ActionResult;
 
 /**
  * doesn't draw anything, only runs collision and updates world state
@@ -18,7 +17,6 @@ export function applyActionToWorld(
     // console.log('applyActionToWorld called with::', {ctx, action})
 
     // basic validation first?? of action: "INVALID_ACTION"
-): ActionResult {
     switch (action.type) {
         case "MOVE":
             return applyMoveAction(ctx, action);
