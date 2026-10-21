@@ -30,7 +30,15 @@ const { router, notFound, staticFile } = createQwikCity({
 });
 
 const server = createServer();
-const wss = initializeWss(); // initialize websocket server
+
+const toNumber = (value: string | undefined) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+};
+const wss = initializeWss({
+    lagMs: toNumber(process.env.VIMWORLD_LAG_MS),
+    jitterMs: toNumber(process.env.VIMWORLD_LAG_JITTER_MS),
+}); // initialize websocket server
 serverLoop(); // start loop (to detect afk) // TODO: implement ticks and tick gating
 
 server.on("request", (req, res) => {

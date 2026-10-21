@@ -1,0 +1,10 @@
+{
+  "proxies": [
+    {
+      "name": "vim-world",
+      "listen": "0.0.0.0:8400",
+      "upstream": "127.0.0.1:3000",
+      "enabled": true
+    }
+  ]
+}

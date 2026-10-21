@@ -3,11 +3,22 @@ import { onClose, onConnect, onMessage } from "./handlers";
 
 let _wss: WebSocketServer | null = null;
 
-function delay<T extends () => void>(cb: T, ms: number) {
-    return new Promise((res) => setTimeout(() => res(cb()), ms))
+export type LagConfig = {
+    /** base delay applied to every inbound frame, in ms */
+    lagMs: number;
+    /** random spread added on top of lagMs, in ms */
+    jitterMs: number;
+};
+
+const NO_LAG: LagConfig = { lagMs: 0, jitterMs: 0 };
+
+function resolveLag(lagMs: number, jitterMs: number): number {
+    if (jitterMs <= 0) return lagMs;
+    return lagMs + Math.random() * jitterMs;
 }
 
-export const initializeWss = () => {
+export const initializeWss = (lag: Partial<LagConfig> = {}) => {
+    const { lagMs, jitterMs } = { ...NO_LAG, ...lag };
     if (!_wss) {
         _wss = new WebSocketServer({ noServer: true }); // will integrate with Qwik server upgrade
 
@@ -16,8 +27,13 @@ export const initializeWss = () => {
             const id = onConnect(ws);
 
             // Client message
-            // ws.on("message", delay(() => onMessage(id), 50));
-            ws.on("message", (ws) => delay(() => onMessage(id)(ws), 50));
+            // artificial lag for testing; off unless configured
+            ws.on("message", (data) => {
+                const handle = onMessage(id);
+                if (lagMs <= 0 && jitterMs <= 0) return handle(data);
+                const delay = resolveLag(lagMs, jitterMs);
+                setTimeout(() => handle(data), delay);
+            });
 
             // Client disconnect
             ws.on("close", onClose(id));
@@ -25,5 +41,3 @@ export const initializeWss = () => {
     }
     return _wss;
 };
-
-

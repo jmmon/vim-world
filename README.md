@@ -76,3 +76,46 @@ pnpm serve
 ```
 
 Then visit [http://localhost:3004/](http://localhost:3004/)
+
+## Testing lag
+
+The tick and reconciliation code is sensitive to message latency, so both
+the server and the network path can be given artificial delay.
+
+The server delays every inbound websocket frame before processing it. It is
+off by default and enabled through the environment:
+
+```shell
+VIMWORLD_LAG_MS=120 pnpm serve
+VIMWORLD_LAG_MS=120 VIMWORLD_LAG_JITTER_MS=40 pnpm serve
+```
+
+`VIMWORLD_LAG_MS` is the base delay, `VIMWORLD_LAG_JITTER_MS` is random
+extra delay on top of it. This covers the client to server direction only,
+so acks still return at full speed.
+
+To test both directions, run the server behind
+[toxiproxy](https://github.com/Shopify/toxiproxy). The checked-in
+`toxiproxy.json` forwards port 8400 to the server on port 3000, covering
+both the HTTP endpoints and the websocket upgrade:
+
+```shell
+toxiproxy-server -config toxiproxy.json
+```
+
+Then add latency while the game is running:
+
+```shell
+for stream in upstream downstream; do
+  curl -s -X POST http://localhost:8474/proxies/vim-world/toxics \
+    -d "{\"name\":\"lag-$stream\",\"type\":\"latency\",\"stream\":\"$stream\",\"toxicity\":1.0,\"attributes\":{\"latency\":40,\"jitter\":10}}"
+done
+```
+
+Point the client at `http://localhost:8400` and remove the toxics to
+restore normal conditions:
+
+```shell
+curl -s -X DELETE http://localhost:8474/proxies/vim-world/toxics/lag-upstream
+curl -s -X DELETE http://localhost:8474/proxies/vim-world/toxics/lag-downstream
+```
