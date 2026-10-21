@@ -146,8 +146,7 @@ function ensureChunksLoaded(visibleChunks: ChunkKey[]) {
 }
 
 function unloadInvisibleChunks(visibleChunks: ChunkKey[]) {
-    for (const _key in chunkCache) {
-        const key = _key as ChunkKey;
+    for (const key of Array.from(chunkCache.keys())) {
         if (!visibleChunks.includes(key)) {
             unloadChunk(key);
         }
