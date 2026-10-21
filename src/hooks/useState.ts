@@ -15,6 +15,7 @@ import {
     ServerInitConfirmMessage,
     ServerOtherPlayerMessage,
     ServerPlayerConnectMessage,
+    ServerPlayerDisconnectMessage,
     SubtypeServerAck,
 } from "~/types/wss/server";
 import useDispatch$ from "./useDispatch";
@@ -342,6 +343,18 @@ export const handlers = {
         ctx.world.players.set(player.id, player);
 
         if (isNew) console.log("other player joined:", player.name, player.id);
+        ctx.client.isDirty.players = true;
+    },
+
+    /** a player left the world; stop rendering them */
+    onPlayerDisconnect: function (
+        ctx: LocalWorldWrapper,
+        data: ServerPlayerDisconnectMessage,
+    ) {
+        if (!data.playerId) return;
+        if (!ctx.world.players.delete(data.playerId)) return;
+
+        console.log("other player left:", data.playerId);
         ctx.client.isDirty.players = true;
     },
 

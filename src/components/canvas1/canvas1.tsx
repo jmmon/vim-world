@@ -3,6 +3,7 @@ import {
     ServerMessage,
     ServerOtherPlayerMessage,
     ServerPlayerConnectMessage,
+    ServerPlayerDisconnectMessage,
 } from "~/types/wss/server";
 import useSeq from "../../hooks/useSeq";
 import useVimFSM from "~/hooks/useVimFSM";
@@ -81,6 +82,11 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
                     handlers.onPlayerConnect(
                         state.ctx,
                         serverMessage as ServerPlayerConnectMessage,
+                    );
+                } else if (serverMessage.subtype === "DISCONNECT") {
+                    handlers.onPlayerDisconnect(
+                        state.ctx,
+                        serverMessage as ServerPlayerDisconnectMessage,
                     );
                 }
                 break;

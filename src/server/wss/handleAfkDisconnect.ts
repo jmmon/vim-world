@@ -1,6 +1,7 @@
 import { ServerAfkMessage, ServerConnectionMessage } from "~/types/wss/server";
 
 import { clients } from "../serverState";
+import { removeClient } from "./handlers";
 
 
 const AFK_TIME = 1 * 60 * 1000;
@@ -52,7 +53,9 @@ export function terminateAfkPlayer(clientId: string) {
         const msg: ServerConnectionMessage<'END'> = { type: "CLOSE", subtype: "END" };
         client.ws.send(JSON.stringify(msg));
         client.ws.terminate();
-        clients.delete(clientId);
+        // remove through the shared path so the other clients are told;
+        // terminate means no close event will reach onClose
+        removeClient(clientId);
         console.log('~~ terminateAfkPlayer:', clientId);
     }
 }

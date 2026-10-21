@@ -24,6 +24,13 @@ export interface ServerPlayerConnectMessage extends ServerBaseMessage {
     player: Player;
 };
 
+/** a player left the world and should stop being rendered */
+export interface ServerPlayerDisconnectMessage extends ServerBaseMessage {
+    type: "PLAYER";
+    subtype: "DISCONNECT";
+    playerId: string;
+};
+
 export type SubtypeServerAck =
     | "CORRECTION"
     | "REJECTION"
@@ -109,6 +116,7 @@ export interface ServerInitConfirmMessage extends ServerBaseMessage {
 export type ServerMessage =
     | ServerOtherPlayerMessage<"MOVE">
     | ServerPlayerConnectMessage
+    | ServerPlayerDisconnectMessage
     | ServerAckMessage<SubtypeServerAck>
     | ServerConnectionMessage<SubtypeConnectionMessage>
     | ServerAfkMessage

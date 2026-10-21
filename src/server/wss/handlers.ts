@@ -114,13 +114,27 @@ export function enqueueClientAction(
 }
 
 
-export const onClose = (clientId: string) => () => {
+/**
+ * take a client out of the world and tell the others to stop rendering it;
+ * used by both the socket close path and the afk terminate path, which
+ * removes the client without waiting for a close event
+ * */
+export function removeClient(clientId: string) {
     const client = clients.get(clientId);
     if (!client) return;
     const playerId = client.playerId;
-    if (playerId) WORLD_WRAPPER.world.players.delete(playerId);
-    client.disconnect();
+    if (!playerId) return;
+    WORLD_WRAPPER.world.players.delete(playerId);
+    messenger.playerDisconnect(clientId, playerId);
     clients.delete(clientId);
+}
+
+
+export const onClose = (clientId: string) => () => {
+    const client = clients.get(clientId);
+    if (!client) return;
+    removeClient(clientId);
+    client.disconnect();
 
     console.log(`Client ${clientId} disconnected`);
 };

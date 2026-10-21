@@ -1,7 +1,13 @@
 import { ReasonCorrection, ReasonRejected } from "~/simulation/server/types";
 import { Player, ServerPlayer } from "~/types/worldTypes";
 import { ClientSession } from "../types";
-import { ServerAckMessage, ServerInitConfirmMessage, ServerOtherPlayerMessage, ServerPlayerConnectMessage } from "~/types/wss/server";
+import {
+    ServerAckMessage,
+    ServerInitConfirmMessage,
+    ServerOtherPlayerMessage,
+    ServerPlayerConnectMessage,
+    ServerPlayerDisconnectMessage,
+} from "~/types/wss/server";
 import { PlayerCheckpoint } from "../checkpointService";
 import { currentServerTick } from "../serverLoop";
 import { ExpandedVimAction } from "~/fsm/types";
@@ -163,6 +169,18 @@ function dispatchPlayerConnect(clientId: string, player: Player) {
     });
 }
 
+/** tells the other clients to stop rendering a player */
+function dispatchPlayerDisconnect(clientId: string, playerId: string) {
+    const playerDisconnect: ServerPlayerDisconnectMessage = {
+        type: "PLAYER",
+        subtype: "DISCONNECT",
+        playerId,
+    };
+    clients.forEach((client, key) => {
+        if (key !== clientId) client.ws.send(JSON.stringify(playerDisconnect));
+    });
+}
+
 const ack = {
     valid: sendAckValid,
     correction: sendCorrection,
@@ -177,6 +195,7 @@ export const message = {
     ack,
     playerMove: dispatchMoveToOthers,
     playerConnect: dispatchPlayerConnect,
+    playerDisconnect: dispatchPlayerDisconnect,
 }
 // export default ack;
 
