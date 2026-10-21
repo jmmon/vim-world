@@ -94,7 +94,7 @@ export const getTickActionHandlerForPlayer = (
             expandedAction
         );
 
-        console.log(`${
+        if (process.env.VIMWORLD_DEBUG === '1') console.log(`${
                 reason ? "reason: " + reason + " " : ""
             }~~ at: tick: ${
                 tick

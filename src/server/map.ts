@@ -261,7 +261,6 @@ export function getSurroundingTiles(
     W?: Tile | false;
     NW?: Tile | false;
 } {
-    console.log({lx, ly, cx: chunk.cx, cy: chunk.cy});
     const n = getWorldCoordsFromChunkLocal(chunk, lx, ly - 1);
     const e = getWorldCoordsFromChunkLocal(chunk, lx + 1, ly);
     const s = getWorldCoordsFromChunkLocal(chunk, lx, ly + 1);
@@ -271,7 +270,6 @@ export function getSurroundingTiles(
     const withinNorth = isPosWithinMapgen(n);
     const withinWest = isPosWithinMapgen(w);
     const withinSouth = isPosWithinMapgen(s);
-    console.log({n, e, w, s}, {withinEast, withinWest, withinNorth, withinSouth});
     // getTileByWorldCoords: causes a loop since it calls generateChunk
     return {
         N: withinNorth && getTileByWorldCoords(zone, n),

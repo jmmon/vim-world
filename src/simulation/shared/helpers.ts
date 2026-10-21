@@ -162,7 +162,6 @@ export function isWalkable(
     // tile collision
     const tile = getTileByWorldCoords(state.world.zone, next);
     if (tile?.collision?.solid) {
-        console.error("unwalkable tile!", { tile });
         return false;
     }
 
@@ -172,7 +171,6 @@ export function isWalkable(
         ({ pos }) => pos && pos.x === next.x && pos.y === next.y,
     );
     if (entity?.collision?.solid) {
-        console.error("reached unwalkable object:", entity);
         return false;
     }
 
@@ -181,7 +179,6 @@ export function isWalkable(
 
     for (const p of state.world.players.values()) {
         if (p.pos.x === next.x && p.pos.y === next.y) {
-            console.error("cannot walk on other players", p);
             return false;
         }
     }

@@ -36,7 +36,7 @@ export const onMessage = (clientId: string) => (message: WebSocket.RawData) => {
     }
 
     const result = getClientAndPlayer(clientId);
-    console.log('onMessage::', {
+    if (process.env.VIMWORLD_DEBUG === '1') console.log('onMessage::', {
         type: clientMessage.type,
         ...('subtype' in clientMessage ? {subtype: clientMessage?.subtype} : {}),
         ...('seq' in clientMessage ? {
