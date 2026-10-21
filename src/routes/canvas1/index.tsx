@@ -9,7 +9,6 @@ export default component$(() => {
     const worldResource = useResource$<World<'Client'>>(async () => {
         const clientWorld = await httpService.api.map();
 
-        console.assert((!clientWorld.players.has), "serverWorld:", clientWorld, '\ntypeof players:', typeof clientWorld.players);
         const rebuiltWorld: World<'Client'> = {
             ...clientWorld,
             players: new Map<string, Player>(
@@ -19,8 +18,6 @@ export default component$(() => {
                 Object.entries(clientWorld.entities),
             ),
         };
-        console.assert(!!rebuiltWorld.players.has, "rebuiltWorld:", rebuiltWorld, '\ntypeof players:', typeof rebuiltWorld.players, '\nMissing .has property');
-        console.assert(!!rebuiltWorld.entities.has, "rebuiltWorld:", rebuiltWorld, '\ntypeof entities:', typeof rebuiltWorld.entities, '\nMissing .has property');
         console.log({rebuiltWorld});
         return rebuiltWorld;
     });

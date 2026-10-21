@@ -15,6 +15,10 @@ node_modules
 .rollup.cache
 tsconfig.tsbuildinfo
 
+# Tooling output
+/graphify-out
+/tmp
+
 # Logs
 logs
 *.log
