@@ -22,9 +22,17 @@ export const onConnect = (ws: WebSocket) => {
 };
 
 export const onMessage = (clientId: string) => (message: WebSocket.RawData) => {
-    const clientMessage = JSON.parse(
-        message.toString(),
-    ) as ClientMessage;
+    let clientMessage: ClientMessage;
+    try {
+        const parsed = JSON.parse(message.toString());
+        if (!parsed || typeof parsed !== 'object' || typeof parsed.type !== 'string') {
+            throw new Error('missing message type');
+        }
+        clientMessage = parsed as ClientMessage;
+    } catch (err) {
+        console.error('discarding malformed message', clientId, err);
+        return;
+    }
 
     const result = getClientAndPlayer(clientId);
     console.log('onMessage::', {
