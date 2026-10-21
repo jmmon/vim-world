@@ -22,6 +22,7 @@ import useDispatch$ from "./useDispatch";
 import { VimAction } from "~/fsm/types";
 import { World } from "~/server/types";
 import viewport from "~/simulation/client/viewport";
+import { isStaleDisconnect, recordSession } from "~/simulation/client/sessions";
 import { initCommandLineState } from "~/simulation/shared/actions/command";
 
 export const handlers = {
@@ -336,10 +337,14 @@ export const handlers = {
         ctx: LocalWorldWrapper,
         data: ServerPlayerConnectMessage,
     ) {
-        const { player } = data;
+        const { player, sessionId } = data;
         if (!player?.id || player.id === ctx.client.player?.id) return;
 
-        const isNew = !ctx.world.players.has(player.id);
+        const isNew = recordSession(
+            ctx.client.otherPlayerSessions,
+            player.id,
+            sessionId,
+        );
         ctx.world.players.set(player.id, player);
 
         if (isNew) console.log("other player joined:", player.name, player.id);
@@ -352,7 +357,15 @@ export const handlers = {
         data: ServerPlayerDisconnectMessage,
     ) {
         if (!data.playerId) return;
+
+        // a reconnecting player's new session may already have arrived, in
+        // which case this disconnect belongs to the session they left behind
+        if (isStaleDisconnect(ctx.client.otherPlayerSessions, data.playerId, data.sessionId)) {
+            return;
+        }
+
         if (!ctx.world.players.delete(data.playerId)) return;
+        delete ctx.client.otherPlayerSessions[data.playerId];
 
         console.log("other player left:", data.playerId);
         ctx.client.isDirty.players = true;
@@ -505,6 +518,7 @@ function useState(world: World<"Client">, ws: Signal<NoSerialize<WebSocket>>,) {
             commandLineDisplay: "", // to be displayed in the bar // TODO: mimick server logic and structure
             lastSnapshot: undefined,
             lastAckCheckpoint: undefined,
+            otherPlayerSessions: {},
         },
         show: {
             help: false,

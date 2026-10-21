@@ -21,6 +21,8 @@ export interface ServerOtherPlayerMessage<T extends SubtypeOtherPlayerMessage> e
 export interface ServerPlayerConnectMessage extends ServerBaseMessage {
     type: "PLAYER";
     subtype: "CONNECT";
+    /** server session the player is attached to, used to order it against disconnects */
+    sessionId: string;
     player: Player;
 };
 
@@ -28,6 +30,8 @@ export interface ServerPlayerConnectMessage extends ServerBaseMessage {
 export interface ServerPlayerDisconnectMessage extends ServerBaseMessage {
     type: "PLAYER";
     subtype: "DISCONNECT";
+    /** session that left; receivers ignore it if the player already reconnected elsewhere */
+    sessionId: string;
     playerId: string;
 };
 

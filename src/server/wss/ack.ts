@@ -162,6 +162,7 @@ function dispatchPlayerConnect(clientId: string, player: Player) {
     const playerConnect: ServerPlayerConnectMessage = {
         type: "PLAYER",
         subtype: "CONNECT",
+        sessionId: clientId,
         player: serializable,
     };
     clients.forEach((client, key) => {
@@ -174,6 +175,7 @@ function dispatchPlayerDisconnect(clientId: string, playerId: string) {
     const playerDisconnect: ServerPlayerDisconnectMessage = {
         type: "PLAYER",
         subtype: "DISCONNECT",
+        sessionId: clientId,
         playerId,
     };
     clients.forEach((client, key) => {

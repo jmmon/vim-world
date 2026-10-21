@@ -208,6 +208,29 @@ export const onClose = (clientId: string) => () => {
  * load checkpoint, should exist
  * set into world
  * */
+/**
+ * a player is only ever driven by one session: a reconnecting browser
+ * still has the previous socket alive briefly, and two sessions acting on
+ * the same player would race each other's acks
+ *
+ * the player stays in the world, since the incoming session takes over
+ * from the one being retired
+ * */
+function kickOtherSessions(playerId: string, keepClientId: string) {
+    for (const client of Array.from(clients.values())) {
+        if (client.clientId === keepClientId) continue;
+        if (client.playerId !== playerId) continue;
+
+        console.log(
+            `kicking stale session ${client.clientId} for playerId ${playerId}`,
+        );
+        messenger.playerDisconnect(client.clientId, playerId);
+        clients.delete(client.clientId);
+        client.ws.send(JSON.stringify({ type: "CLOSE" }));
+        client.ws.close();
+    }
+}
+
 function handleInit(clientId: string, { playerId }: ClientInitMessage) {
     // register the playerId
     const client = clients.get(clientId)!;
@@ -223,6 +246,9 @@ function handleInit(clientId: string, { playerId }: ClientInitMessage) {
         console.log(`assigning playerId ${playerId} to client: ${clientId}`);
         client.playerId = playerId;
     }
+
+    // drop any older session still holding this player before announcing ours
+    kickOtherSessions(playerId, clientId);
 
     const checkpoint = checkpointService._loadCheckpoint(playerId); // default or existing
     console.assert(checkpoint, `!!No checkpoint found for playerId ${playerId}!!`);

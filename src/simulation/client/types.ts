@@ -4,6 +4,7 @@ import { ExpandedVimAction, VimAction } from "~/fsm/types";
 import { PlayerCheckpoint } from "~/server/checkpointService";
 import { World } from "~/server/types";
 import { PhysicsMode } from "~/simulation/shared/physics";
+import { SessionMap } from "./sessions";
 import { CommandLineState, Player, Vec2 } from "~/types/worldTypes";
 
 export interface Prediction {
@@ -50,6 +51,8 @@ export type ClientData = {
     lastSnapshot?: Player;
     lastAckCheckpoint?: PlayerCheckpoint;
     viewport: Viewport;
+    /** server session each other player is attached to, keyed by playerId */
+    otherPlayerSessions: SessionMap;
 };
 export type InitializeClientData = {
     player: Player;
