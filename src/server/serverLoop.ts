@@ -12,11 +12,12 @@ import { ActionResult } from "~/simulation/types";;
 
 export let currentServerTick = 0;
 
+/** @returns a handle that stops the loop; the production entry ignores it */
 export default function serverLoop() {
     console.log('started serverLoop');
     let before = Date.now();
 
-    setInterval(() => {
+    const intervalId = setInterval(() => {
         // TODO: some other loop to process actions...
         // // e.g. process one move action per tick from the player's action queue
 
@@ -33,6 +34,11 @@ export default function serverLoop() {
 
         currentServerTick++;
     }, 50);
+
+    return () => {
+        clearInterval(intervalId);
+        console.log('stopped serverLoop');
+    };
 }
 
 

@@ -48,6 +48,31 @@ npm start # or `pnpm start`
 
 > Note: during dev mode, Vite may request a significant number of `.js` files. This does not represent a Qwik production build.
 
+### Multiplayer in dev
+
+The websocket server and the server tick loop also run under the dev server,
+so the game works in development without a production build: open the page,
+pick a name, and other browser tabs or clients on the same machine see each
+other. This works by loading the game modules through Vite's own module
+loader, the same one the route endpoints use, so `/api/player` and the
+socket share a single world.
+
+Editing a server-side file (`src/server`, `src/simulation`, `src/types`,
+`src/services/chunk.ts`) reloads those modules, so the dev server stops the
+old tick loop, closes every open socket and starts a new one. Clients are
+sent back to the login screen and the in-memory world is rebuilt. That reset
+is inherent to keeping the world in memory; nothing is left half-updated in
+the meantime.
+
+The artificial lag variables described below work in dev as well:
+
+```shell
+VIMWORLD_LAG_MS=120 pnpm dev
+```
+
+`pnpm preview` does not serve the websocket. Use `pnpm dev` or `pnpm serve`
+for multiplayer.
+
 ## Preview
 
 The preview command will create a production build of the client modules, a production build of `src/entry.preview.tsx`, and run a local server. The preview server is only for convenience to preview a production build locally and should not be used as a production server.

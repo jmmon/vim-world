@@ -8,6 +8,7 @@ import { qwikCity } from "@builder.io/qwik-city/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import pkg from "./package.json";
 import tailwindcss from "@tailwindcss/vite";
+import { devGameServer } from "./plugins/dev-server";
 
 type PkgDep = Record<string, string>;
 const { dependencies = {}, devDependencies = {} } = pkg as any as {
@@ -27,6 +28,8 @@ export default defineConfig(({ command, mode }): UserConfig => {
       qwikVite(),
       tsconfigPaths({ root: "." }),
       tailwindcss(),
+      // websocket + tick loop in dev, shared with the route endpoints
+      devGameServer(),
     ],
     // This tells Vite which dependencies to pre-build in dev mode.
     optimizeDeps: {
