@@ -553,11 +553,11 @@ export function drawStatus(state: GameState) {
     );
 
     // lower line: command buffer
-    if (state.ctx.client.commandBuffer.length === 0) return;
+    if (state.ctx.client.commandLineDisplay.length === 0) return;
     d.ctx.textAlign = "left";
     d.ctx.fillStyle = "white";
     d.ctx.fillText(
-        state.ctx.client.commandBuffer,
+        state.ctx.client.commandLineDisplay,
         d.x + d.leftPadding,
         d.y + d.fontSize * 2 - 2,
     );

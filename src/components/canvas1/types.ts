@@ -1,5 +1,5 @@
 import { ExpandedVimAction, VimAction } from "~/fsm/types";
-import { Player, Vec2 } from "~/types/worldTypes";
+import { CommandLineState, Player, Vec2 } from "~/types/worldTypes";
 import { PhysicsMode } from "~/simulation/shared/physics";
 import { PlayerCheckpoint } from "~/server/checkpointService";
 import useDispatch$ from "~/hooks/useDispatch";
@@ -53,7 +53,8 @@ export type ClientData = {
     inputBuffer: Prediction[];
     actionQueue: ExpandedVimAction[];
     tick: number;
-    commandBuffer: string;
+    commandLineDisplay: string;
+    commandLineState?: CommandLineState;
     lastSnapshot?: Player;
     lastAckCheckpoint?: PlayerCheckpoint;
     viewport: Viewport;

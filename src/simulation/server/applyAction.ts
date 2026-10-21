@@ -33,7 +33,7 @@ function applyInteractToServerWorld(ctx: ServerWorldWrapper, player: Player, act
     return undefined;
 }
 
-function applyTargetToServerWorld(world: ServerWorldWrapper, player: ServerPlayer, action: ExpandedVimAction) {
+function applyTargetToServerWorld(_world: ServerWorldWrapper, _player: ServerPlayer, _action: ExpandedVimAction) {
     console.log('"TARGET" !!Not yet implemented...');
     return 'INVALID_ACTION' as ActionResult["reason"];
 }
@@ -43,6 +43,7 @@ export const serverApplyAction: Record<VimActionType, (world: ServerWorldWrapper
     "COMMAND": applyCommandToPlayerCommandState,
     "COMMAND_PARTIAL": applyCommandToPlayerCommandState,
     "COMMAND_PROMPT": applyCommandToPlayerCommandState,
+    "COMMAND_LINE": applyCommandToPlayerCommandState,
     "TARGET": applyTargetToServerWorld,
 }
 

@@ -26,6 +26,7 @@ export function applyActionToWorld(
             return applyInteraction(ctx, action);
         case "COMMAND_PROMPT":
         case "COMMAND_PARTIAL":
+        case "COMMAND_LINE":
         case "COMMAND":
             return applyCommandAction(ctx, action as CommandVimAction);
         default:

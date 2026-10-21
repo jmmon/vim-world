@@ -4,14 +4,13 @@ import {
     ActionResult,
 } from "~/components/canvas1/types";
 import { CommandVimAction } from "../../fsm/types";
-import { SPECIAL_KEY_VALUES, SpecialKeyValues } from "~/fsm/transtionTable";
 import {
     ClientPhysicsMode,
     PhysicsMode,
     getClientPhysics,
 } from "../shared/physics";
 import viewport from "./viewport";
-import { handlers } from "~/hooks/useState";
+import { applyCommandToPlayerCommandState } from "../shared/actions/command";
 
 const QUIT_ACTIONS = [
     "q",
@@ -43,19 +42,13 @@ export function applyCommandAction(
     console.log("applyCommandAction::", action);
     const result = { reason: undefined, isDirty: false };
 
-    if (action.type === "COMMAND_PROMPT") {
-        ctx.client.commandBuffer = ":";
-        return result;
+    if (action.type === "COMMAND_PROMPT" || action.type === "COMMAND_PARTIAL" || action.type === "COMMAND_LINE") {
+        applyCommandToPlayerCommandState(ctx, ctx.client, action);
+        ctx.client.commandLineDisplay = ":" + ctx.client.commandLineState!.buffer;
+        if (action.type !== "COMMAND_LINE") return result;
     }
-    if (action.type === "COMMAND_PARTIAL") {
-        // or could parse before dispatching to server to avoid long strings with lots of special sequences
-        // unless commands need to do something on the server, then it should parse the list of keystrokes itself!
-        const command2 = parseCommand(action.command);
-        ctx.client.commandBuffer = ":" + command2;
-        return result;
-    }
-    
-    ctx.client.commandBuffer = "";
+
+    ctx.client.commandLineDisplay = "";
 
     const modalTarget = modalMap[action.command];
     if (modalTarget) {
@@ -243,53 +236,4 @@ function updateSetting(
         isDirty = viewport.updateDimensions(ctx);
     }
     return { reason: undefined, isDirty };
-}
-
-function parseCommand(input: string): string {
-    const tokens = input.match(/<[^>]+>|./g) ?? [];
-    const buffer: string[] = [];
-    let cursorIndex = 0;
-
-    // TODO: <Del>, <Tab>, <Enter>, <LEFT>, <RIGHT>, <UP>, <DOWN>
-    for (const token of tokens) {
-        if (SPECIAL_KEY_VALUES.includes(token)) {
-            switch (token as SpecialKeyValues) {
-                case "<BS>":
-                    cursorIndex = Math.max(0, cursorIndex - 1);
-                    buffer.pop(); // remove the previous token
-                    break;
-                case "<Del>":
-                    // TODO: if char on the right of cursorIndex, remove it
-                    if (buffer[cursorIndex + 1]) {
-                        buffer.splice(cursorIndex + 1, 1);
-                    }
-                    break;
-                case "<LEFT>":
-                    // TODO:
-                    cursorIndex = Math.max(0, cursorIndex - 1);
-                    break;
-                case "<RIGHT>":
-                    // TODO: check Math.min
-                    cursorIndex = Math.min(buffer.length - 1, cursorIndex + 1);
-                    break;
-                case " ":
-                    buffer.splice(cursorIndex, 0, token);
-                    cursorIndex++;
-                    break;
-
-                case "<UP>":
-                case "<DOWN>":
-                case "<Tab>":
-                case "<CR>":
-                default:
-                    // ignore
-                    break;
-            }
-        } else {
-            buffer.splice(cursorIndex, 0, token); // insert (token);
-            cursorIndex++;
-        }
-    }
-
-    return buffer.join("");
 }

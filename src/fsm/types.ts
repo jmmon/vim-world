@@ -1,5 +1,9 @@
 export type VimMode = "normal" | "operator" | "awaitingChar" | "command";
-export type CommandVimActionType = "COMMAND" | "COMMAND_PROMPT" | "COMMAND_PARTIAL"
+export type CommandVimActionType =
+    | "COMMAND"
+    | "COMMAND_PROMPT"
+    | "COMMAND_PARTIAL"
+    | "COMMAND_LINE";
 export type VimActionType = "MOVE" | "INTERACT" | "TARGET" | CommandVimActionType;
 export type OperatorKey = "y" | "d" | "c" | "p";
 export type AwaitingCharKey = "f" | "F" | "t" | "T" | "g";
@@ -14,7 +18,7 @@ export type TargetKey =
     | ")"
     | "<"
     | ">"
-    | '"' 
+    | '"'
     | "'"
     | "`";
 

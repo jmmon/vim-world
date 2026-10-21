@@ -1,15 +1,18 @@
+import { ClientData } from "~/components/canvas1/types";
 import { SPECIAL_KEY_VALUES, SpecialKeyValues } from "~/fsm/transtionTable";
 import { VimAction } from "~/fsm/types";
 import { CommandLineState, ServerPlayer } from "~/types/worldTypes";
 
-export function applyCommandToPlayerCommandState(_: any, player: ServerPlayer, action: VimAction) {
+export function applyCommandToPlayerCommandState(_: any, player: ServerPlayer | ClientData, action: VimAction) {
+    player.commandLineState ??= initCommandLineState();
     switch(action.type) {
         case "COMMAND_PROMPT":
-            player.commandLineState.reset();
+            player.commandLineState?.reset();
             break;
         case "COMMAND_PARTIAL":
         case "COMMAND":
-            player.commandLineState.handleKey(action.command!);
+        case "COMMAND_LINE":
+            player.commandLineState?.handleKey(action.command!);
             break;
     }
     return undefined;
@@ -22,17 +25,17 @@ export function initCommandLineState() {
         cursor: 0,
         /* e.g. takes single keypress such as <LEFT> or <BACKSPACE> or a,b,c etc
          */
-        handleKey: function (this: CommandLineState, command: string) {
+        handleKey(this: CommandLineState, command: string) {
             console.log('handleKey:', {bufferRaw: this.bufferRaw, buffer: this.buffer, cursor: this.cursor, incomingCommand: command});
             this.bufferRaw = command;
             parseCommand(this);
             console.log('after handleKey::', {bufferRaw: this.bufferRaw, buffer: this.buffer, cursor: this.cursor});
         },
-        prompt: function (this: CommandLineState) {
+        prompt(this: CommandLineState) {
             this.buffer = this.bufferRaw = ":";
             this.cursor = 1;
         },
-        reset: function(this: CommandLineState) {
+        reset(this: CommandLineState) {
             this.buffer = this.bufferRaw = "";
             this.cursor = 0;
         },

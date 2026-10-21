@@ -26,7 +26,7 @@ export const VALID_YANK_PASTE_TARGETS: TargetKey[] = [
     "`",
 ];
 
-export type SpecialKeyValues = 
+export type SpecialKeyValues =
     | "<BS>"
     | "<CR>"
     | "<Tab>"
@@ -233,7 +233,7 @@ export const transitionTable: Record<VimMode, TransitionFn> = {
             return {
                 state: "__reset__",
                 emit: {
-                    type: "COMMAND",
+                    type: "COMMAND_LINE",
                     command: state.buffer.join(""),
                 },
             };

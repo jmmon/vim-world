@@ -24,6 +24,7 @@ import useDispatch$ from "./useDispatch";
 import { VimAction } from "~/fsm/types";
 import { World } from "~/server/types";
 import viewport from "~/simulation/client/viewport";
+import { initCommandLineState } from "~/simulation/shared/actions/command";
 
 export const handlers = {
     markAllDirty: function (ctx: LocalWorldWrapper) {
@@ -119,7 +120,7 @@ export const handlers = {
                 return true;
             case "COMMAND_PARTIAL":
                 // update the statusbar as chars are typed
-                ctx.client.commandBuffer =
+                ctx.client.commandLineDisplay =
                     ":" + msg.authoritativeState!.commandLineState!.buffer;
                 return true;
             case "COMMAND": {
@@ -140,7 +141,7 @@ export const handlers = {
                 console.assert(command.length, "no command found");
 
                 // finalize statusbar so correct command can run
-                ctx.client.commandBuffer = command;
+                ctx.client.commandLineDisplay = command;
 
                 const reason = applyActionToWorld(ctx, {
                     type: "COMMAND",
@@ -382,6 +383,8 @@ export const handlers = {
         ctx.client.usernameHash = data.usernameHash;
         ctx.client.lastProcessedSeq = -1;
 
+        ctx.client.commandLineState ??= initCommandLineState();
+
         chunkService.handleVisibleChunksChange(
             ctx.client.player.pos,
             ctx.world.config,
@@ -480,7 +483,7 @@ function useState(world: World<"Client">, ws: Signal<NoSerialize<WebSocket>>,) {
             inputBuffer: [],
             actionQueue: [],
             tick: -1,
-            commandBuffer: "", // to be displayed in the bar // TODO: mimick server logic and structure
+            commandLineDisplay: "", // to be displayed in the bar // TODO: mimick server logic and structure
             lastSnapshot: undefined,
             lastAckCheckpoint: undefined,
         },

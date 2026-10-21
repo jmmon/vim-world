@@ -3,7 +3,6 @@ import { ServerMessage, ServerOtherPlayerMessage } from "~/types/wss/server";
 import useSeq from "../../hooks/useSeq";
 import useVimFSM from "~/hooks/useVimFSM";
 import { useNavigate } from "@builder.io/qwik-city";
-// import { applyActionToWorld } from "~/simulation/client/actions";
 import ChooseUsername from "../choose-username/choose-username";
 import useWebSocket from "~/hooks/useWebSocket";
 import Menu from "../menu/menu";
