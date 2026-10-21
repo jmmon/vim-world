@@ -13,6 +13,8 @@ import { expandAction } from "~/simulation/shared/loop/helpers";
 import { MOVEMENT_CONFIG } from "~/simulation/shared/loop/loop";
 import { createClientData, getClientAndPlayer, hasPlayerId } from "./helpers";
 import { message as messenger } from "./ack";
+import serverValidators from "~/simulation/server/validators";
+import { ExpandedVimAction } from "~/fsm/types";
 
 
 export const onConnect = (ws: WebSocket) => {
@@ -59,18 +61,31 @@ export const onMessage = (clientId: string) => (message: WebSocket.RawData) => {
             break;
         case('ACTION'):
             if (result === false || !result.player) return;
-            if (enqueueClientAction(result.player, clientMessage)) break;
-            // queue is saturated: skip the action and tell the client it was dropped
-            result.player.lastProcessedSeq = Math.max(
-                result.player.lastProcessedSeq,
-                clientMessage.seq,
-            );
-            messenger.ack.send(result.client, result.player, 'INVALID_ACTION', {
-                ...clientMessage.action,
-                remaining: 0,
-                seq: clientMessage.seq,
-                clientTime: clientMessage.clientTime,
-            });
+            {
+                const { client, player } = result;
+                const receivedAction: ExpandedVimAction = {
+                    ...clientMessage.action,
+                    remaining: 0,
+                    seq: clientMessage.seq,
+                    clientTime: clientMessage.clientTime,
+                };
+                // validate once per message, before it reaches the queue
+                const reason = serverValidators.basic(client, player, receivedAction);
+                if (reason !== null || !enqueueClientAction(player, clientMessage)) {
+                    // advance the sequence so the client stops predicting the
+                    // action we are refusing to run
+                    player.lastProcessedSeq = Math.max(
+                        player.lastProcessedSeq,
+                        clientMessage.seq,
+                    );
+                    messenger.ack.send(
+                        client,
+                        player,
+                        reason ?? 'INVALID_ACTION',
+                        receivedAction,
+                    );
+                }
+            }
             break;
         case('CHECKPOINT'):
             if (clientMessage.subtype === 'SAVE') {

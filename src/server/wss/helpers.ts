@@ -67,26 +67,16 @@ export const hasPlayerId = (
 
 
 export const getTickActionHandlerForPlayer = (
-    client: ClientSession,
+    _client: ClientSession,
     player: ServerPlayer,
 ) => (
         ctx: ServerWorldWrapper,
         expandedAction: ExpandedVimAction,
         tick: number,
     ) => {
-        const reasonValidity = serverActionValidators.basic(
-            client,
-            player,
-            expandedAction
-        );
-        if (reasonValidity !== null) {
-            // TODO: check this::
-            player.lastProcessedSeq = Math.max(
-                player.lastProcessedSeq,
-                expandedAction.seq
-            );
-            return reasonValidity;
-        }
+        // sequence validation happens once per message on receipt, before the
+        // action is queued: the tick loop advances lastProcessedSeq ahead of
+        // the handler, so checking it here would reject every action
         // modify server world player state
         const reason = serverApplyAction[expandedAction.type](
             ctx,
