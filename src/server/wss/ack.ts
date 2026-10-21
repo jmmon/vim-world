@@ -6,7 +6,7 @@ import { PlayerCheckpoint } from "../checkpointService";
 import { currentServerTick } from "../serverLoop";
 import { ExpandedVimAction } from "~/fsm/types";
 import { clients } from "../serverState";
-import { ActionResult } from "~/components/canvas1/types";
+import { ActionResult } from "~/simulation/types";;
 
 export type AckResponseDataType = ReasonRejected | ReasonCorrection | "UNHANDLED" |  undefined;
 interface AckResponseDataBase {

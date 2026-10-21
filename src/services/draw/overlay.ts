@@ -2,7 +2,7 @@ import { roundToDecimals } from "~/utils/utils";
 import { generateOldDimensions, hasScaleChanged } from "./utils";
 import { GameState } from "~/hooks/useState";
 import { MapConfig } from "~/server/map";
-import { Viewport } from "~/components/canvas1/types";
+import { Viewport } from "~/simulation/client/types";;
 import chunkService, { __visibleChunks } from "../chunk";
 
 // probably should not be using viewportWidthPx, instead use viewportWidthBlocks * tileSize * scale

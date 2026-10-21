@@ -1,4 +1,4 @@
-import { LocalWorldWrapper, Viewport } from "~/components/canvas1/types";
+import { LocalWorldWrapper, Viewport } from "~/simulation/client/types";;
 import { PlayerCheckpoint } from "~/server/checkpointService";
 import { World, ServerWorldWrapper } from "~/server/types";
 import chunkService from "~/services/chunk";

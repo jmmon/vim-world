@@ -6,7 +6,7 @@ import {
     isServer,
     sync$,
 } from "@builder.io/qwik";
-import { LocalWorldWrapper } from "../canvas1/types";
+import { LocalWorldWrapper } from "~/simulation/client/types";;
 import { roundToDecimals } from "~/utils/utils";
 import { getScaledTileSize } from "~/services/draw/utils";
 import { handlers } from "~/hooks/useState";

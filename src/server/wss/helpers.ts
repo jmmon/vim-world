@@ -7,7 +7,7 @@ import { message } from "./ack";
 import { serverApplyAction } from "~/simulation/server/applyAction";
 import { ExpandedVimAction } from "~/fsm/types";
 import serverActionValidators from "~/simulation/server/validators";
-import { ActionResult } from "~/components/canvas1/types";
+import { ActionResult } from "~/simulation/types";;
 import { logObj } from "~/utils/utils";
 
 export const createClientData = (ws: WebSocket, clientId: string): ClientSession => ({

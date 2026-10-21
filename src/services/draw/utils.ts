@@ -1,5 +1,5 @@
 import { WorldEntity } from "~/types/worldTypes";
-import { LocalWorldWrapper, Viewport } from "../../components/canvas1/types";
+import { LocalWorldWrapper, Viewport } from "~/simulation/client/types";;
 import { GameState } from "~/hooks/useState";
 import { MapConfig } from "~/server/map";
 

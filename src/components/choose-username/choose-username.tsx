@@ -2,7 +2,7 @@ import { $, component$, useSignal, useVisibleTask$ } from "@builder.io/qwik";
 import { server$ } from "@builder.io/qwik-city";
 import crypto from "node:crypto";
 import httpService from "~/services/http";
-import { LocalWorldWrapper } from "../canvas1/types";
+import { LocalWorldWrapper } from "~/simulation/client/types";;
 import { handlers } from "~/hooks/useState";
 
 const serverHash$ = server$((str: string) =>

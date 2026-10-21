@@ -2,7 +2,8 @@ import {
     CommandVimAction,
     VimAction,
 } from "../../fsm/types";
-import { ActionResult, LocalWorldWrapper } from "~/components/canvas1/types";
+import { LocalWorldWrapper } from "~/simulation/client/types";
+import { ActionResult } from "~/simulation/types";;
 import { applyMoveAction } from "./movement";
 import { applyCommandAction } from "./command";
 import { applyInteraction } from "./interact";

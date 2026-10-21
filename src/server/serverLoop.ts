@@ -8,7 +8,7 @@ import { ServerPlayer } from "~/types/worldTypes";
 import { ReasonRejected } from "~/simulation/server/types";
 import { ExpandedVimAction } from "~/fsm/types";
 import checkpointService from "./checkpointService";
-import { ActionResult } from "~/components/canvas1/types";
+import { ActionResult } from "~/simulation/types";;
 
 export let currentServerTick = 0;
 

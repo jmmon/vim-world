@@ -1,8 +1,5 @@
-import {
-    VimSettings,
-    LocalWorldWrapper,
-    ActionResult,
-} from "~/components/canvas1/types";
+import { LocalWorldWrapper, VimSettings } from "~/simulation/client/types";
+import { ActionResult } from "~/simulation/types";;
 import { CommandVimAction } from "../../fsm/types";
 import {
     ClientPhysicsMode,

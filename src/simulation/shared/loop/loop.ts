@@ -1,6 +1,7 @@
 import { isBrowser } from "@builder.io/qwik";
-import { ActionResult, ClientData, LocalWorldWrapper } from "~/components/canvas1/types";
-import { buildGetEma } from "~/components/canvas1/utils";
+import { ClientData, LocalWorldWrapper } from "~/simulation/client/types";
+import { ActionResult } from "~/simulation/types";;
+import { buildGetEma } from "~/utils/math";
 import { ExpandedVimAction } from "~/fsm/types";
 import { ServerWorldWrapper } from "~/server/types";
 import { ReasonRejected } from "~/simulation/server/types";

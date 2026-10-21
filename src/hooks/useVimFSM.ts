@@ -7,7 +7,7 @@ import {
 } from "@builder.io/qwik";
 import { VimAction } from "../fsm/types";
 import { VimFSM } from "../fsm/fsm";
-import { LocalWorldWrapper } from "~/components/canvas1/types";
+import { LocalWorldWrapper } from "~/simulation/client/types";;
 
 /** =======================================================
  *          keyboard actions; apply to world

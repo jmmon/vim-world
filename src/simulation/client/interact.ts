@@ -1,4 +1,5 @@
-import { ActionResult, LocalWorldWrapper } from "~/components/canvas1/types";
+import { LocalWorldWrapper } from "~/simulation/client/types";
+import { ActionResult } from "~/simulation/types";;
 import {
     ModifierKey,
     OperatorKey,

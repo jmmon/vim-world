@@ -4,7 +4,7 @@ import { ModifierKey, OperatorKey, TargetKey, ExpandedVimAction, VimActionType }
 import serverValidators from "./validators";
 import { ServerWorldWrapper } from "~/server/types";
 import { applyCommandToPlayerCommandState } from "../shared/actions/command";
-import { ActionResult } from "~/components/canvas1/types";
+import { ActionResult } from "~/simulation/types";;
 import { isValidMove } from "../shared/helpers";
 import { ValidateMoveCorrection, ValidateMoveValid } from "./types";
 

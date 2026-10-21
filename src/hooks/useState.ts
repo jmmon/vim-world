@@ -1,10 +1,6 @@
 import { NoSerialize, Signal, useSignal, useStore } from "@builder.io/qwik";
-import {
-    InitializeClientData,
-    IsDirty,
-    LocalWorldWrapper,
-    ApplyActionDirtyResult,
-} from "../components/canvas1/types";
+import { InitializeClientData, IsDirty, LocalWorldWrapper } from "~/simulation/client/types";
+import { ApplyActionDirtyResult } from "~/simulation/types";;
 import { Player } from "~/types/worldTypes";
 import { mergePlayerState } from "~/simulation/shared/helpers";
 import { applyActionToWorld } from "~/simulation/client/actions";

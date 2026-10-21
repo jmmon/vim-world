@@ -9,7 +9,7 @@ import {
     OPERATOR_KEYS,
     VALID_YANK_PASTE_TARGETS,
 } from "~/fsm/transtionTable";
-import { LocalWorldWrapper } from "~/components/canvas1/types";
+import { LocalWorldWrapper } from "~/simulation/client/types";;
 import {
     FindObjectsInRangeError,
     FindObjectsInRangeResult,

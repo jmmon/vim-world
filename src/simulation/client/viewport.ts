@@ -1,4 +1,4 @@
-import { LocalWorldWrapper, Viewport } from "~/components/canvas1/types";
+import { LocalWorldWrapper, Viewport } from "~/simulation/client/types";;
 import { MapConfig } from "~/server/map";
 import { Vec2 } from "~/types/worldTypes";
 import { subtractPos } from "../shared/helpers";

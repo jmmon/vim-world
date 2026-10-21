@@ -1,7 +1,5 @@
-import {
-    ActionResult,
-    LocalWorldWrapper,
-} from "~/components/canvas1/types";
+import { LocalWorldWrapper } from "~/simulation/client/types";
+import { ActionResult } from "~/simulation/types";;
 import { VimAction } from "../../fsm/types";
 import chunkService from "~/services/chunk";
 import viewport from "./viewport";

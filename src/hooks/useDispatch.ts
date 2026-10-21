@@ -2,7 +2,7 @@ import { $, NoSerialize, Signal } from "@builder.io/qwik";
 import { dispatch } from "./useWebSocket";
 import { Player } from "~/types/worldTypes";
 import { VimAction } from "~/fsm/types";
-import { LocalWorldWrapper } from "~/components/canvas1/types";
+import { LocalWorldWrapper } from "~/simulation/client/types";;
 
 export default function useDispatch$(ws: Signal<NoSerialize<WebSocket>>) {
     return {

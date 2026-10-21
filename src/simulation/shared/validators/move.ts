@@ -17,7 +17,7 @@ import {
     ValidateMoveValid,
 } from "../../server/types";
 import { ServerWorldWrapper } from "~/server/types";
-import { LocalWorldWrapper } from "~/components/canvas1/types";
+import { LocalWorldWrapper } from "~/simulation/client/types";;
 
 function validateMove(
     ctx: LocalWorldWrapper | ServerWorldWrapper,

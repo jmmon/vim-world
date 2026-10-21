@@ -2,7 +2,7 @@
 //
 // in future, this would be the DASH platform interface
 
-import { getRandomHSLColor } from "~/components/canvas1/utils";
+import { getRandomHSLColor } from "~/utils/color";
 import { Direction, Player, SessionAggregate } from "~/types/worldTypes";
 
 export type PlayerCheckpoint = {

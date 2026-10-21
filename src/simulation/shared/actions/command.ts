@@ -1,4 +1,4 @@
-import { ClientData } from "~/components/canvas1/types";
+import { ClientData } from "~/simulation/client/types";;
 import { SPECIAL_KEY_VALUES, SpecialKeyValues } from "~/fsm/transtionTable";
 import { VimAction } from "~/fsm/types";
 import { CommandLineState, ServerPlayer } from "~/types/worldTypes";
