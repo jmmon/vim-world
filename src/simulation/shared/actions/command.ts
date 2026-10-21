@@ -46,7 +46,7 @@ function parseCommand(commandLineState: CommandLineState) {
     const tokens = commandLineState.bufferRaw.match(/<[^>]+>|./g) ?? [];
     const buffer: string[] = [];
 
-    // TODO: <Del>, <Tab>, <Enter>, <LEFT>, <RIGHT>, <UP>, <DOWN>
+    // TODO: <Tab>, <Enter>, <UP>, <DOWN>
     for (const token of tokens) {
         if (SPECIAL_KEY_VALUES.includes(token)) {
             switch (token as SpecialKeyValues) {
@@ -55,10 +55,7 @@ function parseCommand(commandLineState: CommandLineState) {
                     buffer.pop(); // remove the previous token
                     break;
                 case "<Del>":
-                    // TODO: if char on the right of cursorIndex, remove it
-                    if (buffer[commandLineState.cursor + 1]) {
-                        buffer.splice(commandLineState.cursor + 1, 1);
-                    }
+                    buffer.splice(commandLineState.cursor, 1);
                     break;
                 case "<LEFT>":
                     // TODO:
