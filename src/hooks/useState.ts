@@ -19,7 +19,7 @@ import {
     SubtypeServerAck,
 } from "~/types/wss/server";
 import useDispatch$ from "./useDispatch";
-import { VimAction } from "~/fsm/types";
+import { isCommandAction, VimAction } from "~/fsm/types";
 import { World } from "~/server/types";
 import viewport from "~/simulation/client/viewport";
 import { isStaleDisconnect, recordSession } from "~/simulation/client/sessions";
@@ -117,20 +117,27 @@ export const handlers = {
                     msg as ServerAckMessage<"CHECKPOINT">
                 ).checkpoint;
                 return true;
-            case "COMMAND_PARTIAL":
+            case "COMMAND_PARTIAL": {
                 // the statusbar is driven locally while predicting; the server
                 // echo only takes over when prediction is off
                 if (ctx.physics.prediction) return true;
-                ctx.client.commandLineDisplay =
-                    ":" + msg.authoritativeState!.commandLineState!.buffer;
+                const buffer =
+                    msg.authoritativeState?.commandLineState?.buffer ?? "";
+                ctx.client.commandLineDisplay = ":" + buffer;
                 return true;
+            }
             case "COMMAND": {
                 // should run the command in case we aren't running command prediction
                 if (ctx.physics.prediction) return true;
 
                 const command =
                     msg.authoritativeState?.commandLineState?.buffer || "";
-                console.assert(command.length, "no command found");
+
+                // an empty command is a cancel (e.g. <Esc>): just clear the line
+                if (!command) {
+                    ctx.client.commandLineDisplay = "";
+                    return true;
+                }
 
                 // finalize statusbar so correct command can run
                 ctx.client.commandLineDisplay = command;
@@ -141,6 +148,18 @@ export const handlers = {
                 });
                 handlers.updateIsDirty(ctx, reason.isDirty);
                 return true;
+            }
+            case "REJECTION": {
+                // the server refused an action: if it was a command, the
+                // optimistic command line has to go, otherwise it lingers
+                const rejected = ctx.client.inputBuffer.find(
+                    (p) => p.seq === msg.seq,
+                );
+                if (rejected && isCommandAction(rejected.action)) {
+                    ctx.client.commandLineDisplay = "";
+                }
+                // let the generic path roll back the world state
+                return false;
             }
         }
         return false;
@@ -305,6 +324,9 @@ export const handlers = {
 
         // Replay remaining predictions based on the corrected position
         for (const p of inputBuffer) {
+            // command actions are one-shot: they can run a command, so they
+            // must never be applied a second time
+            if (isCommandAction(p.action)) continue;
             const reason = applyActionToWorld(ctx, p.action);
             handlers.updateIsDirty(ctx, reason.isDirty);
         }

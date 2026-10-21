@@ -114,6 +114,7 @@ function sendResponse(
         case undefined: 
             switch(expandedAction.type) {
                 case 'COMMAND':
+                case 'COMMAND_LINE':
                     ack.command(client, response as AckResponseData<typeof reason>);
                     break;
                 case 'COMMAND_PARTIAL':

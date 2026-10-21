@@ -27,6 +27,11 @@ function validateActionSchema(action: VimAction): boolean {
         case "TARGET":
             return true;
         case "COMMAND":
+        case "COMMAND_PROMPT":
+        case "COMMAND_PARTIAL":
+        case "COMMAND_LINE":
+            // the command line is a sequence of actions, one per keypress:
+            // the prompt opens it, the partials fill it, the line submits it
             return typeof action.command === "string";
         default:
             return false;

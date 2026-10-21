@@ -5,6 +5,18 @@ export type CommandVimActionType =
     | "COMMAND_PARTIAL"
     | "COMMAND_LINE";
 export type VimActionType = "MOVE" | "INTERACT" | "TARGET" | CommandVimActionType;
+export const COMMAND_ACTION_TYPES: CommandVimActionType[] = [
+    "COMMAND",
+    "COMMAND_PROMPT",
+    "COMMAND_PARTIAL",
+    "COMMAND_LINE",
+];
+/** command actions drive the command line, not the world */
+export function isCommandAction(
+    action: VimAction,
+): action is CommandVimAction {
+    return (COMMAND_ACTION_TYPES as string[]).includes(action.type);
+}
 export type OperatorKey = "y" | "d" | "c" | "p";
 export type AwaitingCharKey = "f" | "F" | "t" | "T" | "g";
 export type MovementKey = "h" | "j" | "k" | "l" | "w" | "b";
