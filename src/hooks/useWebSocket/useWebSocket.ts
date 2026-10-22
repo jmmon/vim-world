@@ -1,5 +1,5 @@
 import { NoSerialize, QRL, $, Signal, isServer, noSerialize, useOnWindow, useSignal, useTask$ } from "@builder.io/qwik";
-import { API_PORT } from "~/server/constants";
+import { wsOrigin } from "~/services/origin";
 import { GameState } from "../useState";
 
 export const useWebSocket = (
@@ -7,9 +7,9 @@ export const useWebSocket = (
     onMessage: QRL<(data: any) => any>, 
     onOpen: QRL<() => any>,
     ws: Signal<NoSerialize<WebSocket>>,
-    opts = {
-        url: `ws://localhost:${API_PORT}/ws`,
-    }
+    opts?: {
+        url?: string;
+    },
 ) => {
     const isStartingInBrowser = useSignal(false);
 
@@ -37,7 +37,10 @@ export const useWebSocket = (
         if (!_isReady) return;
         console.log('~~ player ready! initializing connection...');
 
-        if (!ws.value || isStartingInBrowser.value) ws.value = noSerialize(new WebSocket(opts.url));
+        // resolved here, not in the parameter list: the component renders on
+        // the server, and a default value would be captured at render time
+        const url = opts?.url ?? `${wsOrigin()}/ws`;
+        if (!ws.value || isStartingInBrowser.value) ws.value = noSerialize(new WebSocket(url));
         isStartingInBrowser.value = false;
         ws.value!.onopen = () => {
             console.log("Connected via websocket!")

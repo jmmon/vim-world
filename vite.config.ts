@@ -56,6 +56,9 @@ export default defineConfig(({ command, mode }): UserConfig => {
     //     : undefined,
 
     server: {
+      // listen on every interface so the dev server is reachable from other
+      // machines on the tailnet (Tailscale IP), not just localhost
+      host: true,
       headers: {
         // Don't cache the server response in dev mode
         "Cache-Control": "public, max-age=0",

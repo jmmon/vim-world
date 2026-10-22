@@ -1,6 +1,6 @@
-import { API_PORT } from "~/server/constants";
 import { World } from "~/server/types";
 import { Player, WorldEntity } from "~/types/worldTypes";
+import { apiOrigin } from "./origin";
 
 export type SerializableClientWorld = Omit<World<'Client'>, "players" | "entities"> & {
     players: Record<string, Player>;
@@ -11,7 +11,7 @@ const httpService = {
     api: {
         player: async (formData: FormData) => {
             const response = await fetch(
-                `http://localhost:${API_PORT}/api/player`,
+                `${apiOrigin()}/api/player`,
                 {
                     method: "POST",
                     body: formData,
@@ -24,7 +24,7 @@ const httpService = {
         },
         map: async () => {
             const response = await fetch(
-                `http://localhost:${API_PORT}/api/map`,
+                `${apiOrigin()}/api/map`,
             );
             return (await response.json()) as SerializableClientWorld;
         },
