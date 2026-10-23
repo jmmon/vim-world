@@ -105,13 +105,10 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
 
     const onConnect$ = $(() => {
         state.ctx.client.isDirty.players = true;
-        console.assert(
-            !!state.ctx.client.player,
-            "EXPECTED PLAYER ON INIT",
-            state.ctx.client.player,
-        );
-
-        state.ctx.dispatch.init(state.ctx.client.player!.id);
+        // we can be watching the world before we identify ourselves:
+        // the server only needs our player id once we are logged in
+        if (!state.ctx.client.player) return;
+        state.ctx.dispatch.init(state.ctx.client.player.id);
     });
 
     useWebSocket(state, onMessage$, onConnect$, ws);

@@ -165,3 +165,20 @@ describe("afk ladder", () => {
         expect(clients.has("c1")).toBe(true);
     });
 });
+
+describe("spectator sockets", () => {
+    test("a socket that never identified is not put on the afk ladder", () => {
+        const client = makeClient("c1");
+        clients.set("c1", client);
+
+        now += 10_000;
+        markAfkPlayer("c1");
+        startCloseAfkPlayer("c1");
+        terminateAfkPlayer("c1");
+
+        expect(client.ws.sent).toHaveLength(0);
+        expect(client.isAfk).toBe(false);
+        expect(client.ws.terminate).not.toHaveBeenCalled();
+        expect(clients.has("c1")).toBe(true);
+    });
+});

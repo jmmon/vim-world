@@ -39,7 +39,18 @@ function idleFor(clientId: string): number | undefined {
     return timings.now() - client.lastMessageTime;
 }
 
+/**
+ * a socket that never sent an init is watching the world without playing:
+ * it holds no player, so it has nothing to checkpoint and the afk ladder
+ * does not apply to it
+ * */
+function isSpectator(clientId: string): boolean {
+    const client = clients.get(clientId);
+    return !client || !client.playerId;
+}
+
 export function markAfkPlayer(clientId: string) {
+    if (isSpectator(clientId)) return;
     const idle = idleFor(clientId);
     if (idle === undefined || idle <= timings.afkMs) return;
 
@@ -53,6 +64,7 @@ export function markAfkPlayer(clientId: string) {
 
 
 export function startCloseAfkPlayer(clientId: string) {
+    if (isSpectator(clientId)) return;
     const idle = idleFor(clientId);
     if (idle === undefined || idle <= timings.disconnectMs) return;
 
@@ -73,6 +85,7 @@ export function closeAfkPlayer(clientId: string) {
 
 const OPEN_STATES = [WebSocket.OPEN, WebSocket.CLOSING];
 export function terminateAfkPlayer(clientId: string) {
+    if (isSpectator(clientId)) return;
     const idle = idleFor(clientId);
     if (idle === undefined || idle <= timings.disconnectMs + timings.terminateMs) return;
 

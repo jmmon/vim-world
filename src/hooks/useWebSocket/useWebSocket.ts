@@ -25,17 +25,16 @@ export const useWebSocket = (
 
     useOnWindow('beforeunload', cleanup$);
 
-    useTask$(({ track, cleanup }) => {
-        const _isReady = !!track(() => state.ctx.client.isReady);
+    // the socket connects as soon as the page loads, so we can watch the
+    // other players move before we identify ourselves: the server only
+    // needs to know who we are once we send an action
+    // eagerness 'load' runs this in the browser when the app resumes
+    useTask$(({ cleanup }) => {
         if (isServer) {
             isStartingInBrowser.value = true
             return;
         }
-        console.log('useWebSocket task runs:', {
-            isReady: _isReady, ws: ws.value, isStartingInBrowser: isStartingInBrowser.value
-        });
-        if (!_isReady) return;
-        console.log('~~ player ready! initializing connection...');
+        console.log('~~ opening websocket connection...');
 
         // resolved here, not in the parameter list: the component renders on
         // the server, and a default value would be captured at render time
@@ -53,7 +52,7 @@ export const useWebSocket = (
         cleanup(() => {
             cleanup$();
         })
-    });
+    }, { eagerness: 'load' });
 }
 
 

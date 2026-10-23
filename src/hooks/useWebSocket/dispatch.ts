@@ -23,8 +23,12 @@ function action(
 
 // dispatch an init message
 function init(ws: NoSerialize<WebSocket>, playerId: string) {
-    console.assert(ws && ws.readyState === WebSocket.OPEN, '!!websocket not open!! playerId:', playerId);
-    if (!ws || ws?.readyState !== WebSocket.OPEN) return;
+    // the socket can still be connecting when we identify ourselves:
+    // the open handler sends the init again in that case
+    if (!ws || ws?.readyState !== WebSocket.OPEN) {
+        console.warn('!!websocket not open!! playerId:', playerId);
+        return;
+    }
 
     // later use Dash id or username
     const initMessage: ClientInitMessage = {

@@ -59,6 +59,10 @@ export default component$<ChooseUsernameProps>(({ state }) => {
                 usernameHash: hash,
             });
 
+            // identify ourselves to the server: the socket is already open,
+            // but if it is not, the open handler sends the init instead
+            await state.dispatch.init(player.id);
+
             dialogRef.value!.close();
         } catch (err) {
             console.error("Error initializing client data::", err);
