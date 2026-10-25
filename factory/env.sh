@@ -1,0 +1,6 @@
+FACTORY_SPEC_MODEL="opencode/glm-5.3-flash-free"
+FACTORY_TESTER_MODEL="opencode/deepseek-v4.1-flash-free"
+FACTORY_BUILDER_MODEL="opencode/deepseek-v4-pro"
+FACTORY_REVIEWER_MODEL="opencode/glm-5.3-flash-free"
+FACTORY_AGENT_TIMEOUT="1800"
+FACTORY_GATE_TIMEOUT="900"

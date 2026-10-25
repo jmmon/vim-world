@@ -45,3 +45,6 @@ lerna-debug.log*
 .yarn/*
 !.yarn/releases
 .notes/*
+
+# Software factory
+/factory/state/
