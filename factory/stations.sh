@@ -164,7 +164,7 @@ station_qa() {
 
 station_review() {
     local n=$1 title=$2 round=1 findings prompt qa_json qa_log
-    qa_log=$(find "$LOG_DIR" -maxdepth 1 -name 'qa-*.log' -type f 2>/dev/null | sort -V | tail -1)
+    qa_log=$(find "$LOG_DIR" -maxdepth 1 -name 'qa-[0-9]*.log' -type f 2>/dev/null | sort -V | tail -1)
     qa_json=$(last_marker "$qa_log" "QA:")
     [[ -n "$qa_json" ]] || qa_json="QA: not run"
     while (( round <= 3 )); do

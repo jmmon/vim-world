@@ -276,12 +276,16 @@ collect_qa_artifacts() {
 }
 
 ensure_qa_branch() {
-    local empty sha
-    if git -C "$REPO_DIR" show-ref --verify --quiet refs/heads/qa-screenshots; then
-        return 0
+    local empty sha remote
+    remote=$(git -C "$REPO_DIR" ls-remote --heads origin qa-screenshots 2>/dev/null) || remote=""
+    if [[ -n "$remote" ]]; then
+        if git -C "$REPO_DIR" fetch -f origin qa-screenshots:qa-screenshots --quiet 2>/dev/null; then
+            return 0
+        fi
+        git -C "$REPO_DIR" show-ref --verify --quiet refs/heads/qa-screenshots && return 0
+        return 1
     fi
-    if git -C "$REPO_DIR" ls-remote --heads origin qa-screenshots 2>/dev/null | grep -q .; then
-        git -C "$REPO_DIR" fetch origin qa-screenshots:qa-screenshots --quiet 2>/dev/null || return 1
+    if git -C "$REPO_DIR" show-ref --verify --quiet refs/heads/qa-screenshots; then
         return 0
     fi
     empty=$(git -C "$REPO_DIR" hash-object -t tree /dev/null)
@@ -316,7 +320,10 @@ publish_qa_artifacts() {
     commit=$(GIT_INDEX_FILE="$idx" git -C "$REPO_DIR" commit-tree "$tree" -p qa-screenshots -m "qa: issue #$n screenshots") || { rm -f "$idx"; return 0; }
     rm -f "$idx"
     : >"$LOG_DIR/qa-urls.tsv"
-    git -C "$REPO_DIR" push origin "$commit:refs/heads/qa-screenshots" >>"$LOG_DIR/qa-push.log" 2>&1 || return 0
+    if ! git -C "$REPO_DIR" push origin "$commit:refs/heads/qa-screenshots" >>"$LOG_DIR/qa-push.log" 2>&1; then
+        log "qa screenshot push failed; evidence will use local paths"
+        return 0
+    fi
     count=0
     for png in "$LOG_DIR"/qa/*.png; do
         [[ -f "$png" ]] || continue

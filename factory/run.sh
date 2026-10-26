@@ -97,6 +97,7 @@ WT="$PROJECTS_DIR/vim-world-issue-$ISSUE"
 WT_V="$PROJECTS_DIR/vim-world-verify-$ISSUE"
 LOG_DIR="$FACTORY_DIR/logs/issue-$ISSUE"
 mkdir -p "$LOG_DIR"
+rm -f "$LOG_DIR/qa-urls.tsv"
 RUN_LOG="$LOG_DIR/run.log"
 
 log "factory start: issue #$ISSUE branch $BRANCH"
