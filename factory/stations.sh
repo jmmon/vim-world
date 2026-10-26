@@ -121,7 +121,7 @@ station_verify() {
         remove_worktree "$WT_V"
         return 1
     fi
-    if ! run_gate "$WT_V" "$LOG_DIR/verify.log"; then
+    if ! run_verify_gate "$WT_V" "$LOG_DIR/verify.log"; then
         remove_worktree "$WT_V"
         return 1
     fi
@@ -139,6 +139,11 @@ station_review() {
         log "review round $round"
         prompt=$(printf 'Factory review station. Issue #%s.\n\nSpec: specs/issue-%s.md\nBranch: %s\n\nReview the diff against origin/master. End with REVIEW: {"verdict": ...} as specified.\n' "$n" "$n" "$BRANCH")
         run_agent factory-reviewer "$FACTORY_REVIEWER_MODEL" "$WT" "$LOG_DIR/review-$round.log" "$prompt" || true
+        if [[ -z "$(last_marker "$LOG_DIR/review-$round.log" "REVIEW:")" ]]; then
+            log "review round $round produced no verdict; retrying"
+            round=$((round + 1))
+            continue
+        fi
         if [[ "$(review_verdict "$LOG_DIR/review-$round.log")" == "approve" ]]; then
             log "review approved"
             return 0
@@ -157,7 +162,7 @@ station_review() {
 
 write_evidence() {
     local n=$1 title=$2 spec_files review_json
-    spec_files=$(paste -sd ', ' "$LOG_DIR/spec-files.txt")
+    spec_files=$(join_comma <"$LOG_DIR/spec-files.txt")
     review_json=$(last_marker "$(latest_review_log)" "REVIEW:" | sed 's/^REVIEW: //')
     {
         printf '## Factory run for #%s\n\n' "$n"
@@ -179,12 +184,13 @@ write_evidence() {
 
 ship() {
     local n=$1 title=$2 files url existing
-    files=$(paste -sd ', ' "$LOG_DIR/spec-files.txt")
+    files=$(join_comma <"$LOG_DIR/spec-files.txt")
     write_evidence "$n" "$title" "$files"
     if (( NO_SHIP )); then
         log "no-ship: branch $BRANCH ready; evidence at factory/logs/issue-$n/evidence.md"
         return 3
     fi
+    printf 'Closes #%s\n' "$n" >>"$LOG_DIR/evidence.md"
     git -C "$WT" push -u origin "$BRANCH" >"$LOG_DIR/push.log" 2>&1 || return 1
     existing=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number' 2>/dev/null)
     if [[ -z "$existing" || "$existing" == "null" ]]; then

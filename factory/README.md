@@ -48,7 +48,7 @@ the `sharp` postinstall cannot build against Node 26; the gates do not need it.
 
 - Hard stop: keep `factory/FACTORY-OFF`. Delete it to enable.
 - Soft stop: remove the `factory` label from open issues.
-- Timer: `systemctl --user stop vim-world-factory.timer`.
+- Runs are manual: invoke `factory/run.sh` yourself; there is no timer.
 - One run at a time: `state/run.lock` blocks overlap; stale locks from dead
   PIDs are cleared automatically.
 
@@ -62,8 +62,11 @@ the `sharp` postinstall cannot build against Node 26; the gates do not need it.
 - The builder agent is denied edits to `*.spec.ts*` and `specs/*`.
 - The engine, not the agent, runs `git add`, `git commit`, `git push`, and
   `gh`.
-- The verify station re-installs and re-runs every gate in a clean detached
-  checkout; it does not trust the implement station.
+- The verify station re-installs and re-runs every gate, including the
+  production build (`pnpm build`), in a clean detached checkout; it does not
+  trust the implement station.
+- CI (`.github/workflows/ci.yml`) repeats unit tests, lint, typecheck, and the
+  build on every draft PR before the human merges.
 - Draft PRs only. Human merge is the final gate.
 - Failures after bounded retries post the log tail to the issue and relabel
   it `factory:escalated`.
@@ -73,4 +76,5 @@ the `sharp` postinstall cannot build against Node 26; the gates do not need it.
 - `factory:escalated`: read `factory/logs/issue-N/run.log`, fix or reset.
 - `factory:needs-human`: the spec station found an ambiguous or product-level
   decision. Answer in the issue, remove the label, add `factory` back.
-- Branch conflicts on rerun: `factory/run.sh --issue N --reset`.
+- Branch conflicts on rerun: an unpushed `factory/issue-N` branch resets
+  itself automatically; a pushed branch needs `factory/run.sh --issue N --reset`.

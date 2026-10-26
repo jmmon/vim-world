@@ -77,8 +77,19 @@ remove_worktree() {
 create_run_worktree() {
     remove_worktree "$WT"
     if git -C "$REPO_DIR" show-ref --verify --quiet "refs/heads/$BRANCH"; then
-        log "branch already exists: $BRANCH (use --reset to discard it)"
-        return 1
+        local remote_ref
+        if remote_ref=$(git -C "$REPO_DIR" ls-remote --heads origin "$BRANCH" 2>/dev/null); then
+            if [[ -z "$remote_ref" ]]; then
+                log "auto-reset unpushed branch: $BRANCH"
+                git -C "$REPO_DIR" branch -D "$BRANCH" >/dev/null || return 1
+            else
+                log "branch already exists and is pushed: $BRANCH (use --reset to discard it)"
+                return 1
+            fi
+        else
+            log "branch already exists: $BRANCH (could not check remote; use --reset to discard it)"
+            return 1
+        fi
     fi
     git -C "$REPO_DIR" worktree add "$WT" -b "$BRANCH" origin/master >/dev/null || return 1
     mkdir -p "$WT/specs"
@@ -103,6 +114,12 @@ run_gate() {
             timeout "$FACTORY_GATE_TIMEOUT" pnpm build.types &&
             timeout "$FACTORY_GATE_TIMEOUT" pnpm build
     ) >"$logf" 2>&1
+}
+
+run_verify_gate() {
+    local dir=$1 logf=$2
+    run_gate "$dir" "$logf" || return 1
+    ( cd "$dir" && timeout "$FACTORY_GATE_TIMEOUT" pnpm build ) >>"$logf" 2>&1
 }
 
 staged_paths() {
@@ -228,6 +245,15 @@ sanitize_stream() {
         -e "s|${HOME}|[home]|g" \
         -e "s|${WT_V}|[worktree]|g" \
         -e "s|${WT}|[worktree]|g"
+}
+
+join_comma() {
+    local out="" line
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        out+="${out:+, }$line"
+    done
+    printf '%s' "$out"
 }
 
 commit_branch() {
