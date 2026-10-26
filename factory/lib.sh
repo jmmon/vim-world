@@ -234,6 +234,21 @@ except Exception:
     printf '%s' "${verdict:-changes}"
 }
 
+qa_verdict() {
+    local line verdict
+    line=$(last_marker "$1" "QA:")
+    if [[ -z "$line" ]]; then
+        printf 'fail'
+        return 0
+    fi
+    verdict=$(printf '%s\n' "${line#QA: }" | python3 -c 'import json,sys
+try:
+    print(json.load(sys.stdin).get("result", "fail"))
+except Exception:
+    print("fail")' 2>/dev/null)
+    printf '%s' "${verdict:-fail}"
+}
+
 latest_review_log() {
     local f
     f=$(find "$LOG_DIR" -maxdepth 1 -name 'review-*.log' -type f 2>/dev/null | sort -V | tail -1)
@@ -254,6 +269,63 @@ join_comma() {
         out+="${out:+, }$line"
     done
     printf '%s' "$out"
+}
+
+collect_qa_artifacts() {
+    mkdir -p "$LOG_DIR/qa"
+    cp "$WT"/qa-artifacts/*.png "$LOG_DIR/qa/" 2>/dev/null || true
+    cp "$WT"/qa-artifacts/*.ts "$LOG_DIR/qa/" 2>/dev/null || true
+}
+
+ensure_qa_branch() {
+    local empty sha
+    if git -C "$REPO_DIR" show-ref --verify --quiet refs/heads/qa-screenshots; then
+        return 0
+    fi
+    if git -C "$REPO_DIR" ls-remote --heads origin qa-screenshots 2>/dev/null | grep -q .; then
+        git -C "$REPO_DIR" fetch origin qa-screenshots:qa-screenshots --quiet 2>/dev/null || return 1
+        return 0
+    fi
+    empty=$(git -C "$REPO_DIR" hash-object -t tree /dev/null)
+    sha=$(git -C "$REPO_DIR" commit-tree "$empty" -m "qa screenshots root") || return 1
+    git -C "$REPO_DIR" branch qa-screenshots "$sha" || return 1
+}
+
+publish_qa_artifacts() {
+    local n=$1 slug idx png name blob tree commit count=0
+    ensure_qa_branch || return 0
+    slug=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null) || return 0
+    [[ -n "$slug" ]] || return 0
+    idx=$(mktemp)
+    GIT_INDEX_FILE="$idx" git -C "$REPO_DIR" read-tree qa-screenshots || { rm -f "$idx"; return 0; }
+    for png in "$LOG_DIR"/qa/*.png; do
+        [[ -f "$png" ]] || continue
+        (( count >= 4 )) && break
+        if (( $(stat -c %s "$png" 2>/dev/null || echo 0) > 4000000 )); then
+            continue
+        fi
+        name=$(basename "$png")
+        blob=$(GIT_INDEX_FILE="$idx" git -C "$REPO_DIR" hash-object -w "$png") || continue
+        GIT_INDEX_FILE="$idx" git -C "$REPO_DIR" update-index --add \
+            --cacheinfo 100644,"$blob","factory/qa/issue-$n/$name" || continue
+        count=$((count + 1))
+    done
+    if (( count == 0 )); then
+        rm -f "$idx"
+        return 0
+    fi
+    tree=$(GIT_INDEX_FILE="$idx" git -C "$REPO_DIR" write-tree) || { rm -f "$idx"; return 0; }
+    commit=$(GIT_INDEX_FILE="$idx" git -C "$REPO_DIR" commit-tree "$tree" -p qa-screenshots -m "qa: issue #$n screenshots") || { rm -f "$idx"; return 0; }
+    rm -f "$idx"
+    git -C "$REPO_DIR" push origin "$commit:refs/heads/qa-screenshots" >>"$LOG_DIR/qa-push.log" 2>&1 || return 0
+    : >"$LOG_DIR/qa-urls.tsv"
+    for png in "$LOG_DIR"/qa/*.png; do
+        [[ -f "$png" ]] || continue
+        name=$(basename "$png")
+        printf '%s\thttps://raw.githubusercontent.com/%s/qa-screenshots/factory/qa/issue-%s/%s\n' \
+            "$name" "$slug" "$n" "$name" >>"$LOG_DIR/qa-urls.tsv"
+    done
+    return 0
 }
 
 commit_branch() {

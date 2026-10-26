@@ -48,3 +48,4 @@ lerna-debug.log*
 
 # Software factory
 /factory/state/
+qa-artifacts/

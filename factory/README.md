@@ -5,7 +5,8 @@ with verified tests comes out. The factory never merges.
 
 ```
 issue (factory) → spec → tests (red, hash-locked) → implement (worktree)
-  → verify (cold detached checkout) → review ≤3 → draft PR → human merges
+  → verify (cold detached checkout) → qa (Playwright + screenshots)
+  → review ≤3 → draft PR → human merges
 ```
 
 ## Files
@@ -44,6 +45,15 @@ Requirements: `gh` authenticated, repo mounted at its usual path, Node 26 and
 pnpm 12 available. Installs inside worktrees use `--ignore-scripts` because
 the `sharp` postinstall cannot build against Node 26; the gates do not need it.
 
+One-time QA setup: `pnpm exec playwright install chromium` (add `--with-deps`
+via sudo if the system libraries are missing). The QA station boots `pnpm dev`
+headlessly on port 5199, asserts the spec's QA plan, and stores screenshots
+under `factory/logs/issue-N/qa/` (gitignored). Up to four of them are pushed
+to the orphan `qa-screenshots` branch (never merged into `master`) and their
+raw URLs are embedded in the draft PR body — anyone can view them, `master`
+history stays clean. Prune old runs with an occasional force-push of
+`qa-screenshots`.
+
 ## Enable / disable
 
 - Hard stop: keep `factory/FACTORY-OFF`. Delete it to enable.
@@ -65,6 +75,10 @@ the `sharp` postinstall cannot build against Node 26; the gates do not need it.
 - The verify station re-installs and re-runs every gate, including the
   production build (`pnpm build`), in a clean detached checkout; it does not
   trust the implement station.
+- The QA station drives the dev server in a real headless browser against the
+  spec's QA plan; a fail feeds the builder fix loop (bounded) and re-verifies.
+  Screenshots stay out of `master`; the PR body embeds them from the orphan
+  `qa-screenshots` branch.
 - CI (`.github/workflows/ci.yml`) repeats unit tests, lint, typecheck, and the
   build on every draft PR before the human merges.
 - Draft PRs only. Human merge is the final gate.
@@ -74,6 +88,8 @@ the `sharp` postinstall cannot build against Node 26; the gates do not need it.
 ## Failure recovery
 
 - `factory:escalated`: read `factory/logs/issue-N/run.log`, fix or reset.
+  For QA escalations the screenshots and Playwright traces are under
+  `factory/logs/issue-N/qa/`.
 - `factory:needs-human`: the spec station found an ambiguous or product-level
   decision. Answer in the issue, remove the label, add `factory` back.
 - Branch conflicts on rerun: an unpushed `factory/issue-N` branch resets

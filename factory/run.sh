@@ -148,6 +148,7 @@ stage spec station_spec "$ISSUE" "$TITLE" "$BODY"
 stage tests station_tests "$ISSUE"
 stage implement station_implement "$ISSUE" "$TITLE"
 stage verify station_verify "$ISSUE"
+stage qa station_qa "$ISSUE" "$TITLE"
 stage review station_review "$ISSUE" "$TITLE"
 
 log "station: ship"

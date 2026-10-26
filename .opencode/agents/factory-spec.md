@@ -69,6 +69,16 @@ automated test.
 - The behaviors each file must cover, mapped to acceptance criteria numbers.
 - Required harness details: fake timers, fixtures, pure-function entry points.
 
+## QA plan
+
+- How to boot the feature (command and URL; QA uses
+  `pnpm dev --port 5199 --strictPort`, so the plan references
+  `http://localhost:5199`).
+- Exact browser steps per scenario: pages to open, key sequences, and how
+  many browser contexts are needed for multiplayer checks.
+- The observable visual or DOM state expected after each step, each one
+  checkable by a Playwright assertion.
+
 ## Risks
 
 Anything ambiguous, contradictory, or dependent on product judgment.

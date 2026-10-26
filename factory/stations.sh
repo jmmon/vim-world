@@ -133,11 +133,44 @@ station_verify() {
     return 0
 }
 
+station_qa() {
+    local n=$1 title=$2 attempt prompt verdict findings
+    mkdir -p "$WT/qa-artifacts"
+    for attempt in 1 2 3; do
+        log "qa attempt $attempt"
+        prompt=$(printf 'Factory QA station. Issue #%s.\n\nSpec: specs/issue-%s.md\n\nFollow the spec QA plan exactly. Write a throwaway Playwright config and test under qa-artifacts/ (name it qa-artifacts/qa-run.ts and set testMatch to it so no other runner collects it). The config must boot `pnpm dev --port 5199 --strictPort` at http://localhost:5199 with reuseExistingServer false (no `--` separator: pnpm forwards it literally and vite ignores the flags; 5173 may be a stale checkout). Drive every step of the QA plan, assert the expected states in code, and save at most 6 screenshots as qa-artifacts/<step>.png. Read the source to learn login and movement flows; edit nothing outside qa-artifacts/. Run `pnpm exec playwright test qa-artifacts/qa-run.ts`, then read your own screenshots and confirm they match the assertions. Your final line must be exactly:\nQA: {"result": "pass", "findings": []}\nor\nQA: {"result": "fail", "findings": [{"file": "<path>", "issue": "<what is wrong>", "fix": "<concrete fix>"}]}\n' "$n" "$n")
+        run_agent factory-qa "$FACTORY_QA_MODEL" "$WT" "$LOG_DIR/qa-$attempt.log" "$prompt" || true
+        if [[ -z "$(last_marker "$LOG_DIR/qa-$attempt.log" "QA:")" ]]; then
+            log "qa produced no verdict (attempt $attempt); retrying"
+            continue
+        fi
+        verdict=$(qa_verdict "$LOG_DIR/qa-$attempt.log")
+        if [[ "$verdict" == "pass" ]]; then
+            log "qa passed on attempt $attempt"
+            collect_qa_artifacts
+            publish_qa_artifacts "$n"
+            return 0
+        fi
+        log "qa failed on attempt $attempt"
+        if (( attempt == 3 )); then
+            collect_qa_artifacts
+            return 1
+        fi
+        findings=$(last_marker "$LOG_DIR/qa-$attempt.log" "QA:")
+        fix_from_findings "$n" "$title" "$findings" "qa$attempt" || return 1
+        station_verify "$n" || return 1
+    done
+    return 1
+}
+
 station_review() {
-    local n=$1 title=$2 round=1 findings prompt
+    local n=$1 title=$2 round=1 findings prompt qa_json qa_log
+    qa_log=$(find "$LOG_DIR" -maxdepth 1 -name 'qa-*.log' -type f 2>/dev/null | sort -V | tail -1)
+    qa_json=$(last_marker "$qa_log" "QA:")
+    [[ -n "$qa_json" ]] || qa_json="QA: not run"
     while (( round <= 3 )); do
         log "review round $round"
-        prompt=$(printf 'Factory review station. Issue #%s.\n\nSpec: specs/issue-%s.md\nBranch: %s\n\nReview the diff against origin/master. End with REVIEW: {"verdict": ...} as specified.\n' "$n" "$n" "$BRANCH")
+        prompt=$(printf 'Factory review station. Issue #%s.\n\nSpec: specs/issue-%s.md\nBranch: %s\nQA station result (screenshots at factory/logs/issue-%s/qa/, local only):\n%s\n\nReview the diff against origin/master. End with REVIEW: {"verdict": ...} as specified.\n' "$n" "$n" "$BRANCH" "$n" "$qa_json")
         run_agent factory-reviewer "$FACTORY_REVIEWER_MODEL" "$WT" "$LOG_DIR/review-$round.log" "$prompt" || true
         if [[ -z "$(last_marker "$LOG_DIR/review-$round.log" "REVIEW:")" ]]; then
             log "review round $round produced no verdict; retrying"
@@ -176,6 +209,15 @@ write_evidence() {
         printf -- '- `pnpm build` green\n'
         printf -- '- changed-file `prettier --check` green\n\n'
         printf 'Gates ran in a clean detached checkout after the engine verified that the test-file hashes match the ones written before implementation.\n\n'
+        printf '### QA and visual evidence\n\n'
+        if [[ -s "$LOG_DIR/qa-urls.tsv" ]]; then
+            while IFS=$'\t' read -r qname qurl; do
+                [[ -n "$qurl" ]] && printf -- '- ![qa %s](%s)\n' "$qname" "$qurl"
+            done <"$LOG_DIR/qa-urls.tsv"
+            printf '\n'
+        else
+            printf -- '- Playwright QA passed; screenshots at `factory/logs/issue-%s/qa/` (upload unavailable).\n\n' "$n"
+        fi
         printf '### Review\n\n'
         printf '```json\n%s\n```\n\n' "$review_json"
         printf 'This PR is a draft. The factory never merges; merging is the human gate.\n'
