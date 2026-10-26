@@ -100,7 +100,8 @@ run_gate() {
         cd "$dir" &&
             timeout "$FACTORY_GATE_TIMEOUT" pnpm test.unit &&
             timeout "$FACTORY_GATE_TIMEOUT" pnpm lint &&
-            timeout "$FACTORY_GATE_TIMEOUT" pnpm build.types
+            timeout "$FACTORY_GATE_TIMEOUT" pnpm build.types &&
+            timeout "$FACTORY_GATE_TIMEOUT" pnpm build
     ) >"$logf" 2>&1
 }
 

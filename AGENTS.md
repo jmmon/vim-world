@@ -6,15 +6,15 @@ read the referenced docs only when the task needs them.
 
 ## Commands
 
-| Task                 | Command                                           |
-| -------------------- | ------------------------------------------------- |
-| Unit tests           | `pnpm test.unit`                                  |
-| Lint                 | `pnpm lint`                                       |
-| Typecheck            | `pnpm build.types`                                |
-| Format changed files | `pnpm exec prettier --check <files>`              |
-| Full gate            | `pnpm test.unit && pnpm lint && pnpm build.types` |
-| Dev server           | `pnpm dev`                                        |
-| Production build     | `pnpm build`                                      |
+| Task                 | Command                                                         |
+| -------------------- | --------------------------------------------------------------- |
+| Unit tests           | `pnpm test.unit`                                                |
+| Lint                 | `pnpm lint`                                                     |
+| Typecheck            | `pnpm build.types`                                              |
+| Format changed files | `pnpm exec prettier --check <files>`                            |
+| Full gate            | `pnpm test.unit && pnpm lint && pnpm build.types && pnpm build` |
+| Dev server           | `pnpm dev`                                                      |
+| Production build     | `pnpm build`                                                    |
 
 Use `pnpm` for everything. Node 26 on this machine; `mise.toml` pins pnpm.
 
