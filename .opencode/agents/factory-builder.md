@@ -1,5 +1,5 @@
 ---
-description: Factory station 3/6. Implements code until the locked test suite is green. Forbidden from editing specs or test files.
+description: Factory station 3/7. Implements code until the locked test suite is green. Forbidden from editing specs or test files.
 mode: all
 temperature: 0.2
 permission:

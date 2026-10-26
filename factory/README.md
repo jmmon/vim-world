@@ -6,7 +6,7 @@ with verified tests comes out. The factory never merges.
 ```
 issue (factory) → spec → tests (red, hash-locked) → implement (worktree)
   → verify (cold detached checkout) → qa (Playwright + screenshots)
-  → review ≤3 → draft PR → human merges
+  → review ≤3 → retro → draft PR → human merges
 ```
 
 ## Files
@@ -15,8 +15,10 @@ issue (factory) → spec → tests (red, hash-locked) → implement (worktree)
 | ---------------- | --------------------------------------------------- |
 | `env.sh`         | model IDs per station, timeouts. Fill this first    |
 | `run.sh`         | orchestrator. All git and GitHub writes happen here |
-| `stations.sh`    | spec, test, build, verify, qa, review, ship         |
+| `stations.sh`    | spec, test, build, verify, qa, review, retro, ship  |
 | `lib.sh`         | gates, worktrees, lock, labels, logging             |
+| `retro.sh`       | post-merge ritual and ledger stats                  |
+| `retro/`         | committed history: ledger + per-issue retros        |
 | `FACTORY-OFF`    | present = hard stop. Delete to enable               |
 | `logs/issue-N/`  | transcripts, test lock, evidence (gitignored)       |
 | `state/run.lock` | single-run lock (gitignored)                        |
@@ -94,3 +96,48 @@ history stays clean. Prune old runs with an occasional force-push of
   decision. Answer in the issue, remove the label, add `factory` back.
 - Branch conflicts on rerun: an unpushed `factory/issue-N` branch resets
   itself automatically; a pushed branch needs `factory/run.sh --issue N --reset`.
+
+## Retro and ledger
+
+Every run ends with a retro: the retro agent reads the run's logs and writes
+`factory/retro/issue-N.md`. On success the engine adds a line to
+`factory/retro/LEDGER.md` and commits both to the factory branch, so the
+history lands in `master` when you merge the PR. On escalation the retro is
+posted to the issue as a comment instead; it rides the branch on the next
+successful run. A retro failure never fails the run. Escalations before the
+worktree exists (claim, worktree, install) skip the retro.
+
+### Merge ritual (exact steps)
+
+Run this after every merged factory PR:
+
+1. Merge the draft PR on GitHub, e.g.
+   `gh pr merge 12 --squash --delete-branch`.
+2. Update local master so the merged retro and ledger files exist locally:
+   `git checkout master && git pull`.
+3. Record the outcome (about three seconds):
+
+    ```sh
+    factory/retro.sh --merged 12 --sha <merge-sha> --edits none
+    ```
+
+    Get `<merge-sha>` from step 1's output, or:
+    `gh pr view 12 --json mergeCommit --jq '.mergeCommit.oid'`.
+    `--edits` is what you had to fix by hand:
+    `none | spec | tests | code | other`. Human edits are the strongest
+    signal of factory weakness. Pass `--no-commit` to inspect the changes
+    before committing them yourself.
+
+4. Push the record: `git push`.
+5. Optional: `factory/retro.sh --stats` for tag and edit counts across all
+   retros.
+
+The script refuses while a factory run is active (`state/run.lock`) and
+refuses a second record for the same issue; fix those by hand. Merge factory
+PRs one at a time: the ledger line of a second unmerged PR conflicts with the
+first, and the resolution is simply to keep both lines.
+
+`docs/agents/process.md` defines the failure taxonomy and the improvement
+loop: retro proposals land as `factory-process` issues, and a human applies
+them to prompts, scripts, or docs. Nothing in the pipeline changes
+automatically.

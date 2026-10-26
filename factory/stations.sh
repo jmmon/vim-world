@@ -169,7 +169,7 @@ station_review() {
     [[ -n "$qa_json" ]] || qa_json="QA: not run"
     while (( round <= 3 )); do
         log "review round $round"
-        prompt=$(printf 'Factory review station. Issue #%s.\n\nSpec: specs/issue-%s.md\nBranch: %s\nQA station result (screenshots at factory/logs/issue-%s/qa/, local only):\n%s\n\nReview the diff against origin/master. End with REVIEW: {"verdict": ...} as specified.\n' "$n" "$n" "$BRANCH" "$n" "$qa_json")
+        prompt=$(printf 'Factory review station. Issue #%s.\n\nSpec: specs/issue-%s.md\nBranch: %s\nQA station result (screenshots at factory/logs/issue-%s/qa/, local only):\n%s\n\nReview the diff against origin/master. Files under factory/retro/ are process artifacts; ignore them in the review. End with REVIEW: {"verdict": ...} as specified.\n' "$n" "$n" "$BRANCH" "$n" "$qa_json")
         run_agent factory-reviewer "$FACTORY_REVIEWER_MODEL" "$WT" "$LOG_DIR/review-$round.log" "$prompt" || true
         if [[ -z "$(last_marker "$LOG_DIR/review-$round.log" "REVIEW:")" ]]; then
             log "review round $round produced no verdict; retrying"
@@ -249,5 +249,52 @@ ship() {
     gh issue edit "$n" --remove-label factory:wip --add-label factory:review >/dev/null 2>&1 || true
     gh issue comment "$n" --body "Factory opened a draft PR: $url" >/dev/null 2>&1 || true
     remove_worktree "$WT"
+    return 0
+}
+
+station_retro() {
+    local n=$1 title=$2 outcome=$3 prompt retro_file tag proposal
+    retro_file="factory/retro/issue-$n.md"
+    if [[ ! -d "$WT" ]]; then
+        log "retro skipped: no worktree"
+        return 0
+    fi
+    mkdir -p "$WT/factory/retro"
+    prompt=$(printf 'Factory retro station. Issue #%s.\n\nTitle: %s\nOutcome: %s\n\nRun logs (read-only, outside the worktree): %s\n\nRead docs/agents/process.md first, then write factory/retro/issue-%s.md per its template. Follow the rules in your agent definition.\n' "$n" "$title" "$outcome" "$LOG_DIR" "$n")
+    run_agent factory-retro "$FACTORY_RETRO_MODEL" "$WT" "$LOG_DIR/retro.log" "$prompt" || true
+    if [[ ! -f "$WT/$retro_file" ]]; then
+        log "retro file not written; continuing without it"
+        return 0
+    fi
+    if [[ "$outcome" == "escalated" ]]; then
+        cp "$WT/$retro_file" "$LOG_DIR/retro-escalated.md" 2>/dev/null || true
+        gh issue comment "$n" --body "Factory retro for this escalated run (the branch does not ship; the retro rides the branch on the next successful run):
+
+$(sanitize_stream <"$WT/$retro_file")" >/dev/null 2>&1 || true
+        log "retro posted to issue #$n as a comment"
+        return 0
+    fi
+    write_ledger "$n" "$outcome"
+    ( cd "$WT" && timeout "$FACTORY_GATE_TIMEOUT" pnpm exec prettier --write "$retro_file" factory/retro/LEDGER.md ) >>"$LOG_DIR/retro-format.log" 2>&1 || true
+    IFS=$'\t' read -r tag proposal <<<"$(retro_marker "$LOG_DIR/retro.log")"
+    if [[ -n "$tag" && -n "$proposal" ]]; then
+        if gh issue list --label factory-process --state open --json title --jq '.[].title' 2>/dev/null | grep -qF "$tag"; then
+            log "open factory-process proposal exists for tag $tag; skipping"
+        else
+            if gh issue create --title "factory-process: $tag" --label factory-process \
+                --body "Retro for issue #$n proposes a process fix.
+
+Proposal: $proposal
+
+Context: \`factory/retro/issue-$n.md\`. Review and apply or close; nothing in the pipeline changes automatically." >/dev/null 2>&1; then
+                log "posted factory-process proposal for tag $tag"
+            fi
+        fi
+    fi
+    git -C "$WT" add factory/retro/ >/dev/null 2>&1 || return 0
+    if ! git -C "$WT" diff --cached --quiet; then
+        git -C "$WT" commit -q -m "docs(factory): retro for issue #$n" || true
+        log "retro committed on $BRANCH"
+    fi
     return 0
 }

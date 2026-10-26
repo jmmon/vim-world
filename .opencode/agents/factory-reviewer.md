@@ -1,5 +1,5 @@
 ---
-description: Factory station 6/6. Adversarial reviewer for the factory branch diff. Read-only; emits a structured verdict.
+description: Factory station 6/7. Adversarial reviewer for the factory branch diff. Read-only; emits a structured verdict.
 mode: all
 temperature: 0.1
 permission:

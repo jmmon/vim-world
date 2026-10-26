@@ -54,7 +54,7 @@ if [[ -f "$FACTORY_DIR/FACTORY-OFF" ]]; then
     exit 0
 fi
 
-for var in FACTORY_SPEC_MODEL FACTORY_TESTER_MODEL FACTORY_BUILDER_MODEL FACTORY_QA_MODEL FACTORY_REVIEWER_MODEL; do
+for var in FACTORY_SPEC_MODEL FACTORY_TESTER_MODEL FACTORY_BUILDER_MODEL FACTORY_QA_MODEL FACTORY_REVIEWER_MODEL FACTORY_RETRO_MODEL; do
     if [[ -z "${!var:-}" ]]; then
         die "$var is empty; fill it in factory/env.sh"
     fi
@@ -142,6 +142,7 @@ stage() {
         remove_worktree "$WT_V"
         exit 0
     fi
+    station_retro "$ISSUE" "$TITLE" "escalated" || true
     escalate "$ISSUE" "station $name failed"
     exit 1
 }
@@ -152,6 +153,11 @@ stage implement station_implement "$ISSUE" "$TITLE"
 stage verify station_verify "$ISSUE"
 stage qa station_qa "$ISSUE" "$TITLE"
 stage review station_review "$ISSUE" "$TITLE"
+
+RETRO_OUTCOME="pr"
+(( NO_SHIP )) && RETRO_OUTCOME="no-ship"
+log "station: retro"
+station_retro "$ISSUE" "$TITLE" "$RETRO_OUTCOME" || true
 
 log "station: ship"
 ship "$ISSUE" "$TITLE"
@@ -166,6 +172,7 @@ case "$SHIP_RC" in
         exit 0
         ;;
     *)
+        station_retro "$ISSUE" "$TITLE" "escalated" || true
         escalate "$ISSUE" "ship failed"
         exit 1
         ;;

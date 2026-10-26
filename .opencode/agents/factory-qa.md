@@ -1,5 +1,5 @@
 ---
-description: Factory station 5/6. Runs Playwright visual QA against the dev server and reports pass/fail with screenshots. Never edits implementation.
+description: Factory station 5/7. Runs Playwright visual QA against the dev server and reports pass/fail with screenshots. Never edits implementation.
 mode: all
 temperature: 0.1
 permission:

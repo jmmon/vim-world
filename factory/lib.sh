@@ -269,6 +269,73 @@ join_comma() {
     printf '%s' "$out"
 }
 
+ledger_tags() {
+    local f="${RUN_LOG:-/dev/null}" tags=""
+    grep -q 'spec not written' "$f" 2>/dev/null && tags+="${tags:+, }spec-miss"
+    grep -q 'spec missing STATUS' "$f" 2>/dev/null && tags+="${tags:+, }marker-miss"
+    grep -q 'gate failed' "$f" 2>/dev/null && tags+="${tags:+, }gate-fail"
+    grep -q 'prettier check failed' "$f" 2>/dev/null && tags+="${tags:+, }prettier-fail"
+    grep -q 'qa failed' "$f" 2>/dev/null && tags+="${tags:+, }qa-fail"
+    grep -q 'review requested changes' "$f" 2>/dev/null && tags+="${tags:+, }review-changes"
+    grep -q 'dependency install failed' "$f" 2>/dev/null && tags+="${tags:+, }env-fail"
+    printf '%s' "${tags:-none}"
+}
+
+ledger_attempts() {
+    local f="${RUN_LOG:-/dev/null}"
+    printf '%s/%s/%s/%s/%s' \
+        "$(grep -c 'station: spec' "$f" 2>/dev/null)" \
+        "$(grep -c 'station: tests' "$f" 2>/dev/null)" \
+        "$(grep -c 'station: implement' "$f" 2>/dev/null)" \
+        "$(grep -c 'station: qa' "$f" 2>/dev/null)" \
+        "$(grep -c 'station: review' "$f" 2>/dev/null)"
+}
+
+ledger_minutes() {
+    local f="${RUN_LOG:-/dev/null}" first last
+    first=$(head -n 1 "$f" 2>/dev/null | sed -n 's/^\[\([^]]*\)\].*/\1/p')
+    last=$(tail -n 1 "$f" 2>/dev/null | sed -n 's/^\[\([^]]*\)\].*/\1/p')
+    if [[ -z "$first" || -z "$last" ]]; then
+        printf '0'
+        return 0
+    fi
+    printf '%s' $(( ($(date -d "$last" +%s 2>/dev/null || echo 0) - $(date -d "$first" +%s 2>/dev/null || echo 0)) / 60 ))
+}
+
+write_ledger() {
+    local n=$1 outcome=$2
+    local ledger="$WT/factory/retro/LEDGER.md" tmp
+    mkdir -p "$WT/factory/retro"
+    if [[ ! -f "$ledger" ]]; then
+        {
+            printf '# Ledger\n\n'
+            printf 'One line per issue, upserted on rerun. Columns: date | issue | outcome | attempts (spec/tests/implement/qa/review) | minutes (wall) | tags | merged | edits\n\n'
+        } >"$ledger"
+    fi
+    tmp=$(mktemp)
+    grep -v " | #$n | " "$ledger" >"$tmp" || true
+    mv "$tmp" "$ledger"
+    printf '%s | #%s | %s | %s | %s | %s | - | -\n' \
+        "$(date '+%F')" "$n" "$outcome" "$(ledger_attempts)" "$(ledger_minutes)" "$(ledger_tags)" >>"$ledger"
+}
+
+retro_marker() {
+    # prints: <first-tag>\t<proposal-or-empty>
+    local line
+    line=$(last_marker "$1" "RETRO:")
+    [[ -n "$line" ]] || return 0
+    printf '%s\n' "${line#RETRO: }" | python3 -c 'import json, sys
+try:
+    d = json.load(sys.stdin)
+    tags = d.get("tags") or []
+    tag = tags[0] if tags and isinstance(tags[0], str) else ""
+    p = d.get("proposal")
+    p = p if isinstance(p, str) and p.strip() else ""
+    print("%s\t%s" % (tag, p))
+except Exception:
+    pass' 2>/dev/null
+}
+
 collect_qa_artifacts() {
     mkdir -p "$LOG_DIR/qa"
     cp "$WT"/qa-artifacts/*.png "$LOG_DIR/qa/" 2>/dev/null || true

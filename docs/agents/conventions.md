@@ -38,4 +38,6 @@
 - `specs/issue-<N>.md` — written by the spec station, never edited later in
   the run.
 - Test files — written by the tester station. The builder may not edit them.
-- `factory/` — engine scripts and logs; agents do not modify it.
+- `factory/` — engine scripts and logs; agents do not modify it. Exception:
+  the retro agent writes `factory/retro/issue-<N>.md`; the engine writes and
+  commits `factory/retro/LEDGER.md`. See `docs/agents/process.md`.
