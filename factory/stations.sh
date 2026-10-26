@@ -1,32 +1,39 @@
 #!/usr/bin/env bash
 
 station_spec() {
-    local n=$1 title=$2 body=$3 prompt spec_file
+    local n=$1 title=$2 body=$3 attempt prompt spec_file
     spec_file="$WT/specs/issue-$n.md"
-    prompt=$(printf 'Factory spec station. Issue #%s.\n\nTitle: %s\n\nBody:\n%s\n\nWrite specs/issue-%s.md exactly as your instructions require. End the file with STATUS: READY or STATUS: NEEDS-HUMAN.\n' "$n" "$title" "$body" "$n")
-    run_agent factory-spec "$FACTORY_SPEC_MODEL" "$WT" "$LOG_DIR/spec.log" "$prompt" || true
-    if [[ ! -f "$spec_file" ]]; then
-        log "spec not written: specs/issue-$n.md"
-        return 1
-    fi
-    if grep -q 'STATUS: NEEDS-HUMAN' "$spec_file"; then
-        log "spec needs a human decision"
-        gh issue comment "$n" --body "Factory stopped at the spec station. A human decision is needed:
+    for attempt in 1 2; do
+        if (( attempt == 1 )); then
+            prompt=$(printf 'Factory spec station. Issue #%s.\n\nTitle: %s\n\nBody:\n%s\n\nWrite specs/issue-%s.md exactly as your instructions require. End the file with STATUS: READY or STATUS: NEEDS-HUMAN.\n' "$n" "$title" "$body" "$n")
+        else
+            prompt=$(printf 'The spec file specs/issue-%s.md exists but is missing the required final STATUS line. Add the single line STATUS: READY at the end, or STATUS: NEEDS-HUMAN with a one-sentence reason if a product decision is missing. Do not rewrite the spec.\n' "$n")
+        fi
+        run_agent factory-spec "$FACTORY_SPEC_MODEL" "$WT" "$LOG_DIR/spec-$attempt.log" "$prompt" || true
+        if [[ ! -f "$spec_file" ]]; then
+            log "spec not written (attempt $attempt): specs/issue-$n.md"
+            continue
+        fi
+        if grep -q 'STATUS: NEEDS-HUMAN' "$spec_file"; then
+            log "spec needs a human decision"
+            gh issue comment "$n" --body "Factory stopped at the spec station. A human decision is needed:
 
 \`\`\`
 $(head -n 40 "$spec_file" | sanitize_stream)
 \`\`\`
 
 The issue was relabeled \`factory:needs-human\`." >/dev/null 2>&1 || true
-        gh issue edit "$n" --remove-label factory:wip --add-label factory:needs-human >/dev/null 2>&1 || true
-        return 2
-    fi
-    if ! grep -q 'STATUS: READY' "$spec_file"; then
-        log "spec missing STATUS marker"
-        return 1
-    fi
-    git -C "$WT" add "specs/issue-$n.md" >/dev/null 2>&1 || return 1
-    return 0
+            gh issue edit "$n" --remove-label factory:wip --add-label factory:needs-human >/dev/null 2>&1 || true
+            return 2
+        fi
+        if grep -q 'STATUS: READY' "$spec_file"; then
+            ( cd "$WT" && timeout "$FACTORY_GATE_TIMEOUT" pnpm exec prettier --write "specs/issue-$n.md" ) >>"$LOG_DIR/spec-format.log" 2>&1 || true
+            git -C "$WT" add "specs/issue-$n.md" >/dev/null 2>&1 || return 1
+            return 0
+        fi
+        log "spec missing STATUS marker (attempt $attempt)"
+    done
+    return 1
 }
 
 station_tests() {
@@ -45,6 +52,11 @@ station_tests() {
         return 1
     fi
     printf '%s\n' "${specs[@]}" >"$LOG_DIR/spec-files.txt"
+    if ( cd "$WT" && timeout "$FACTORY_GATE_TIMEOUT" pnpm exec prettier --write "${specs[@]}" ) >"$LOG_DIR/tester-format.log" 2>&1; then
+        git -C "$WT" add -A >/dev/null 2>&1 || return 1
+    else
+        log "prettier could not format test files; continuing"
+    fi
     if ( cd "$WT" && timeout "$FACTORY_GATE_TIMEOUT" pnpm exec vitest run "${specs[@]}" ) >"$LOG_DIR/red.log" 2>&1; then
         log "tests are green before implementation; expected red"
         return 1
@@ -68,6 +80,8 @@ station_implement() {
         run_agent factory-builder "$FACTORY_BUILDER_MODEL" "$WT" "$LOG_DIR/implement-$attempt.log" "$prompt" || true
         check_test_lock "$WT" || return 1
         git -C "$WT" add -A >/dev/null 2>&1 || return 1
+        fix_staged "$WT" "$LOG_DIR/autofix-$attempt.log"
+        git -C "$WT" add -A >/dev/null 2>&1 || return 1
         if run_gate "$WT" "$LOG_DIR/gate-$attempt.log"; then
             if check_prettier "$WT" staged "$LOG_DIR/prettier-$attempt.log"; then
                 commit_branch "$n" "$title" || return 1
@@ -86,6 +100,8 @@ fix_from_findings() {
     prompt=$(printf 'Factory fix cycle %s for issue #%s.\n\nSpec: specs/issue-%s.md\nReviewer findings JSON:\n%s\n\nAddress every blocker without editing specs or test files. End with BUILD: {"result": "green"} or BUILD: {"result": "blocked", "reason": "..."}.\n' "$round" "$n" "$n" "$findings")
     run_agent factory-builder "$FACTORY_BUILDER_MODEL" "$WT" "$LOG_DIR/fix-$round.log" "$prompt" || true
     check_test_lock "$WT" || return 1
+    git -C "$WT" add -A >/dev/null 2>&1 || return 1
+    fix_staged "$WT" "$LOG_DIR/fix-autofix-$round.log"
     git -C "$WT" add -A >/dev/null 2>&1 || return 1
     run_gate "$WT" "$LOG_DIR/fix-gate-$round.log" || return 1
     check_prettier "$WT" staged "$LOG_DIR/fix-prettier-$round.log" || return 1

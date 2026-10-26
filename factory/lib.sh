@@ -135,6 +135,27 @@ check_prettier() {
     ( cd "$dir" && timeout "$FACTORY_GATE_TIMEOUT" pnpm exec prettier --check "${files[@]}" ) >"$logf" 2>&1
 }
 
+fix_staged() {
+    local dir=$1 logf=$2 line
+    local -a files=()
+    while IFS= read -r line; do
+        case "$line" in
+            src/*.ts | src/*.tsx | src/*.js | src/*.jsx)
+                case "$line" in
+                    *.spec.ts | *.spec.tsx) ;;
+                    *) files+=("$line") ;;
+                esac
+                ;;
+        esac
+    done < <(staged_paths "$dir")
+    if (( ${#files[@]} == 0 )); then
+        return 0
+    fi
+    ( cd "$dir" && timeout "$FACTORY_GATE_TIMEOUT" pnpm exec prettier --write "${files[@]}" ) >"$logf" 2>&1 || true
+    ( cd "$dir" && timeout "$FACTORY_GATE_TIMEOUT" pnpm exec eslint --fix "${files[@]}" ) >>"$logf" 2>&1 || true
+    return 0
+}
+
 write_test_lock() {
     local f
     : >"$LOG_DIR/test-lock.tsv"
