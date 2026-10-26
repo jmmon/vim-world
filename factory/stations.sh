@@ -168,6 +168,7 @@ write_evidence() {
         printf -- '- `pnpm test.unit` green\n'
         printf -- '- `pnpm lint` green\n'
         printf -- '- `pnpm build.types` green\n'
+        printf -- '- `pnpm build` green\n'
         printf -- '- changed-file `prettier --check` green\n\n'
         printf 'Gates ran in a clean detached checkout after the engine verified that the test-file hashes match the ones written before implementation.\n\n'
         printf '### Review\n\n'

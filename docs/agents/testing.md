@@ -3,6 +3,8 @@
 ## Runner
 
 - `pnpm test.unit` → `vitest run`.
+- `pnpm build` runs a full client plus SSR build (about 4s warm); the gate
+  includes it so bundling and serialization breakage fails too.
 - Specs are colocated: `foo.ts` ↔ `foo.spec.ts`, `foo.tsx` ↔ `foo.spec.tsx`.
 - Import `describe`, `expect`, `test` from `vitest`.
 - `~/` resolves to `src/`.
@@ -29,6 +31,7 @@
 
 ## Green
 
-Green means `pnpm test.unit`, `pnpm lint`, and `pnpm build.types` all exit 0
+Green means `pnpm test.unit`, `pnpm lint`, `pnpm build.types`, and
+`pnpm build` all exit 0
 and the changed files pass `pnpm exec prettier --check <files>`. Nothing less
 counts.
