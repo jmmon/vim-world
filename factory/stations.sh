@@ -148,7 +148,6 @@ station_qa() {
         if [[ "$verdict" == "pass" ]]; then
             log "qa passed on attempt $attempt"
             collect_qa_artifacts
-            publish_qa_artifacts "$n"
             return 0
         fi
         log "qa failed on attempt $attempt"
@@ -226,12 +225,15 @@ write_evidence() {
 
 ship() {
     local n=$1 title=$2 files url existing
-    files=$(join_comma <"$LOG_DIR/spec-files.txt")
-    write_evidence "$n" "$title" "$files"
     if (( NO_SHIP )); then
+        files=$(join_comma <"$LOG_DIR/spec-files.txt")
+        write_evidence "$n" "$title" "$files"
         log "no-ship: branch $BRANCH ready; evidence at factory/logs/issue-$n/evidence.md"
         return 3
     fi
+    publish_qa_artifacts "$n"
+    files=$(join_comma <"$LOG_DIR/spec-files.txt")
+    write_evidence "$n" "$title" "$files"
     printf 'Closes #%s\n' "$n" >>"$LOG_DIR/evidence.md"
     git -C "$WT" push -u origin "$BRANCH" >"$LOG_DIR/push.log" 2>&1 || return 1
     existing=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number' 2>/dev/null)
@@ -240,7 +242,8 @@ ship() {
             --title "Factory: $title (#$n)" \
             --body-file "$LOG_DIR/evidence.md" >"$LOG_DIR/pr.log" 2>&1 || return 1
     else
-        log "draft PR already exists: #$existing"
+        log "draft PR already exists: #$existing; updating its body"
+        gh pr edit "$existing" --body-file "$LOG_DIR/evidence.md" >"$LOG_DIR/pr.log" 2>&1 || return 1
     fi
     url=$(gh pr view "$BRANCH" --json url --jq '.url' 2>/dev/null)
     gh issue edit "$n" --remove-label factory:wip --add-label factory:review >/dev/null 2>&1 || true

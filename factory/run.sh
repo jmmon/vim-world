@@ -36,6 +36,7 @@ while (( $# > 0 )); do
             ;;
         --issue)
             FORCE_ISSUE="${2:-}"
+            [[ "$FORCE_ISSUE" =~ ^[0-9]+$ ]] || die "--issue requires an issue number, got: $FORCE_ISSUE"
             shift 2
             ;;
         --reset)
@@ -53,7 +54,7 @@ if [[ -f "$FACTORY_DIR/FACTORY-OFF" ]]; then
     exit 0
 fi
 
-for var in FACTORY_SPEC_MODEL FACTORY_TESTER_MODEL FACTORY_BUILDER_MODEL FACTORY_REVIEWER_MODEL; do
+for var in FACTORY_SPEC_MODEL FACTORY_TESTER_MODEL FACTORY_BUILDER_MODEL FACTORY_QA_MODEL FACTORY_REVIEWER_MODEL; do
     if [[ -z "${!var:-}" ]]; then
         die "$var is empty; fill it in factory/env.sh"
     fi

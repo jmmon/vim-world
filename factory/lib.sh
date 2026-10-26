@@ -117,9 +117,7 @@ run_gate() {
 }
 
 run_verify_gate() {
-    local dir=$1 logf=$2
-    run_gate "$dir" "$logf" || return 1
-    ( cd "$dir" && timeout "$FACTORY_GATE_TIMEOUT" pnpm build ) >>"$logf" 2>&1
+    run_gate "$1" "$2"
 }
 
 staged_paths() {
@@ -317,13 +315,18 @@ publish_qa_artifacts() {
     tree=$(GIT_INDEX_FILE="$idx" git -C "$REPO_DIR" write-tree) || { rm -f "$idx"; return 0; }
     commit=$(GIT_INDEX_FILE="$idx" git -C "$REPO_DIR" commit-tree "$tree" -p qa-screenshots -m "qa: issue #$n screenshots") || { rm -f "$idx"; return 0; }
     rm -f "$idx"
-    git -C "$REPO_DIR" push origin "$commit:refs/heads/qa-screenshots" >>"$LOG_DIR/qa-push.log" 2>&1 || return 0
     : >"$LOG_DIR/qa-urls.tsv"
+    git -C "$REPO_DIR" push origin "$commit:refs/heads/qa-screenshots" >>"$LOG_DIR/qa-push.log" 2>&1 || return 0
+    count=0
     for png in "$LOG_DIR"/qa/*.png; do
         [[ -f "$png" ]] || continue
+        (( count >= 4 )) && break
         name=$(basename "$png")
-        printf '%s\thttps://raw.githubusercontent.com/%s/qa-screenshots/factory/qa/issue-%s/%s\n' \
-            "$name" "$slug" "$n" "$name" >>"$LOG_DIR/qa-urls.tsv"
+        if git -C "$REPO_DIR" ls-tree -r "$commit" --name-only | grep -qxF "factory/qa/issue-$n/$name"; then
+            printf '%s\thttps://raw.githubusercontent.com/%s/qa-screenshots/factory/qa/issue-%s/%s\n' \
+                "$name" "$slug" "$n" "$name" >>"$LOG_DIR/qa-urls.tsv"
+            count=$((count + 1))
+        fi
     done
     return 0
 }

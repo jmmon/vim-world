@@ -15,7 +15,7 @@ issue (factory) → spec → tests (red, hash-locked) → implement (worktree)
 | ---------------- | --------------------------------------------------- |
 | `env.sh`         | model IDs per station, timeouts. Fill this first    |
 | `run.sh`         | orchestrator. All git and GitHub writes happen here |
-| `stations.sh`    | spec, test, build, verify, review, ship             |
+| `stations.sh`    | spec, test, build, verify, qa, review, ship         |
 | `lib.sh`         | gates, worktrees, lock, labels, logging             |
 | `FACTORY-OFF`    | present = hard stop. Delete to enable               |
 | `logs/issue-N/`  | transcripts, test lock, evidence (gitignored)       |
@@ -26,7 +26,7 @@ for all agents live in `AGENTS.md` and `docs/agents/`.
 
 ## Setup
 
-1. Fill the four model IDs in `factory/env.sh`. Use a different model lineage
+1. Fill the five model IDs in `factory/env.sh`. Use a different model lineage
    for `FACTORY_REVIEWER_MODEL` than `FACTORY_BUILDER_MODEL`.
 2. Commit the bootstrap (agents, docs, factory) to `master` so worktrees
    contain the definitions.
@@ -35,7 +35,7 @@ for all agents live in `AGENTS.md` and `docs/agents/`.
 ## Run
 
 ```sh
-factory/run.sh --issue 12 --no-ship   # dry run: stops before push
+factory/run.sh --issue 12 --no-ship   # dry run: no branch/PR/screenshot pushes
 factory/run.sh --issue 12             # full run: pushes branch, opens draft PR
 factory/run.sh                        # picks the oldest issue labeled factory
 factory/run.sh --issue 12 --reset     # discard leftover branch/worktree first
@@ -88,8 +88,8 @@ history stays clean. Prune old runs with an occasional force-push of
 ## Failure recovery
 
 - `factory:escalated`: read `factory/logs/issue-N/run.log`, fix or reset.
-  For QA escalations the screenshots and Playwright traces are under
-  `factory/logs/issue-N/qa/`.
+  For QA escalations the screenshots and the Playwright script
+  `qa-run.ts` are under `factory/logs/issue-N/qa/`.
 - `factory:needs-human`: the spec station found an ambiguous or product-level
   decision. Answer in the issue, remove the label, add `factory` back.
 - Branch conflicts on rerun: an unpushed `factory/issue-N` branch resets

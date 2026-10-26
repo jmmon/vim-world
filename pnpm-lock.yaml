@@ -15,8 +15,8 @@ importers:
         specifier: ^1.19.0
         version: 1.19.0(@types/node@20.19.0)(jiti@2.6.1)(less@4.9.1(supports-color@7.2.0))(lightningcss@1.30.2)(rollup@4.55.1)(sass@1.106.1)(stylus@0.62.0(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.4.5)
       '@eslint/js':
-        specifier: latest
-        version: 10.0.1(eslint@9.32.0(jiti@2.6.1)(supports-color@7.2.0))
+        specifier: 9.32.0
+        version: 9.32.0
       '@playwright/test':
         specifier: ^1.64.1
         version: 1.64.1
@@ -413,15 +413,6 @@ packages:
   '@eslint/eslintrc@3.3.3':
     resolution: {integrity: sha512-Kr+LPIUVKz2qkx1HAMH8q1q6azbqBAsXJUxBl/ODDuVPX45Z9DfwB8tPjTi6nNZ8BuM3nbJxC5zCAg5elnBUTQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
-  '@eslint/js@10.0.1':
-    resolution: {integrity: sha512-zeR9k5pd4gxjZ0abRoIaxdc7I3nDktoXZk2qOv9gCNWx3mVwEn32VRhyLaRsDiJjTs0xq/T8mfPtyuXu7GWBcA==}
-    engines: {node: ^20.19.0 || ^22.13.0 || >=24}
-    peerDependencies:
-      eslint: ^10.0.0
-    peerDependenciesMeta:
-      eslint:
-        optional: true
 
   '@eslint/js@9.32.0':
     resolution: {integrity: sha512-BBpRFZK3eX6uMLKz8WxFOBIFFcGFJ/g8XuwjTHCqHROSIsopI+ddn/d5Cfh36+7+e5edVS8dbSHnBNhrLEX0zg==}
@@ -3220,10 +3211,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@eslint/js@10.0.1(eslint@9.32.0(jiti@2.6.1)(supports-color@7.2.0))':
-    optionalDependencies:
-      eslint: 9.32.0(jiti@2.6.1)(supports-color@7.2.0)
-
   '@eslint/js@9.32.0': {}
 
   '@eslint/object-schema@2.1.7': {}
@@ -3663,11 +3650,11 @@ snapshots:
 
   '@types/postcss-modules-local-by-default@4.0.2':
     dependencies:
-      postcss: 8.5.6
+      postcss: 8.5.31
 
   '@types/postcss-modules-scope@3.0.4':
     dependencies:
-      postcss: 8.5.6
+      postcss: 8.5.31
 
   '@types/unist@2.0.11': {}
 
@@ -5631,7 +5618,7 @@ snapshots:
     dependencies:
       chokidar: 5.0.0
       immutable: 5.1.9
-      source-map-js: 1.2.1
+      source-map-js: 1.2.2
     optionalDependencies:
       '@parcel/watcher': 2.5.4
 
