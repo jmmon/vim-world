@@ -29,3 +29,5 @@ export const ITEM_COLOR_MAP: Record<ItemQualityId, string> = {
 
 export const HOT_PINK = "#ff69b4";
 
+/** other players render as ghosts: the same colour, just translucent. no tint. */
+export const GHOST_ALPHA = 0.4;

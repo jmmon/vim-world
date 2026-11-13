@@ -48,6 +48,7 @@ export type ClientData = {
     tick: number;
     commandLineDisplay: string;
     commandLineState?: CommandLineState;
+    zoneHintText: string;
     lastSnapshot?: Player;
     lastAckCheckpoint?: PlayerCheckpoint;
     viewport: Viewport;
@@ -63,6 +64,7 @@ export type InterfaceData = {
     show: {
         help: boolean;
         helpHint: boolean;
+        zoneHint: boolean;
         menu: boolean;
         afk: boolean;
         devStats: boolean;
@@ -78,7 +80,7 @@ export type Dispatch = {
 };
 
 export type LocalWorldWrapper = InterfaceData & {
-    world: World<'Client'>;
+    world: World<"Client">;
     client: ClientData;
     physics: PhysicsMode;
     dispatch: Dispatch;

@@ -4,6 +4,7 @@ import {
     closeAfk,
     closeDevStats,
     closeHelp,
+    closeZoneHint,
     drawAfk,
     drawChunkOverlay,
     drawDevStats,
@@ -11,6 +12,7 @@ import {
     drawHelp,
     drawHelpHint,
     drawStatus,
+    drawZoneHint,
 } from "./overlay";
 import { drawPlayers } from "./players";
 import { clearAll } from "./utils";
@@ -31,6 +33,9 @@ const draw = {
     help: drawHelp,
     closeHelp,
 
+    zoneHint: drawZoneHint,
+    closeZoneHint,
+
     afk: drawAfk,
     closeAfk,
 
@@ -45,4 +50,3 @@ const draw = {
     clearAll: clearAll,
 };
 export default draw;
-

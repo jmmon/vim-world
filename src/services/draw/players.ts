@@ -2,6 +2,8 @@ import { Direction, Player } from "~/types/worldTypes";
 import { clearOldCanvas } from "./utils";
 import { GameState } from "~/hooks/useState";
 import { getViewportCoordsAsPx } from "~/simulation/shared/helpers";
+import { drawGuides } from "./guides";
+import { GHOST_ALPHA } from "../../components/canvas1/constants";
 
 export function drawPlayers(state: GameState) {
     const selfPlayer = state.ctx.client.player;
@@ -19,23 +21,27 @@ export function drawPlayers(state: GameState) {
     // draw self
     if (selfPlayer) _drawPlayer(selfPlayer);
 
-    // draw others
-    if (otherPlayers.size) otherPlayers.forEach(_drawPlayer);
+    // draw others (ghosts — semi-transparent)
+    if (otherPlayers.size) otherPlayers.forEach((p) => _drawPlayer(p, true));
+
+    // static guide figures anchored to the intro map
+    drawGuides(state, ctx);
 }
 
 function createPlayerDrawerForState(
     state: GameState,
     ctx: CanvasRenderingContext2D,
 ) {
-    return (player: Player) => drawPlayer(state, player, ctx);
+    return (player: Player, isGhost = false) =>
+        drawPlayer(state, player, ctx, isGhost);
 }
 
 function drawPlayer(
     state: GameState,
     player: Player,
     ctx: CanvasRenderingContext2D,
+    isGhost = false,
 ) {
-    ctx.fillStyle = player.color;
     const { tileSize } = state.ctx.world.config;
     const { viewport } = state.ctx.client;
 
@@ -44,10 +50,17 @@ function drawPlayer(
     const x = px;
     const y = py;
 
+    // other players render as ghosts: same colour, just translucent (no tint).
+    ctx.save();
+    if (isGhost) ctx.globalAlpha = GHOST_ALPHA;
+
+    ctx.fillStyle = player.color;
     ctx.fillRect(x, y, tileSize, tileSize);
 
     drawPlayerName(state, x, y, player.name, ctx);
     drawPlayerDirection(state, x, y, player.dir, ctx);
+
+    ctx.restore();
 }
 
 function drawPlayerName(
@@ -166,4 +179,3 @@ function drawPlayerDirection(
 
     ctx.stroke();
 }
-

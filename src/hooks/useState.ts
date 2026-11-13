@@ -1,6 +1,10 @@
 import { NoSerialize, Signal, useSignal, useStore } from "@builder.io/qwik";
-import { InitializeClientData, IsDirty, LocalWorldWrapper } from "~/simulation/client/types";
-import { ApplyActionDirtyResult } from "~/simulation/types";;
+import {
+    InitializeClientData,
+    IsDirty,
+    LocalWorldWrapper,
+} from "~/simulation/client/types";
+import { ApplyActionDirtyResult } from "~/simulation/types";
 import { Player } from "~/types/worldTypes";
 import { mergePlayerState } from "~/simulation/shared/helpers";
 import { applyActionToWorld } from "~/simulation/client/actions";
@@ -186,7 +190,7 @@ export const handlers = {
         // handle subtype: checkpoint, commands
         // ================================================================
         if ("subtype" in msg && handlers.handleAckSubtype(ctx, msg)) {
-            return //console.log('~ handled subtype:', msg.subtype);
+            return; //console.log('~ handled subtype:', msg.subtype);
         }
 
         const { seq, authoritativeState, tick } = msg;
@@ -255,7 +259,8 @@ export const handlers = {
         }
         // ================================================================
         // clear action queue steps that are stale!
-        if (isMatching || !authoritativeState) return console.log('~~ matching, or no authoritative state');
+        if (isMatching || !authoritativeState)
+            return console.log("~~ matching, or no authoritative state");
 
         // for dirtying objects:
         const isSameItem =
@@ -292,7 +297,6 @@ export const handlers = {
             map: viewportChanged,
         };
         handlers.updateIsDirty(ctx, anyDirty);
-
 
         // ================================================================
         // Remove confirmed actions including this seq
@@ -383,7 +387,13 @@ export const handlers = {
 
         // a reconnecting player's new session may already have arrived, in
         // which case this disconnect belongs to the session they left behind
-        if (isStaleDisconnect(ctx.client.otherPlayerSessions, data.playerId, data.sessionId)) {
+        if (
+            isStaleDisconnect(
+                ctx.client.otherPlayerSessions,
+                data.playerId,
+                data.sessionId,
+            )
+        ) {
             return;
         }
 
@@ -431,16 +441,13 @@ export const handlers = {
         const result = applyActionToWorld(ctx, action);
         handlers.updateIsDirty(ctx, result.isDirty);
 
-        console.log(
-            `afterActionStep: tick ${tick}::`,
-            {
-                name: ctx.client.player!.name,
-                id: ctx.client.player!.id,
-                x: ctx.client.player!.pos.x,
-                y: ctx.client.player!.pos.y,
-                dir: ctx.client.player!.dir,
-            },
-        );
+        console.log(`afterActionStep: tick ${tick}::`, {
+            name: ctx.client.player!.name,
+            id: ctx.client.player!.id,
+            x: ctx.client.player!.pos.x,
+            y: ctx.client.player!.pos.y,
+            dir: ctx.client.player!.dir,
+        });
 
         // return reason for breaking early
         return result.reason;
@@ -504,7 +511,7 @@ export const handlers = {
     },
 };
 
-function useState(world: World<"Client">, ws: Signal<NoSerialize<WebSocket>>,) {
+function useState(world: World<"Client">, ws: Signal<NoSerialize<WebSocket>>) {
     const containerRef = useSignal<HTMLDivElement>();
     const offscreenMapRef = useSignal<HTMLCanvasElement>();
     const mapRef = useSignal<HTMLCanvasElement>();
@@ -559,6 +566,7 @@ function useState(world: World<"Client">, ws: Signal<NoSerialize<WebSocket>>,) {
             actionQueue: [],
             tick: -1,
             commandLineDisplay: "", // to be displayed in the bar // TODO: mimick server logic and structure
+            zoneHintText: "", // current per-zone contextual teaching verb
             lastSnapshot: undefined,
             lastAckCheckpoint: undefined,
             otherPlayerSessions: {},
@@ -566,6 +574,7 @@ function useState(world: World<"Client">, ws: Signal<NoSerialize<WebSocket>>,) {
         show: {
             help: false,
             helpHint: false,
+            zoneHint: false,
             menu: false,
             afk: false,
             devStats: true,

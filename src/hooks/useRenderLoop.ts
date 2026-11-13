@@ -103,8 +103,21 @@ export default function useRenderLoop(
             }
         }
 
+        let wasZoneHintShowing = state.ctx.show.zoneHint;
+        let needsRedrawZoneHint = false;
+        function renderZoneHint() {
+            if (state.ctx.show.zoneHint) {
+                draw.zoneHint(state);
+            } else {
+                draw.closeZoneHint(state);
+            }
+        }
+
         function render() {
-            if (state.ctx.world.config.lastScale !== state.ctx.world.config.scale) {
+            if (
+                state.ctx.world.config.lastScale !==
+                state.ctx.world.config.scale
+            ) {
                 draw.clearAll(state);
             }
 
@@ -121,6 +134,14 @@ export default function useRenderLoop(
                 renderAfk();
                 needsRedrawAfk = false;
                 wasAfkShowing = state.ctx.show.afk;
+            }
+
+            needsRedrawZoneHint =
+                wasZoneHintShowing !== state.ctx.show.zoneHint;
+            if (needsRedrawZoneHint) {
+                renderZoneHint();
+                needsRedrawZoneHint = false;
+                wasZoneHintShowing = state.ctx.show.zoneHint;
             }
 
             // handle rendering
@@ -145,7 +166,11 @@ export default function useRenderLoop(
             state.ctx.world.config.lastScale = state.ctx.world.config.scale;
         }
 
-        const callTicks = setupCallTicksForPlayer(state.ctx, state.ctx.client, handlers.applyActionStep);
+        const callTicks = setupCallTicksForPlayer(
+            state.ctx,
+            state.ctx.client,
+            handlers.applyActionStep,
+        );
 
         // main client loop
         (function loop(ts: number) {
@@ -166,7 +191,6 @@ export default function useRenderLoop(
             if (!state.ctx.client.player) return;
             saveCheckpoint();
         })(zero);
-
 
         cleanup(() => {
             isCancelled = true;

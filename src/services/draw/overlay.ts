@@ -2,7 +2,7 @@ import { roundToDecimals } from "~/utils/utils";
 import { generateOldDimensions, hasScaleChanged } from "./utils";
 import { GameState } from "~/hooks/useState";
 import { MapConfig } from "~/server/map";
-import { Viewport } from "~/simulation/client/types";;
+import { Viewport } from "~/simulation/client/types";
 import chunkService, { __visibleChunks } from "../chunk";
 
 // probably should not be using viewportWidthPx, instead use viewportWidthBlocks * tileSize * scale
@@ -37,12 +37,12 @@ interface BoxStyles {
     fontSize: number;
     lineHeight: number;
     lines: number;
-};
+}
 interface StylesWithContext extends BoxStyles {
     ctx: CanvasRenderingContext2D;
     x: number;
     y: number;
-};
+}
 
 // ****************************************************************
 //
@@ -137,7 +137,7 @@ function getFormattedTime(value: number) {
 }
 
 const STAT_MAP = [
-// pos is displayed in bottom statusbar now:: row:col
+    // pos is displayed in bottom statusbar now:: row:col
     // {
     //     name: "x",
     //     getValue: (state: GameState) => state.ctx.client.player?.pos.x ?? "?",
@@ -301,10 +301,7 @@ function closeOldHelp(state: GameState, ctx: CanvasRenderingContext2D) {
 const HELP_DIMENSIONS: Record<string, RectDimensions> = {};
 const getHelpDimensions = (viewport: Viewport, config: MapConfig) => {
     if (!HELP_DIMENSIONS[config.tileSize]) {
-        HELP_DIMENSIONS[config.tileSize] = STYLES.help(
-            viewport,
-            config,
-        );
+        HELP_DIMENSIONS[config.tileSize] = STYLES.help(viewport, config);
     }
     return HELP_DIMENSIONS[config.tileSize];
 };
@@ -356,10 +353,7 @@ export function closeHelp(state: GameState) {
     const ctx = state.refs.overlay.value!.getContext("2d")!;
     closeOldHelp(state, ctx);
 
-    const HELP = STYLES.help(
-        state.ctx.client.viewport,
-        state.ctx.world.config,
-    );
+    const HELP = STYLES.help(state.ctx.client.viewport, state.ctx.world.config);
     ctx.clearRect(HELP.left, HELP.top, HELP.w, HELP.h);
 }
 
@@ -412,6 +406,54 @@ export function drawHelpHint(state: GameState) {
                 ((config.tileSize * 3) / 4) * i,
         );
     }
+}
+
+// ****************************************************************
+//
+//                      ZONE HINT styles
+//                      (per-zone contextual teaching)
+//
+// ****************************************************************
+
+/** single-line contextual hint, top-center — one verb at a time */
+function getZoneHintRect(
+    viewport: Viewport,
+    { tileSize }: MapConfig,
+): RectDimensions {
+    const w = tileSize * 9;
+    const h = tileSize * 1.6;
+    return {
+        left: (viewport.width - w) / 2,
+        top: tileSize * 0.5,
+        w,
+        h,
+    };
+}
+
+export function drawZoneHint(state: GameState) {
+    const ctx = state.refs.overlay.value!.getContext("2d")!;
+    const { config } = state.ctx.world;
+    const rect = getZoneHintRect(state.ctx.client.viewport, config);
+
+    ctx.clearRect(rect.left, rect.top, rect.w, rect.h);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+    ctx.fillRect(rect.left, rect.top, rect.w, rect.h);
+
+    const verb = state.ctx.client.zoneHintText;
+    if (!verb) return;
+
+    ctx.font = `bold ${18 * config.scale}px mono`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#ffe082";
+    ctx.fillText(verb, rect.left + rect.w / 2, rect.top + rect.h / 2 + 1);
+}
+
+export function closeZoneHint(state: GameState) {
+    const ctx = state.refs.overlay.value!.getContext("2d")!;
+    const { config } = state.ctx.world;
+    const rect = getZoneHintRect(state.ctx.client.viewport, config);
+    ctx.clearRect(rect.left, rect.top, rect.w, rect.h);
 }
 
 // ****************************************************************
@@ -521,7 +563,6 @@ export function drawStatus(state: GameState) {
     }
     // clear new rect
     const d = closeStatus(state);
-
 
     // background
     d.ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
