@@ -38,6 +38,7 @@ export function applyInteraction(
         return { reason: interactValidatorResult.reason, isDirty: false };
 
     applies.interact[actionType](
+        state,
         state.client.player!,
         action,
         interactValidatorResult,

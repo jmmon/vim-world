@@ -19,7 +19,11 @@ function applyMoveToServerWorld(ctx: ServerWorldWrapper, player: Player, action:
     return result.reason;
 }
 
-function applyInteractToServerWorld(ctx: ServerWorldWrapper, player: Player, action: ExpandedVimAction): ActionResult['reason'] {
+function applyInteractToServerWorld(
+    ctx: ServerWorldWrapper,
+    player: ServerPlayer,
+    action: ExpandedVimAction,
+): ActionResult['reason'] {
     const basicResult = serverValidators.interact.basic(action);
     if (!basicResult.ok) return basicResult.reason;
 
@@ -28,7 +32,15 @@ function applyInteractToServerWorld(ctx: ServerWorldWrapper, player: Player, act
 
      // 'OUT_OF_BOUNDS' | 'COLLISION' | 'INVALID_KEY' | 'INVALID_ACTION'
     if (!result || !result?.ok) return result.reason;
-    applies.interact[actionType](player, action, result)
+    const changedEntities = applies.interact[actionType](ctx, player, action, result);
+
+    // a key pasted into a keyhole may open its door — capture the changed
+    // entities so the tick loop broadcasts a narrow sync. Both sides self-gate
+    // movement on entity collision, so an unsynced open door would block the
+    // player (and other players) on their client.
+    if (changedEntities.length > 0) {
+        player.pendingWorldStateEntities = changedEntities;
+    }
 
     return undefined;
 }

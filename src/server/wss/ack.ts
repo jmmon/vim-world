@@ -1,5 +1,5 @@
 import { ReasonCorrection, ReasonRejected } from "~/simulation/server/types";
-import { Player, ServerPlayer } from "~/types/worldTypes";
+import { Player, ServerPlayer, WorldEntity } from "~/types/worldTypes";
 import { ClientSession } from "../types";
 import {
     ServerAckMessage,
@@ -7,6 +7,7 @@ import {
     ServerOtherPlayerMessage,
     ServerPlayerConnectMessage,
     ServerPlayerDisconnectMessage,
+    ServerWorldStateMessage,
 } from "~/types/wss/server";
 import { PlayerCheckpoint } from "../checkpointService";
 import { currentServerTick } from "../serverLoop";
@@ -153,6 +154,22 @@ function dispatchMoveToOthers(clientId: string, player: Player) {
     });
 }
 
+/**
+ * narrow sync of world entities that both sides must agree on (doors/keyholes).
+ * carries full entity snapshots; receivers merge by id so their collision gate
+ * and re-render stay in lockstep with the authoritative door state.
+ */
+function dispatchWorldState(entities: WorldEntity[]) {
+    const msg: ServerWorldStateMessage = {
+        type: "WORLD",
+        subtype: "STATE",
+        entities,
+    };
+    clients.forEach((client) => {
+        client.ws.send(JSON.stringify(msg));
+    });
+}
+
 /** tells everyone else about a player entering the world */
 function dispatchPlayerConnect(clientId: string, player: Player) {
     const {
@@ -199,6 +216,7 @@ export const message = {
     playerMove: dispatchMoveToOthers,
     playerConnect: dispatchPlayerConnect,
     playerDisconnect: dispatchPlayerDisconnect,
+    worldState: dispatchWorldState,
 }
 // export default ack;
 

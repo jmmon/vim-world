@@ -1,5 +1,7 @@
 import { ModifierKey, OperatorKey, VimAction } from "~/fsm/types";
 import { entityHasItem } from "~/services/draw/utils";
+import { maybeUnlockKeyhole } from "./door";
+import { EntityWorld } from "./door";
 import {
     ValidateInteractValid,
     ValidateYankValid,
@@ -59,10 +61,11 @@ function placeItem(entity: WorldEntity, player: Player) {
 }
 
 function applyYankCommand(
+    _ctx: EntityWorld,
     player: Player,
     action: VimAction,
     result: ValidateYankValid,
-) {
+): WorldEntity[] {
     // move player into position
     player.pos = result.pos;
     const modifier = action.command?.[1];
@@ -71,38 +74,47 @@ function applyYankCommand(
     switch (modifier) {
         case "a":
             // "around" e.g. pick up the object??
-            if (player.carryingObjId) return false; // already carrying
-            if (!result.obj.liftable?.canCarry) return false; // not liftable
-            return pickUpObject(result.obj, player);
+            if (player.carryingObjId) return []; // already carrying
+            if (!result.obj.liftable?.canCarry) return []; // not liftable
+            pickUpObject(result.obj, player);
+            return [];
         case "i":
             // "inside" e.g. pick up the item within the object
-            if (!entityHasItem(result.obj)) return false;
-            return pickUpItem(result.obj, player);
+            if (!entityHasItem(result.obj)) return [];
+            pickUpItem(result.obj, player);
+            return [];
         default:
-            return false;
+            return [];
     }
 }
 
 function applyPasteCommand(
+    ctx: EntityWorld,
     player: Player,
     action: VimAction,
     result: ValidateInteractValid,
-) {
+): WorldEntity[] {
     const modifier = action.command![1] as ModifierKey;
-    console.log(result);
-    if (result.obj === undefined) return false;
+    if (result.obj === undefined) return [];
     switch (modifier) {
         case "a":
-            return placeObject(result.obj, player, result.pos!);
-        case "i":
+            placeObject(result.obj, player, result.pos!);
+            return [];
+        case "i": {
             console.assert(
                 result.obj !== undefined,
                 "missing object!!!",
                 result,
             );
-            return placeItem(result.obj, player);
+            const pasted = placeItem(result.obj, player);
+            if (!pasted) return [];
+            // a key pasted into a keyhole unlocks its door — same code runs on
+            // client (prediction) and server (authoritative). returns the
+            // changed entities so the server can broadcast a narrow sync.
+            return maybeUnlockKeyhole(ctx, player, result.obj);
+        }
         default:
-            return false;
+            return [];
     }
 }
 
@@ -134,10 +146,11 @@ function applyPasteCommand(
 const interact: Record<
     OperatorKey,
     (
+        ctx: EntityWorld,
         player: Player,
         action: VimAction,
         result: ValidateInteractValid,
-    ) => boolean
+    ) => WorldEntity[]
 > = {
     y: applyYankCommand,
     p: applyPasteCommand,

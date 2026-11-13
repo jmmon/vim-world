@@ -1,4 +1,4 @@
-import { MAP_CONFIG, MapConfig, Zone, mulberry32, zone } from "~/server/map";
+import { MAP_CONFIG, MapConfig, Zone, isHandAuthoredZone, mulberry32, zone } from "~/server/map";
 import chunkService from "~/services/chunk";
 import { Item, Vec2, WorldEntity } from "~/types/worldTypes";
 import { base58 } from "./base58";
@@ -190,24 +190,42 @@ const randomizeEntityPositions = (
         return positionedEntity;
     });
 
-const addIdsToEntities = (entitiesList: WorldEntity[], items: ItemWithOldId[], rng: () => number) => {
-    const itemPrevToIdMap = items.reduce<Record<string, string>>((acc, i) => ({ ...acc, [i.prevId]: i.id }), {});
-    // use seeded IDs; replace items with correct seeded ids
-    return entitiesList.map((e) => ({
-        ...e,
-        id: `${e.type}-${buildId(rng)}`,
-        container: e.container 
-            ? {
-                ...e.container,
-                itemIds: e.container.itemIds.map((i) => itemPrevToIdMap[i]),
-            } : undefined,
-    }));
+/** resolve a container's itemIds from the seeded item map (shared by both paths) */
+function resolveContainer(
+    container: WorldEntity["container"],
+    itemPrevToIdMap: Record<string, string>,
+) {
+    return container
+        ? {
+            ...container,
+            itemIds: container.itemIds.map((i) => itemPrevToIdMap[i]),
+        }
+        : undefined;
 }
 
 function buildEntities(zone: Zone, mapConfig: MapConfig, entitiesList: WorldEntity[], items: ItemWithOldId[]) {
     const rng = mulberry32(zone.seed);
+    const itemPrevToIdMap = items.reduce<Record<string, string>>((acc, i) => ({ ...acc, [i.prevId]: i.id }), {});
 
-    const entities = addIdsToEntities(entitiesList, items, rng);
+    if (isHandAuthoredZone(zone) && zone.entities && zone.entities.length > 0) {
+        // hand-authored zones place their entities at FIXED world positions so the
+        // intro map is designed, not random. A hand-authored id is kept (stable) so
+        // a keyhole can link to its door by `lock.doorId`.
+        const authored = zone.entities.map((a) => ({
+            ...a,
+            id: a.id ?? `${a.type}-${buildId(rng)}`,
+            pos: { x: a.x, y: a.y },
+            container: resolveContainer(a.container, itemPrevToIdMap),
+        }));
+        return new Map<string, WorldEntity>(authored.map((o) => [o.id, o]));
+    }
+
+    // procedural zones scatter their entities from ENTITIES_LIST from the seed
+    const entities = entitiesList.map((e) => ({
+        ...e,
+        id: `${e.type}-${buildId(rng)}`,
+        container: resolveContainer(e.container, itemPrevToIdMap),
+    }));
     const walkableTiles = findWalkableTiles(zone, mapConfig);
     const entitiesPositioned = randomizeEntityPositions(entities, walkableTiles, rng);
 

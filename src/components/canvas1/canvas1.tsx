@@ -94,6 +94,9 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
                 // confirm that playerId has been saved on server
                 handlers.onInitConfirm(state.ctx, serverMessage);
                 break;
+            case "WORLD":
+                handlers.onWorldState(state.ctx, serverMessage);
+                break;
 
             default:
                 console.warn(

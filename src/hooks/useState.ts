@@ -16,6 +16,7 @@ import {
     ServerOtherPlayerMessage,
     ServerPlayerConnectMessage,
     ServerPlayerDisconnectMessage,
+    ServerWorldStateMessage,
     SubtypeServerAck,
 } from "~/types/wss/server";
 import useDispatch$ from "./useDispatch";
@@ -391,6 +392,26 @@ export const handlers = {
 
         console.log("other player left:", data.playerId);
         ctx.client.isDirty.players = true;
+    },
+
+    /** merge a narrow world-entity sync (doors/keyholes) by id. the client
+     *  loaded entities once from /api/map; this overwrites the ones that
+     *  changed so the collision gate and re-render stay in lockstep with the
+     *  authoritative door state. extendable to other synced entities later. */
+    onWorldState: function (
+        ctx: LocalWorldWrapper,
+        data: ServerWorldStateMessage,
+    ) {
+        for (const entity of data.entities) {
+            const existing = ctx.world.entities.get(entity.id);
+            if (existing) {
+                Object.assign(existing, entity);
+            } else {
+                ctx.world.entities.set(entity.id, entity);
+            }
+        }
+        ctx.client.isDirty.objects = true;
+        return true;
     },
 
     /**

@@ -80,6 +80,14 @@ const setupAtTickEndForPlayer = (
 
         message.ack.send(client, player, reason, action);
         message.playerMove(client.clientId, player);
+
+        // broadcast a narrow world-entity sync (door/keyhole) if this action
+        // changed one. only the acting player carries the flag, so this fires
+        // once and reaches every client.
+        if (player.pendingWorldStateEntities && player.pendingWorldStateEntities.length > 0) {
+            message.worldState(player.pendingWorldStateEntities);
+            player.pendingWorldStateEntities = undefined;
+        }
     };
 
 

@@ -1,11 +1,12 @@
 import { PlayerCheckpoint } from "~/server/checkpointService";
-import { Direction, Player, ServerPlayer, Vec2 } from "../worldTypes";
+import { Direction, Player, ServerPlayer, Vec2, WorldEntity } from "../worldTypes";
 import { ReasonCorrection, ReasonRejected } from "~/simulation/server/types";
 
 type ServerBaseMessage = {
     type: string;
     subtype?: string;
     reason?: string;
+    tick?: number;
 }
 
 type SubtypeOtherPlayerMessage = "MOVE" | "CONNECT";
@@ -41,8 +42,7 @@ export type SubtypeServerAck =
     | "CHECKPOINT"
     | "COMMAND"
     | "COMMAND_PARTIAL"
-    | 'ACK';
-export interface ServerAckBaseMessage extends ServerBaseMessage {
+    | 'ACK';export interface ServerAckBaseMessage extends ServerBaseMessage {
     type: "ACK";
     seq?: number;
     accepted: boolean;
@@ -116,6 +116,17 @@ export interface ServerInitConfirmMessage extends ServerBaseMessage {
     tick?: number;
 };
 
+/**
+ * narrow sync of world entities that both sides must agree on (doors/keyholes).
+ * carries full entity snapshots so receivers merge by id and re-gate movement /
+ * re-render. Extendable to other entities later.
+ */
+export interface ServerWorldStateMessage extends ServerBaseMessage {
+    type: "WORLD";
+    subtype: "STATE";
+    entities: WorldEntity[];
+};
+
 
 export type ServerMessage =
     | ServerOtherPlayerMessage<"MOVE">
@@ -124,4 +135,5 @@ export type ServerMessage =
     | ServerAckMessage<SubtypeServerAck>
     | ServerConnectionMessage<SubtypeConnectionMessage>
     | ServerAfkMessage
-    | ServerInitConfirmMessage;
+    | ServerInitConfirmMessage
+    | ServerWorldStateMessage;

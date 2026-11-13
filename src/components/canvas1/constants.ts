@@ -12,6 +12,7 @@ export const OBJECT_COLOR_MAP: Record<WorldEntity["type"], string> = {
     TREE: "#2E7D32",
     BOX: "#8D6E63",
     DOOR: "#7D4E53",
+    KEYHOLE: "#5D4E53",
     CHEST: "#FFD700",
     STONE: "#BDBDBD",
     CLIFF: "#616161",

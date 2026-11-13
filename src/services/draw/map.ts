@@ -45,7 +45,8 @@ const drawCliffTile: TileDrawer = function (
     ctx.fillStyle = adjustedColor;
     ctx.fillRect(lx * tileSize, ly * tileSize, tileSize, tileSize);
 
-    const nearbyTiles = getSurroundingTiles(state.ctx.world.zone, chunk, lx, ly);
+    const { lx: chunkLx, ly: chunkLy } = chunkService.getLocalChunkCoords({ x: lx, y: ly });
+    const nearbyTiles = getSurroundingTiles(state.ctx.world.zone, chunk, chunkLx, chunkLy);
     const nearbyCliffDirections = Object.entries(nearbyTiles).reduce<
         Record<string, "CLIFF" | "OTHER">
     >((accum, cur) => {
