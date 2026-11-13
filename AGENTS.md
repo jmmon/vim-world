@@ -25,6 +25,13 @@ Use `pnpm` for everything. Node 26 on this machine; `mise.toml` pins pnpm.
 - Tests live next to the code they cover as `*.spec.ts` / `*.spec.tsx`.
 - `--no-verify` and force pushes are forbidden. Agents never run
   `git commit`, `git push`, or `gh`.
+- Never run `git checkout HEAD -- <file>`, `git checkout -- .`, `git reset
+  --hard`, or plain `git stash` on a working tree holding uncommitted work you
+  need to keep — these discard changes. To inspect HEAD without touching your
+  work, use a throwaway worktree: `git worktree add /tmp/head-check HEAD`
+  (typecheck/build there). If you must stash, use `git stash push -u` and
+  confirm it captured everything before continuing. Recovery from unreachable
+  git objects is luck, not a plan.
 - Prefer the `~/` path alias over deep relative imports.
 - Never run repo-wide `pnpm fmt`: the repo has pre-existing formatting debt.
   Format only files you touch.
