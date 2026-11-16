@@ -7,6 +7,7 @@ import {
 } from "~/hooks/useZoneTeaching";
 import { GameState } from "~/hooks/useState";
 import { WorldEntity } from "~/types/worldTypes";
+import { ITEMS_WITH_IDS } from "~/server/objects";
 
 // The teaching state machine is pure so it can be unit-tested without a DOM:
 // zone entry shows the verb, the correct action auto-dismisses, and a stuck
@@ -14,6 +15,10 @@ import { WorldEntity } from "~/types/worldTypes";
 
 const STUCK = 3000;
 const now = 1_000_000;
+
+// the key's canonical generated id (what a real inventory carries after yi"),
+// derived from the source of truth rather than hardcoded.
+const KEY_ID = ITEMS_WITH_IDS.find((i) => i.kind === "KEY")!.id;
 
 /** build a minimal ctx-shaped state for the pure machine. */
 function makeState(overrides: {
@@ -107,7 +112,7 @@ describe("stepZoneTeaching — auto-dismiss on the correct action", () => {
         const m = { lastZoneIndex: 2, stuckAt: -1 };
         const solved = stepZoneTeaching(
             m,
-            makeState({ x: 12, itemIds: ["789"] }),
+            makeState({ x: 12, itemIds: [KEY_ID] }),
             now,
             STUCK,
         );

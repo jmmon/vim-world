@@ -12,8 +12,8 @@ describe("hand-authored entities — fixed placement", () => {
 
     test("places the three authored entities at their authored positions", () => {
         expect(byId("CHEST-KEY").pos).toEqual({ x: 12, y: 8 });
-        expect(byId("KEYHOLE-1").pos).toEqual({ x: 20, y: 8 });
-        expect(byId("DOOR-1").pos).toEqual({ x: 26, y: 10 });
+        expect(byId("KEYHOLE-1").pos).toEqual({ x: 17, y: 5 });
+        expect(byId("DOOR-1").pos).toEqual({ x: 31, y: 8 });
     });
 
     test("keyhole links to its door by id (both directions of the link)", () => {

@@ -23,7 +23,8 @@ type WorldEntityType =
     | "STONE"
     | "CLIFF"
     | "DOOR"
-    | "KEYHOLE";
+    | "KEYHOLE"
+    | "SPAWN";
 export interface WorldEntity {
     /** e.g. `${type}-abcdefghijk` base58 11 chars, or a hand-authored id */
     id: string;
@@ -45,6 +46,12 @@ export interface WorldEntity {
 }
 interface Collision {
     solid: boolean;
+    /**
+     * Whether a two-tile hop (`w`/`b`) may clear this obstacle. Only gaps set
+     * it (`true`); every wall/barrier omits it, so `hoppable` defaults to
+     * `false` — a solid obstacle is un-hoppable unless explicitly a gap.
+     */
+    hoppable?: boolean;
 }
 interface Container {
     capacity: number;
@@ -112,6 +119,13 @@ export type Item = {
     kind: ItemKindId;
     quality: ItemQualityId;
     meta?: Record<"name" | "description" | string, any>;
+    /**
+     * Lock group this item's key opens, bridging the global item (in
+     * `objects.ts`'s `ITEMS`) to the map's link groups (`link: "a"` on the
+     * chest/keyhole/door). Absent on non-key items. Enables multi-key: a second
+     * KEY item with `link: "b"` opens a second lock with zero resolver changes.
+     */
+    link?: string;
 };
 
 export interface Player {

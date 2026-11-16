@@ -1,4 +1,5 @@
 import { MAP_CONFIG, MapConfig, Zone, isHandAuthoredZone, mulberry32, zone } from "~/server/map";
+import { INTRO_MAP } from "~/server/map";
 import chunkService from "~/services/chunk";
 import { Item, Vec2, WorldEntity } from "~/types/worldTypes";
 import { base58 } from "./base58";
@@ -6,7 +7,7 @@ import { base58 } from "./base58";
 const ITEMS: Item[] = [
     { id: "123", quality: "RARE", kind: "SWORD", meta: {name: "Sword", description: "description"} },
     { id: "456", quality: "COMMON", kind: "POTION", meta: {name: "Potion", description: "Drink me"} },
-    { id: "789", quality: "EPIC", kind: "KEY", meta: {name: "Key", description: "description3"} },
+    { id: "789", quality: "EPIC", kind: "KEY", meta: {name: "Key", description: "description3"}, link: "a" },
 ];
 
 const ENTITIES_LIST: WorldEntity[] = [
@@ -132,10 +133,10 @@ function buildId(rng: () => number) {
 type ItemWithOldId = Item & { prevId: string };
 let _items: Array<ItemWithOldId>;
 
-function buildItemsWithIds(zone: Zone): ItemWithOldId[] {
+function buildItemsWithIds(seed: number): ItemWithOldId[] {
     if (_items) return _items;
 
-    const rng = mulberry32(zone.seed);
+    const rng = mulberry32(seed);
     _items = ITEMS.map((i) => ({
         ...i,
         id: `${i.kind}-${buildId(rng)}`,
@@ -143,7 +144,6 @@ function buildItemsWithIds(zone: Zone): ItemWithOldId[] {
     }));
     return _items;
 }
-
 
 const findWalkableTiles = (zone: Zone, mapConfig: MapConfig) => 
     chunkService
@@ -239,7 +239,23 @@ function entityFactory(zone: Zone, mapConfig: MapConfig, entitiesList: WorldEnti
     return _entities;
 }
 
-export const ITEMS_WITH_IDS = buildItemsWithIds(zone);
+export const ITEMS_WITH_IDS = buildItemsWithIds(INTRO_MAP.seed);
+
+/**
+ * Lock group id → the generated id of the KEY item that opens it. Built from
+ * each KEY item's `link` field (in `ITEMS`), so `takeKey: "a"` targets the
+ * *right* key, not any key. The chest `key: "a"` resolves to the same group, so
+ * the whole lock shares one vocabulary. Multi-key-ready: add a second KEY item
+ * with `link: "b"` and the map references "b" — no resolver change.
+ */
+export const keyIdByLink: Record<string, string> = ITEMS_WITH_IDS.reduce(
+    (acc, i) => {
+        if (i.link) acc[i.link] = i.id;
+        return acc;
+    },
+    {} as Record<string, string>,
+);
+
 export const entities = entityFactory(zone, MAP_CONFIG, ENTITIES_LIST, ITEMS_WITH_IDS);
 
 // console.log(

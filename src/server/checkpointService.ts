@@ -4,6 +4,7 @@
 
 import { getRandomHSLColor } from "~/utils/color";
 import { Direction, Player, SessionAggregate } from "~/types/worldTypes";
+import { isHandAuthoredZone, zone } from "~/server/map";
 
 export type PlayerCheckpoint = {
     level: number;
@@ -23,14 +24,26 @@ export type PlayerCheckpoint = {
 }
 // & SessionAggregate;
 
+// The SPAWN entity (the `S` cell) is the single source of truth for where the
+// player starts: its world position and facing direction. `zone.entities` is
+// built from the authored map, so editing the map moves the spawn — no magic
+// numbers here. Falls back to the designed center if the entity is ever absent.
+const SPAWN = isHandAuthoredZone(zone)
+    ? zone.entities?.find((e) => e.type === "SPAWN")
+    : undefined;
+
 export const DEFAULT_CHECKPOINT: PlayerCheckpoint = {
     level: 1,
     playerId: '',
     name: '',
     zone: 'default',
-    x: 0,
-    y: 0,
-    dir: 'S',
+    // room 0 (the open room, x2..6 / y8..12) center — the player spawns here
+    // facing the gap to the east, and the camera centers on them
+    // (see centerCameraOnPlayer in useState.ts). Chosen from the forced-GRASS
+    // overlay so the spawn can never land on procedural WATER/CLIFF.
+    x: SPAWN?.x ?? 4,
+    y: SPAWN?.y ?? 10,
+    dir: (SPAWN?.dir as Direction) ?? 'E',
     // inventory,
     // hp,
     // maxHp,

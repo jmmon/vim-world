@@ -93,16 +93,37 @@ describe("hand-authored zone — effects", () => {
     });
 });
 
-describe("hand-authored zone — determinism & clamping", () => {
+describe("hand-authored zone — determinism", () => {
     test("same zone + position => same chunk", () => {
         expect(generateChunk(zone, 0, 0).tiles).toEqual(generateChunk(zone, 0, 0).tiles);
     });
+});
 
-    test("out-of-bounds world coords clamp to the nearest edge tile", () => {
-        const negative = generateTileAt({ seed: zone.seed, ruleset: zone.baseRuleset }, -5, -5);
-        expect(["GRASS", "DIRT", "WATER", "CLIFF"]).toContain(negative.type);
+describe("hand-authored zone — origin positioning", () => {
+    // a 3-row grid placed at world y=10: row 0 (CLIFF) at y=10, row 2 (WATER) at y=12
+    const grid: TileType[][] = [
+        ["CLIFF", "CLIFF", "CLIFF"],
+        ["GRASS", "GRASS", "GRASS"],
+        ["WATER", "WATER", "WATER"],
+    ];
+    const z: HandAuthoredZone = {
+        ruleset: "hand-authored",
+        seed: 5,
+        origin: [0, 10],
+        baseRuleset: "forest-v1",
+        grid,
+        entities: [],
+    };
 
-        // a forced tile beyond the grid clamps to the nearest grid cell
-        expect(getHandAuthoredTileAt(zone, 9, 9).type).toBe("WATER"); // grid[3][3]
+    test("grid cells map to world coords via origin", () => {
+        expect(getHandAuthoredTileAt(z, 0, 10).type).toBe("CLIFF"); // row 0
+        expect(getHandAuthoredTileAt(z, 0, 11).type).toBe("GRASS"); // row 1
+        expect(getHandAuthoredTileAt(z, 0, 12).type).toBe("WATER"); // row 2
+    });
+
+    test("cells outside the grid fall through to the procedural base", () => {
+        // below the grid (y<10) and above it (y>12) are not forced
+        expect(getHandAuthoredTileAt(z, 0, 9).type).toBe(baseTypeAt(z, 0, 9));
+        expect(getHandAuthoredTileAt(z, 0, 13).type).toBe(baseTypeAt(z, 0, 13));
     });
 });

@@ -1,5 +1,7 @@
 import { useVisibleTask$ } from "@builder.io/qwik";
 import { GameState } from "./useState";
+import { INTRO_MAP } from "~/server/map";
+import { keyIdByLink } from "~/server/objects";
 
 /**
  * Zone teaching for the Phase 0 intro map.
@@ -28,40 +30,46 @@ export interface ZoneTeach {
     isSolved: (state: GameState) => boolean;
 }
 
-/** the intro beat sheet, one verb per zone, laid out left-to-right */
-export const ZONE_TEACHES: ZoneTeach[] = [
-    {
-        // zone 1 — open room: just move with hjkl
-        xRange: [0, 6],
-        verb: "Move with h j k l",
-        isSolved: () => false, // nothing to "solve"; stays until the player leaves
-    },
-    {
-        // zone 2 — the gap: only a hop crosses it
-        xRange: [7, 7],
-        verb: "Hop across with w",
-        isSolved: (state) => {
-            const p = state.ctx.client.player;
-            return !!p && p.pos.x >= 8;
-        },
-    },
-    {
-        // zone 3 — the chest: take the key inside (yi" puts it in inventory)
-        xRange: [8, 19],
-        verb: 'Take the key with yi"',
-        isSolved: (state) =>
-            !!state.ctx.client.player?.itemIds?.includes("789"),
-    },
-    {
-        // zone 4 — the keyhole: place the key to open the door (pi")
-        xRange: [20, 27],
-        verb: 'Place the key with pi"',
-        isSolved: (state) => {
-            const door = state.ctx.world.entities.get("DOOR-1");
-            return !!door && !door.collision?.solid;
-        },
-    },
-];
+/**
+ * The intro beat sheet, derived from `INTRO_MAP.zones`: one verb per zone, laid
+ * out left-to-right. Each zone's `solved` spec becomes this zone's `isSolved`
+ * predicate (see `resolveSolved`). A zone with no `solved` (the open room, the
+ * gap) returns "never solved here" — the zone transition replaces the hint when
+ * the player advances, which is cleaner than a magic position check.
+ */
+export const ZONE_TEACHES: ZoneTeach[] = INTRO_MAP.zones.map((z) => ({
+    xRange: z.xRange,
+    verb: z.verb,
+    isSolved: resolveSolved(z.solved),
+}));
+
+/** the `solved` spec a map zone carries; "leave" is implicit (no field). */
+type ZoneSolved = { takeKey: string } | { openDoor: string };
+
+/**
+ * Turn a map zone's `solved` spec into an `isSolved` predicate.
+ *  - `takeKey: "a"` → the player carries the key for lock group `a`. Resolved
+ *    via `keyIdByLink` so it targets the *right* key, not any key (multi-key
+ *    correct from day one).
+ *  - `openDoor: "DOOR-1"` → that door's collision has been released.
+ *  - omitted → never solved here; the zone transition handles it.
+ */
+function resolveSolved(
+    solved: ZoneSolved | undefined,
+): (state: GameState) => boolean {
+    if (!solved) return () => false;
+    if ("takeKey" in solved) {
+        const keyId = keyIdByLink[solved.takeKey];
+        return (state) =>
+            (state.ctx.client.player?.itemIds ?? []).includes(keyId);
+    }
+    // "openDoor"
+    const doorId = solved.openDoor;
+    return (state) => {
+        const door = state.ctx.world.entities.get(doorId);
+        return !!door && !door.collision?.solid;
+    };
+}
 
 /** which zone index contains world-x, or -1 if none. */
 export function zoneIndexAtX(
@@ -168,6 +176,9 @@ export function stepZoneTeaching(
  * Wire the pure teaching machine into the render loop. Runs on a dedicated rAF
  * task (independent of the main loop) and writes `show.zoneHint` +
  * `zoneHintText` into the ctx each frame.
+ *
+ *
+ * WHY DO WE HAVE A SEPARATE RAF?? sounds inefficient!!!???
  */
 export default function useZoneTeaching(state: GameState) {
     // eslint-disable-next-line qwik/no-use-visible-task

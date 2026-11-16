@@ -1,6 +1,8 @@
 import chunkService from "~/services/chunk";
 import { getTileByWorldCoords, getWorldCoordsFromChunkLocal, isPosWithinMapgen } from "~/simulation/shared/helpers";
 import { Direction, Tile, TileType, WorldEntity } from "~/types/worldTypes";
+import { parseIntroMap } from "~/server/mapParser";
+import type { IntroMapSource } from "~/server/mapParser";
 
 export const TILE_SIZE_PX = 32; // px
 
@@ -27,74 +29,76 @@ const SCALE_DEFAULT = 1;
 const INTRO_ROWS = 4 * CHUNK_HEIGHT;
 const INTRO_COLS = 4 * CHUNK_WIDTH;
 
-function buildIntroGrid(): Array<Array<TileType | undefined>> {
-    // sparse overlay: only the cells we deliberately place are set. every other
-    // cell stays undefined and falls through to the seed-dependent procedural
-    // base — that base gives the world its character and keeps generation
-    // seed-sensitive (see map.spec.ts "different seeds produce different maps").
-    const grid: Array<Array<TileType | undefined>> = Array.from({ length: INTRO_ROWS }, () =>
-        Array.from({ length: INTRO_COLS }, (): TileType | undefined => undefined),
-    );
-    const grass = (x: number, y: number) => {
-        if (y >= 0 && y < INTRO_ROWS && x >= 0 && x < INTRO_COLS) grid[y][x] = "GRASS";
-    };
-    const water = (x: number, y: number) => {
-        if (y >= 0 && y < INTRO_ROWS && x >= 0 && x < INTRO_COLS) grid[y][x] = "WATER";
-    };
-    // zone 1 — open room
-    for (let y = 8; y <= 12; y++) for (let x = 2; x <= 6; x++) grass(x, y);
-    // corridor (y10) from the gap to the end room; x7 is the gap (forced WATER)
-    for (let x = 8; x <= 31; x++) grass(x, 10);
-    water(7, 10);
-    // niches up to the chest (12,8) and keyhole (20,8)
-    grass(12, 8); grass(12, 9);
-    grass(20, 8); grass(20, 9);
-    // zone 3 — end room behind the door
-    for (let y = 8; y <= 12; y++) for (let x = 28; x <= 31; x++) grass(x, y);
-    return grid;
-}
-
-/** the door/keyhole/key/chest, at fixed positions. IDs are stable so the
- *  keyhole can link to its door by `lock.doorId` on both client and server. */
-const INTRO_ENTITIES: AuthoredEntity[] = [
-    {
-        id: "CHEST-KEY",
-        x: 12,
-        y: 8,
-        type: "CHEST",
-        collision: { solid: true },
-        container: { capacity: 1, itemIds: ["789"], behavior: "PERSIST" },
-        interactable: { selectors: ['"'], actions: [{ type: "PICK_UP" }] },
-    },
-    {
-        id: "KEYHOLE-1",
-        x: 20,
-        y: 8,
-        type: "KEYHOLE",
-        collision: { solid: true },
-        container: { capacity: 1, itemIds: [], behavior: "PERSIST" },
-        interactable: { selectors: ['"'], actions: [{ type: "PICK_UP" }] },
-        lock: { doorId: "DOOR-1", used: false },
-    },
-    {
-        id: "DOOR-1",
-        x: 26,
-        y: 10,
-        type: "DOOR",
-        collision: { solid: true },
-        state: { kind: "DOOR", open: false, locked: true },
-        lock: { requiredKeyholeIds: ["KEYHOLE-1"] },
-    },
-];
-
-/** the Phase 0 intro map: procedural forest base + forced-tile overlay + the
- *  hand-placed door/keyhole/chest entities. */
-export const zone: Zone = {
+/**
+ * The Phase 0 intro map, authored as a compact ASCII grid plus a `defs` object
+ * of hand-placed entities, all in world coordinates. This is the single source
+ * of truth for the intro level; the parser turns it into the `zone` shape the
+ * engine already expects (procedural forest base + forced-tile overlay +
+ * entities). See docs/agents/map-ascii-plan.md.
+ *
+ * ASCII grid: each cell is one of:
+ *   . GRASS    ~ WATER    , DIRT    # CLIFF
+ *   S SPAWN    C CHEST    O KEYHOLE    D DOOR    T TREE    B BOX    N STONE
+ *   (space) = leave to the seed-dependent procedural base
+ *
+ * The grid is compact and positioned by `origin` (world coords of the top-left
+ * cell); the parser expands it into a full INTRO_ROWS × INTRO_COLS grid.
+ */
+export const INTRO_MAP: IntroMapSource = {
+    origin: [0, 0],
     seed: 12345678,
-    ruleset: "hand-authored",
-    baseRuleset: "forest-v1",
-    grid: buildIntroGrid(),
-    entities: INTRO_ENTITIES,
+    baseRuleset: "forest-v1" as const,
+    grid: [
+        //
+        "################################",
+        "#                              #",
+        "#                              #",
+        "#                              #",
+        "#                              #",
+        "#           C....O.....        #",
+        "#                              #",
+        "#   S~.........................#",
+        // center =========================================================================
+        "#   ...........................D",
+        "#                              #",
+        "#                              #",
+        "#                              #",
+        "#                              #",
+        "#                              #",
+        "#                              #",
+        "################################",
+    ],
+    defs: {
+        "4,7": { id: "SPAWN-1", type: "SPAWN", dir: "E" },
+        "12,8": {
+            id: "CHEST-KEY",
+            type: "CHEST",
+            collision: { solid: true },
+            container: { capacity: 1, itemIds: ["789"], behavior: "PERSIST" },
+            interactable: { selectors: ['"'], actions: [{ type: "PICK_UP" }] },
+        },
+        "17,5": {
+            id: "KEYHOLE-1",
+            type: "KEYHOLE",
+            link: "a",
+            collision: { solid: true },
+            container: { capacity: 1, itemIds: [], behavior: "PERSIST" },
+            interactable: { selectors: ['"'], actions: [{ type: "PICK_UP" }] },
+        },
+        "31,8": {
+            id: "DOOR-1",
+            type: "DOOR",
+            link: "a",
+            collision: { solid: true },
+            state: { kind: "DOOR", open: false, locked: true },
+        },
+    },
+    zones: [
+        { id: "room1", xRange: [0, 6], verb: "Move with h j k l" },
+        { id: "gap", xRange: [7, 7], verb: "Hop across with w" },
+        { id: "chest", xRange: [8, 19], verb: 'Take the key with yi"', solved: { takeKey: "a" } },
+        { id: "keyhole", xRange: [20, 27], verb: 'Place the key with pi"', solved: { openDoor: "DOOR-1" } },
+    ],
 };
 export const MAP_CONFIG: MapConfig = {
     width: 4, // chunks
@@ -213,6 +217,13 @@ export interface HandAuthoredZone {
     seed: number;
     /** what procedural terrain to seed the base from */
     baseRuleset: "forest-v1" | "dungeon-v1";
+    /**
+     * World coords of the top-left cell of the forced `grid` (ASCII cell
+     * `(row r, col c)` → world `(origin[0] + c, origin[1] + r)`). Applied when
+     * reading forced tiles; a cell outside the grid falls through to the
+     * procedural base. Optional for hand-built zones (defaults to world 0,0).
+     */
+    origin?: [number, number];
     /** forced tiles [y][x], world coords. A `undefined` cell is left to the
      *  seed-dependent procedural base (so the base gives the map its character
      *  and keeps generation seed-sensitive); a placed tile overrides it. */
@@ -245,13 +256,15 @@ interface Ruleset {
     border: Tile;
 }
 
-const COLLISION = { solid: true };
+const COLLISION = { solid: true } as const;
+/** a solid tile a two-tile hop (`w`/`b`) may clear — the one-tile gaps */
+const HOP_COLLISION = { solid: true, hoppable: true } as const;
 const RULESETS: Record<RuleSetId, Ruleset> = {
     "forest-v1": {
         id: "forest-v1",
         elevation: { cellSize: 14, octaves: 4 },
         bands: [
-            { type: "WATER", max: 0.35, collision: COLLISION },
+            { type: "WATER", max: 0.35, collision: HOP_COLLISION },
             { type: "DIRT", max: 0.42 },
             { type: "GRASS", max: 1 },
         ],
@@ -262,7 +275,7 @@ const RULESETS: Record<RuleSetId, Ruleset> = {
         id: "dungeon-v1",
         elevation: { cellSize: 16, octaves: 3 },
         bands: [
-            { type: "WATER", max: 0.14, collision: COLLISION },
+            { type: "WATER", max: 0.14, collision: HOP_COLLISION },
             { type: "GRASS", max: 0.36 },
             { type: "DIRT", max: 1 },
         ],
@@ -364,13 +377,13 @@ export function generateTileAt(
     return { type: band.type, collision: band.collision };
 }
 
-function clamp(n: number, min: number, max: number): number {
-    return Math.min(max, Math.max(min, n));
-}
-
 /** collision derived from tile type — matches the procedural rule exactly. */
 export function collisionForTile(type: TileType): Tile["collision"] {
-    return type === "WATER" || type === "CLIFF" ? COLLISION : undefined;
+    return type === "WATER"
+        ? HOP_COLLISION
+        : type === "CLIFF"
+            ? COLLISION
+            : undefined;
 }
 
 /**
@@ -387,12 +400,18 @@ export function getHandAuthoredTileAt(
     // 1. procedural base (the hybrid: seed + base ruleset gives character)
     let type = baseTypeAt(zone, wx, wy);
 
-    // 2. forced tile overrides the base
+    // 2. forced tile overrides the base, positioned by `origin`. A cell outside
+    //    the grid falls through to the procedural base (it is NOT clamped to an
+    //    edge row/col — that would bleed the border tiles across the whole map).
     if (zone.grid) {
         const rows = zone.grid.length;
         const cols = zone.grid[0]?.length ?? 0;
-        const forced = zone.grid[clamp(wy, 0, rows - 1)][clamp(wx, 0, cols - 1)];
-        if (forced !== undefined) type = forced;
+        const gy = wy - (zone.origin?.[1] ?? 0);
+        const gx = wx - (zone.origin?.[0] ?? 0);
+        if (gy >= 0 && gy < rows && gx >= 0 && gx < cols) {
+            const forced = zone.grid[gy][gx];
+            if (forced !== undefined) type = forced;
+        }
     }
 
     const tile: Tile = { type, collision: collisionForTile(type) };
@@ -511,3 +530,10 @@ export function generateChunk(
 
     return { cx: cx, cy: cy, tiles, seed, dirty: true, };
 }
+
+// Phase 0 intro `zone`: authored as the ASCII source `INTRO_MAP` above, parsed
+// into the `HandAuthoredZone` shape the engine expects. The chest's container
+// carries the item's legacy prevId (`"789"`); `objects.ts` maps it to the
+// concrete generated key id at build time — so `zone` lives here synchronously
+// and every other module that imports `zone` from `~/server/map` keeps working.
+export const zone: Zone = parseIntroMap(INTRO_MAP);
