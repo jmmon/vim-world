@@ -5,6 +5,7 @@ import {
 } from "~/fsm/types";
 import {
     addPos,
+    canHopAt,
     deltaToDir,
     isWalkable,
     isWithinBounds,
@@ -35,6 +36,9 @@ function validateMove(
     //         1,
     // );
     const steps = action.count ?? 1;
+    // a two-tile move (`w`/`b`) hops: it must clear the intermediate tile too,
+    // not just the landing. a wall/gap it can't clear stops the hop.
+    const isHop = Math.abs(delta.x) + Math.abs(delta.y) === 2;
     const target: Vec2 = {
         x: player.pos.x,
         y: player.pos.y,
@@ -55,6 +59,17 @@ function validateMove(
             reason = "COLLISION";
             // console.log(`!!${reason}!`, JSON.stringify(player.pos), JSON.stringify(next));
             break; // stop at obstacle or player
+        }
+
+        if (isHop) {
+            const mid: Vec2 = {
+                x: target.x + delta.x / 2,
+                y: target.y + delta.y / 2,
+            };
+            if (!canHopAt(ctx, mid)) {
+                reason = "COLLISION";
+                break; // wall/gap under the hop — can't clear it
+            }
         }
 
         target.x = next.x;

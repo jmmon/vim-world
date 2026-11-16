@@ -164,26 +164,50 @@ export function isWalkable(
     if (tile?.collision?.solid) {
         return false;
     }
+    // object + player collision
+    return !hasSolidOccupant(state, next);
+}
 
-    // later: e.g. chunk static entities, world dynamic entities
-    // object collision
+/**
+ * Is there a solid entity (door, chest, ...) or another player standing on this
+ * tile? Shared by `isWalkable` (landing check) and `canHopAt` (intermediate
+ * check) so a standing obstacle blocks both a step and a hop.
+ */
+function hasSolidOccupant(
+    state: ServerWorldWrapper | LocalWorldWrapper,
+    pos: Vec2,
+): boolean {
     const entity = Array.from(state.world.entities.values()).find(
-        ({ pos }) => pos && pos.x === next.x && pos.y === next.y,
+        ({ pos: entityPos }) =>
+            entityPos &&
+            entityPos.x === pos.x &&
+            entityPos.y === pos.y,
     );
-    if (entity?.collision?.solid) {
-        return false;
-    }
-
-    // player collision
-    if (state.world.players.size === 0) return true;
+    if (entity?.collision?.solid) return true;
 
     for (const p of state.world.players.values()) {
-        if (p.pos.x === next.x && p.pos.y === next.y) {
-            return false;
-        }
+        if (p.pos.x === pos.x && p.pos.y === pos.y) return true;
     }
+    return false;
+}
 
-    return true;
+/**
+ * Can a two-tile hop (`w`/`b`) clear this tile? The tile is passable when it is
+ * non-solid (open ground) or explicitly a hoppable gap (`hoppable: true`, e.g.
+ * water). A solid entity or player on the tile blocks the hop regardless of the
+ * ground — so a closed door is never hop-able even though its ground tile is
+ * grass.
+ */
+export function canHopAt(
+    state: ServerWorldWrapper | LocalWorldWrapper,
+    pos: Vec2,
+): boolean {
+    if (state.physics.collision === false) return true;
+    const tile = getTileByWorldCoords(state.world.zone, pos);
+    if (tile?.collision?.solid && tile.collision.hoppable !== true) {
+        return false;
+    }
+    return !hasSolidOccupant(state, pos);
 }
 
 const DIRECTIONS = [
