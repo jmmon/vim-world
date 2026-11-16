@@ -16,6 +16,7 @@ export const OBJECT_COLOR_MAP: Record<WorldEntity["type"], string> = {
     CHEST: "#FFD700",
     STONE: "#BDBDBD",
     CLIFF: "#616161",
+    SPAWN: "#9C27B0",
     // PLAYER: '',
     // NPC: '',
 };

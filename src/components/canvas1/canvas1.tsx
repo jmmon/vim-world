@@ -12,6 +12,7 @@ import ChooseUsername from "../choose-username/choose-username";
 import useWebSocket from "~/hooks/useWebSocket";
 import Menu from "../menu/menu";
 import useRenderLoop from "~/hooks/useRenderLoop";
+import useZoneTeaching from "~/hooks/useZoneTeaching";
 import useState, { handlers } from "../../hooks/useState";
 import { VimAction } from "~/fsm/types";
 import { expandAction } from "~/simulation/shared/loop/helpers";
@@ -19,7 +20,7 @@ import { World } from "~/server/types";
 import { playerSnapshot } from "~/simulation/shared/helpers";
 
 type Canvas1Props = {
-    worldState: World<'Client'>;
+    worldState: World<"Client">;
 };
 const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
     const nav = useNavigate();
@@ -59,7 +60,10 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
                     );
                     if (!state.ctx.client.player) break;
 
-                    state.ctx.dispatch.checkpoint(state.ctx.client.player, true);
+                    state.ctx.dispatch.checkpoint(
+                        state.ctx.client.player,
+                        true,
+                    );
                     state.ctx.client.timeSinceLastCheckpoint = Date.now();
                     break;
                 }
@@ -151,11 +155,11 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
     /** =======================================================
      *          keyboard actions; apply to world
      * ======================================================= */
-    useVimFSM(
-        enqueueAction,
-        state.ctx,
-    );
+    useVimFSM(enqueueAction, state.ctx);
     useRenderLoop(state);
+    // teach the intro beat (move → hop → pick → place) as the player advances
+    // through each zone; the render loop redraws the hint panel on change.
+    useZoneTeaching(state);
 
     // TODO: adjust width and height as needed based on camera settings
     const viewport = state.ctx.client.viewport;

@@ -8,7 +8,10 @@ import { clearOldCanvas, shadeColor } from "./utils";
 import { GameState } from "~/hooks/useState";
 import { ITEMS_WITH_IDS } from "~/server/objects";
 import { MapConfig, mulberry32 } from "~/server/map";
-import { getViewportCoordsAsPx, isWithinViewport } from "~/simulation/shared/helpers";
+import {
+    getViewportCoordsAsPx,
+    isWithinViewport,
+} from "~/simulation/shared/helpers";
 
 const KEY_OFFSET_PERCENT = 0.05;
 function drawObjectKeys(
@@ -27,20 +30,28 @@ function drawObjectKeys(
         tileSize * keyOffetRight,
         tileSize * keyOffetRight,
     );
+    const selectors = obj!.interactable!.selectors ?? [];
     ctx.fillStyle = "black";
     ctx.textAlign = "left";
     ctx.font = `bold ${12 * scale}px mono`;
-    ctx.fillText(
-        obj!.interactable!.selectors![0],
-        (x + KEY_OFFSET_PERCENT) * tileSize,
-        (y + 0.75) * tileSize,
-    );
-    ctx.textAlign = "right";
-    ctx.fillText(
-        obj!.interactable!.selectors![1],
-        (x + keyOffetRight) * tileSize,
-        (y + 0.75) * tileSize,
-    );
+    // some objects define a single selector (e.g. the intro chest/keyhole use
+    // only `"`). only draw the trailing key when one is actually defined,
+    // otherwise a missing selector renders as the literal string "undefined".
+    if (selectors[0] !== undefined) {
+        ctx.fillText(
+            selectors[0],
+            (x + KEY_OFFSET_PERCENT) * tileSize,
+            (y + 0.75) * tileSize,
+        );
+    }
+    if (selectors[1] !== undefined) {
+        ctx.textAlign = "right";
+        ctx.fillText(
+            selectors[1],
+            (x + keyOffetRight) * tileSize,
+            (y + 0.75) * tileSize,
+        );
+    }
 }
 
 // draws the first item on the object
@@ -53,7 +64,9 @@ function drawObjectItems(
     LINE_WIDTH: number,
 ) {
     const { tileSize } = config;
-    const item = ITEMS_WITH_IDS.find((i) => i.id === obj!.container!.itemIds[0])!;
+    const item = ITEMS_WITH_IDS.find(
+        (i) => i.id === obj!.container!.itemIds[0],
+    )!;
     ctx.strokeStyle = ITEM_COLOR_MAP[item.quality];
     ctx.lineWidth = LINE_WIDTH * 1.2;
     ctx.beginPath();
@@ -76,10 +89,13 @@ function drawObject(
 ) {
     const { tileSize, scale } = state.ctx.world.config;
     // need viewport coords, not chunk coords
-    const objPosPx = {x: obj.pos!.x * tileSize, y: obj.pos!.y * tileSize};
-    const {px, py} = getViewportCoordsAsPx(objPosPx, state.ctx.client.viewport.origin);
+    const objPosPx = { x: obj.pos!.x * tileSize, y: obj.pos!.y * tileSize };
+    const { px, py } = getViewportCoordsAsPx(
+        objPosPx,
+        state.ctx.client.viewport.origin,
+    );
     // const { lx, ly } = chunkService.getLocalChunkCoords(obj.pos!);
-    const {lx, ly} = {lx: px / tileSize, ly: py / tileSize};
+    const { lx, ly } = { lx: px / tileSize, ly: py / tileSize };
     const rng = mulberry32(state.ctx.world.zone.seed); // world rng for world objects
     const baseColor = OBJECT_COLOR_MAP[obj.type];
     const lightnessOffset = rng() * 20 - 10;
@@ -87,7 +103,7 @@ function drawObject(
     ctx.fillStyle = adjusted;
 
     // border
-    ctx.strokeStyle = HOT_PINK; 
+    ctx.strokeStyle = HOT_PINK;
     const LINE_WIDTH = 2 * scale;
     ctx.lineWidth = LINE_WIDTH;
 
@@ -111,7 +127,6 @@ function drawObject(
         drawObjectItems(state.ctx.world.config, ctx, obj, lx, ly, LINE_WIDTH);
 }
 
-
 export function drawObjects(state: GameState) {
     const canvas = state.refs.objects.value!;
     const ctx = canvas.getContext("2d")!;
@@ -122,16 +137,18 @@ export function drawObjects(state: GameState) {
     const { tileSize } = state.ctx.world.config;
     Array.from(state.ctx.world.entities.values()).forEach((entity) => {
         if (entity.pos === undefined) {
-            console.log("skipping object with undefined pos:", entity.id);
             return;
         }
 
-        const {x, y} = entity.pos;
-        if (!isWithinViewport(state.ctx.client.viewport, {px: x * tileSize, py: y * tileSize})) {
-            // console.log("outside viewport:", {id: entity.id, pos: entity.pos, viewport: state.ctx.client.viewport});
+        const { x, y } = entity.pos;
+        if (
+            !isWithinViewport(state.ctx.client.viewport, {
+                px: x * tileSize,
+                py: y * tileSize,
+            })
+        ) {
             return;
         }
-        console.log('within viewport! drawing entity::', entity);
         drawObject(state, ctx, entity);
     });
 }

@@ -470,6 +470,12 @@ export const handlers = {
             ctx.client.player.pos,
             ctx.world.config,
         );
+
+        // center the camera on the player's spawn before the margin-scroll takes
+        // over. the existing margin-scroll only pans when the player is near an
+        // edge, so a spawn at (0,0) would leave the camera stuck in the corner.
+        centerCameraOnPlayer(ctx);
+
         viewport.updatePos(ctx);
         handlers.markAllDirty(ctx);
 
@@ -510,6 +516,33 @@ export const handlers = {
         );
     },
 };
+
+/**
+ * Snap the viewport origin so the player sits at the center of the view. Called
+ * once at login (see `initClientData`) so the player sees where they are instead
+ * of the camera being stuck in a corner when they spawn at (0,0). After this the
+ * margin-scroll (`viewport.updatePos`) takes over and follows the player.
+ */
+function centerCameraOnPlayer(ctx: LocalWorldWrapper) {
+    const player = ctx.client.player;
+    if (!player) return;
+    const { viewport } = ctx.client;
+    const { tileSize } = ctx.world.config;
+    const playerPx = {
+        x: player.pos.x * tileSize,
+        y: player.pos.y * tileSize,
+    };
+    const ox = playerPx.x - viewport.width / 2;
+    const oy = playerPx.y - viewport.height / 2;
+    viewport.origin.x = Math.max(
+        0,
+        Math.min(ctx.world.config.worldWidthPx - viewport.width, ox),
+    );
+    viewport.origin.y = Math.max(
+        0,
+        Math.min(ctx.world.config.worldHeightPx - viewport.height, oy),
+    );
+}
 
 function useState(world: World<"Client">, ws: Signal<NoSerialize<WebSocket>>) {
     const containerRef = useSignal<HTMLDivElement>();

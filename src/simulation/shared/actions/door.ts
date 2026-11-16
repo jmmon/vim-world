@@ -5,7 +5,12 @@ import { ITEMS_WITH_IDS } from "~/server/objects";
  *  shared by client + server so the same code runs in both. */
 export type EntityWorld = { world: { entities: Map<string, WorldEntity> } };
 
-/** is this item id a key? */
+/**
+ * Is this item id a key? Checks the item's canonical generated id
+ * (`KEY-...`) — what live containers/inventories carry at runtime. Both the
+ * door unlock and the zone-teaching hint share this one check, so they agree
+ * on what "a key" is.
+ */
 export function isKeyId(itemId: string): boolean {
     return ITEMS_WITH_IDS.some((i) => i.id === itemId && i.kind === "KEY");
 }

@@ -22,6 +22,7 @@ export function drawPlayers(state: GameState) {
     if (selfPlayer) _drawPlayer(selfPlayer);
 
     // draw others (ghosts — semi-transparent)
+    // later:: ghosts only within tutorial area; if they are outside the tutorial then they can show as non-ghosts
     if (otherPlayers.size) otherPlayers.forEach((p) => _drawPlayer(p, true));
 
     // static guide figures anchored to the intro map
