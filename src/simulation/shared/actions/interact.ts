@@ -8,6 +8,21 @@ import {
 } from "~/simulation/server/types";
 import { WorldEntity, Player, Vec2 } from "~/types/worldTypes";
 
+/** drop duplicate entities by id (a paste into a keyhole returns the keyhole
+ *  both as the changed container and via the unlock) so the narrow sync carries
+ *  each changed entity once. */
+function dedupeById(entities: WorldEntity[]): WorldEntity[] {
+    const seen = new Set<string>();
+    const out: WorldEntity[] = [];
+    for (const e of entities) {
+        if (e.id && !seen.has(e.id)) {
+            seen.add(e.id);
+            out.push(e);
+        }
+    }
+    return out;
+}
+
 export function pickUpObject(entity: WorldEntity, player: Player) {
     player.carryingObjId = entity.id;
     entity.pos = undefined;
@@ -77,12 +92,16 @@ function applyYankCommand(
             if (player.carryingObjId) return []; // already carrying
             if (!result.obj.liftable?.canCarry) return []; // not liftable
             pickUpObject(result.obj, player);
-            return [];
+            // object left the board: broadcast it so other physics modes
+            // (no prediction) still drop it from their render
+            return [result.obj];
         case "i":
             // "inside" e.g. pick up the item within the object
             if (!entityHasItem(result.obj)) return [];
             pickUpItem(result.obj, player);
-            return [];
+            // container emptied: broadcast it so the ellipse disappears on
+            // every client, regardless of prediction mode
+            return [result.obj];
         default:
             return [];
     }
@@ -99,7 +118,8 @@ function applyPasteCommand(
     switch (modifier) {
         case "a":
             placeObject(result.obj, player, result.pos!);
-            return [];
+            // object placed on the board: broadcast it
+            return [result.obj];
         case "i": {
             console.assert(
                 result.obj !== undefined,
@@ -108,10 +128,14 @@ function applyPasteCommand(
             );
             const pasted = placeItem(result.obj, player);
             if (!pasted) return [];
-            // a key pasted into a keyhole unlocks its door — same code runs on
-            // client (prediction) and server (authoritative). returns the
-            // changed entities so the server can broadcast a narrow sync.
-            return maybeUnlockKeyhole(ctx, player, result.obj);
+            // the container changed (item added); if it's a keyhole the paste
+            // may unlock its door — return both (deduped) so the server
+            // broadcasts each. without prediction, the client relies on this
+            // sync to see the item land and the door open.
+            return dedupeById([
+                result.obj,
+                ...maybeUnlockKeyhole(ctx, player, result.obj),
+            ]);
         }
         default:
             return [];
