@@ -23,11 +23,16 @@ export const INTRO_MAP = {
   grid: [
     "........................",   // y = 0
     // ... rows of mostly space (leave to procedural base) ...
-    "  K....O.............",     // y = 8   chest K, keyhole O
-    "  ........O...........",    // y = 9   grass niches up to chest/keyhole
-    "  ..S~~C......D....",       // y = 10  spawn S, gap ~, corridor, door D
+    "  .......................",   // y = 8   grass corridor
+    "  .......................",   // y = 9   grass niches up to chest/keyhole
+    "  ..~~...............",      // y = 10  gap ~, corridor
     // ...
   ],
+  // NOTE: the grid is terrain only. Entity letters used to sit on their tiles
+  // as decoration, but they are decorative — entities are placed at fixed world
+  // coords by `defs` below, which is what the engine reads. Keep the grid as
+  // tiles (`.` grass, `~` water, `,` dirt, `#` cliff); don't align entity
+  // letters to them.
   defs: {
     "12,8": { id: "CHEST-KEY", type: "CHEST", key: "a",
               container: { capacity: 1, behavior: "PERSIST" },
