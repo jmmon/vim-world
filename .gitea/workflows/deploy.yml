@@ -11,7 +11,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: install
-        run: corepack enable && pnpm install --frozen-lockfile
+        # store-dir must be the bind-mounted host dir, else pnpm falls back to a throwaway workspace-local store
+        run: corepack enable && pnpm install --frozen-lockfile --store-dir /home/jmmai/pnpm-store
       - name: check
         run: pnpm lint && pnpm test.unit
       - name: build
