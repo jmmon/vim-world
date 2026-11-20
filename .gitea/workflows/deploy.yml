@@ -1,0 +1,24 @@
+name: deploy
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    runs-on: docker
+    container:
+      image: node:22
+    steps:
+      - uses: actions/checkout@v4
+      - name: install
+        run: corepack enable && pnpm install --frozen-lockfile
+      - name: check
+        run: pnpm lint && pnpm test.unit
+      - name: build
+        # port is baked at build time (import.meta.env); box serves on 3173 behind tailscale serve :6173
+        run: VITE_API_PORT=3173 pnpm build
+      - name: deploy
+        run: |
+          apt-get update -qq >/dev/null && apt-get install -y -qq rsync >/dev/null
+          rsync -a --delete --exclude .git --exclude tmp ./ /home/jmmai/apps/vim-world/
+          chown -R 1000:1000 /home/jmmai/apps/vim-world
