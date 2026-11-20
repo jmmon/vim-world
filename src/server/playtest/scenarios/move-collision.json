@@ -1,0 +1,1 @@
+{"name": "move-collision", "input": [["h"], ["h"]], "expect": {"pos": {"x": 1, "y": 8}, "dir": "W"}}

@@ -1,0 +1,32 @@
+{
+    "name": "room4-paste",
+    "input": [
+        ["1", "7", "l"],
+        ["w"],
+        ["2", "l"],
+        ["w"],
+        ["2", "l"],
+        ["w"],
+        ["1", "1", "l"],
+        ["k"],
+        ["y", "i", "\""],
+        ["l"],
+        ["1", "0", "l"],
+        ["w"],
+        ["9", "l"],
+        ["k"],
+        ["p", "i", "\""]
+    ],
+    "expect": {
+        "pos": { "x": 62, "y": 8 },
+        "dir": "N",
+        "itemIds": [],
+        "entities": {
+            "DOOR-1": {
+                "state.open": true,
+                "state.locked": false,
+                "collision.solid": false
+            }
+        }
+    }
+}

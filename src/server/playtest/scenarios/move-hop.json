@@ -1,0 +1,1 @@
+{"name": "move-hop", "input": [["w"], ["w"]], "expect": {"pos": {"x": 6, "y": 8}, "dir": "E"}}

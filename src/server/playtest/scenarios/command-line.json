@@ -1,0 +1,1 @@
+{"name": "command-line", "input": [[":", "w", "q", "<CR>"]], "expect": {"commandLineState": "wq"}}

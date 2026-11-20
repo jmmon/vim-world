@@ -1,0 +1,5 @@
+{
+    "name": "move-basic",
+    "input": [["j", "j", "j"], ["l", "l"], ["k", "k"], ["h", "h"]],
+    "expect": { "pos": { "x": 2, "y": 9 }, "dir": "W" }
+}
