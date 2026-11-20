@@ -24,6 +24,8 @@ import { API_PORT } from "./server/constants";
 const { router, notFound, staticFile } = createQwikCity({
     render,
     qwikCityPlan,
+    // tailscale serve terminates TLS and forwards plain http; compare origins ignoring the scheme
+    checkOrigin: "lax-proto",
     static: {
         cacheControl: "public, max-age=31536000, immutable",
     },
