@@ -115,6 +115,7 @@ export function stepZoneTeaching(
     state: GameState,
     now: number,
     stuckMs: number = DEFAULT_STUCK_MS,
+    teaches: ZoneTeach[] = ZONE_TEACHES,
 ): { machine: ZoneTeachingMachine; hint: ZoneHint } {
     const next = {
         lastZoneIndex: machine.lastZoneIndex,
@@ -125,8 +126,8 @@ export function stepZoneTeaching(
     if (!p) return { machine: next, hint: { show: false, verb: "" } };
 
     const x = p.pos.x;
-    const zoneIndex = zoneIndexAtX(x);
-    const solved = zoneIndex >= 0 && ZONE_TEACHES[zoneIndex].isSolved(state);
+    const zoneIndex = zoneIndexAtX(x, teaches);
+    const solved = zoneIndex >= 0 && teaches[zoneIndex].isSolved(state);
 
     // idle window: idleStartTime is set on every input; a stuck player never
     // advances it past the tile they sit on, so it doubles as the stuck clock.
@@ -145,7 +146,7 @@ export function stepZoneTeaching(
         if (solved) return { machine: next, hint: { show: false, verb: "" } };
         return {
             machine: next,
-            hint: { show: true, verb: ZONE_TEACHES[zoneIndex].verb },
+            hint: { show: true, verb: teaches[zoneIndex].verb },
         };
     }
 
@@ -159,14 +160,14 @@ export function stepZoneTeaching(
         // already nudged this zone; keep it up
         return {
             machine: next,
-            hint: { show: true, verb: ZONE_TEACHES[zoneIndex].verb },
+            hint: { show: true, verb: teaches[zoneIndex].verb },
         };
     }
     if (isStuck) {
         next.stuckAt = now;
         return {
             machine: next,
-            hint: { show: true, verb: ZONE_TEACHES[zoneIndex].verb },
+            hint: { show: true, verb: teaches[zoneIndex].verb },
         };
     }
     return { machine: next, hint: { show: false, verb: "" } };

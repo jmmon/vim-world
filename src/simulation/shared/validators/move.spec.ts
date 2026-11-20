@@ -1,19 +1,47 @@
 import { describe, expect, test } from "vitest";
-import { zone, MAP_CONFIG } from "~/server/map";
-import { entities } from "~/server/objects";
+import { HandAuthoredZone, MAP_CONFIG } from "~/server/map";
+import { TileType, Vec2, WorldEntity } from "~/types/worldTypes";
 import { canHopAt } from "~/simulation/shared/helpers";
 import validateMove from "~/simulation/shared/validators/move";
 import { LocalWorldWrapper } from "~/simulation/client/types";
-import { Vec2 } from "~/types/worldTypes";
 
 // `validateMove` returns a union; the invalid branch drops `target`, so the
 // test helper narrows to the shape these assertions actually read.
 type MoveResult = { reason?: string; target: Vec2 };
 
-// `w`/`b` are two-tile horizontal moves. They are meant to hop over a one-tile
-// gap (the intro water gap at (5,7)); they must NOT hop over a wall (a closed
-// door, a cliff). The landing tile is always checked; a hop also clears the
-// intermediate tile via `canHopAt`.
+// `w`/`b` are two-tile horizontal moves. They hop over a one-tile gap (water) or
+// open ground; they must NOT hop over a wall (a closed door, a cliff). The landing
+// tile is always checked; a hop also clears the intermediate tile via `canHopAt`.
+//
+// A small deterministic hand-authored field so the rules are tested against known
+// tiles — independent of the intro map (which is rebuilt room-by-room):
+//   (5,7)  WATER  — a hoppable gap
+//   (0,5)  CLIFF  — solid, not hoppable
+//   (31,8) DOOR   — a solid entity on grass (blocks a hop, not walkable)
+//   everything else in range is GRASS.
+const W = 40;
+const H = 12;
+const grid: Array<Array<TileType | undefined>> = Array.from({ length: H }, () =>
+    Array.from({ length: W }, (): TileType => "GRASS"),
+);
+grid[5][0] = "CLIFF";
+grid[7][5] = "WATER";
+
+const door: WorldEntity = {
+    id: "DOOR-1",
+    type: "DOOR",
+    pos: { x: 31, y: 8 },
+    collision: { solid: true },
+};
+const entities = new Map<string, WorldEntity>([[door.id, door]]);
+
+const zone: HandAuthoredZone = {
+    ruleset: "hand-authored",
+    seed: 1,
+    baseRuleset: "forest-v1",
+    origin: [0, 0],
+    grid,
+};
 
 const ctx = {
     physics: { collision: true },

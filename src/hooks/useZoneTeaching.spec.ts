@@ -1,9 +1,9 @@
 import { describe, expect, test } from "vitest";
 import {
-    ZONE_TEACHES,
     createZoneTeachingMachine,
     stepZoneTeaching,
     zoneIndexAtX,
+    type ZoneTeach,
 } from "~/hooks/useZoneTeaching";
 import { GameState } from "~/hooks/useState";
 import { WorldEntity } from "~/types/worldTypes";
@@ -12,6 +12,10 @@ import { ITEMS_WITH_IDS } from "~/server/objects";
 // The teaching state machine is pure so it can be unit-tested without a DOM:
 // zone entry shows the verb, the correct action auto-dismisses, and a stuck
 // player gets a sit-then-nudge hint after STUCK_MS.
+//
+// The machine reads a `teaches` list (the intro map derives one per zone). These
+// tests pass their OWN fixture so they stay stable as the intro map is rebuilt
+// room-by-room — the behaviour under test is the machine, not the map content.
 
 const STUCK = 3000;
 const now = 1_000_000;
@@ -19,6 +23,25 @@ const now = 1_000_000;
 // the key's canonical generated id (what a real inventory carries after yi"),
 // derived from the source of truth rather than hardcoded.
 const KEY_ID = ITEMS_WITH_IDS.find((i) => i.kind === "KEY")!.id;
+
+/** a four-zone beat sheet: open room → gap → chest → keyhole/door. */
+const TEACHES: ZoneTeach[] = [
+    { xRange: [0, 6], verb: "Move with h j k l", isSolved: () => false },
+    { xRange: [7, 7], verb: "Hop across with w", isSolved: () => false },
+    {
+        xRange: [8, 19],
+        verb: 'Take the key with yi"',
+        isSolved: (s) => (s.ctx.client.player?.itemIds ?? []).includes(KEY_ID),
+    },
+    {
+        xRange: [20, 27],
+        verb: 'Place the key with pi"',
+        isSolved: (s) => {
+            const door = s.ctx.world.entities.get("DOOR-1");
+            return !!door && !door.collision?.solid;
+        },
+    },
+];
 
 /** build a minimal ctx-shaped state for the pure machine. */
 function makeState(overrides: {
@@ -49,16 +72,16 @@ function makeState(overrides: {
 }
 
 describe("zoneIndexAtX", () => {
-    test("maps world-x to the intro zone index", () => {
-        expect(zoneIndexAtX(3)).toBe(0); // open room
-        expect(zoneIndexAtX(7)).toBe(1); // gap
-        expect(zoneIndexAtX(12)).toBe(2); // chest
-        expect(zoneIndexAtX(24)).toBe(3); // keyhole/door
+    test("maps world-x to the zone index", () => {
+        expect(zoneIndexAtX(3, TEACHES)).toBe(0); // open room
+        expect(zoneIndexAtX(7, TEACHES)).toBe(1); // gap
+        expect(zoneIndexAtX(12, TEACHES)).toBe(2); // chest
+        expect(zoneIndexAtX(24, TEACHES)).toBe(3); // keyhole/door
     });
 
     test("returns -1 outside the designed corridor", () => {
-        expect(zoneIndexAtX(-1)).toBe(-1);
-        expect(zoneIndexAtX(100)).toBe(-1);
+        expect(zoneIndexAtX(-1, TEACHES)).toBe(-1);
+        expect(zoneIndexAtX(100, TEACHES)).toBe(-1);
     });
 });
 
@@ -67,19 +90,20 @@ describe("stepZoneTeaching — zone entry", () => {
         const m = createZoneTeachingMachine();
         const s = makeState({ x: 3 });
 
-        const { hint } = stepZoneTeaching(m, s, now, STUCK);
-        expect(hint).toEqual({ show: true, verb: ZONE_TEACHES[0].verb });
+        const { hint } = stepZoneTeaching(m, s, now, STUCK, TEACHES);
+        expect(hint).toEqual({ show: true, verb: TEACHES[0].verb });
     });
 
     test("hides the verb once the player leaves the zone", () => {
         const m = createZoneTeachingMachine();
         // enter zone 1 (x=3), then move to x=50 (no zone)
-        stepZoneTeaching(m, makeState({ x: 3 }), now, STUCK);
+        stepZoneTeaching(m, makeState({ x: 3 }), now, STUCK, TEACHES);
         const { hint } = stepZoneTeaching(
             { lastZoneIndex: 0, stuckAt: -1 },
             makeState({ x: 50 }),
             now,
             STUCK,
+            TEACHES,
         );
         expect(hint).toEqual({ show: false, verb: "" });
     });
@@ -93,8 +117,9 @@ describe("stepZoneTeaching — auto-dismiss on the correct action", () => {
             makeState({ x: 7 }),
             now,
             STUCK,
+            TEACHES,
         );
-        expect(entry.hint).toEqual({ show: true, verb: ZONE_TEACHES[1].verb });
+        expect(entry.hint).toEqual({ show: true, verb: TEACHES[1].verb });
 
         // step into the chest zone (x=8) → gap hint gone, chest hint shows
         const crossed = stepZoneTeaching(
@@ -102,10 +127,11 @@ describe("stepZoneTeaching — auto-dismiss on the correct action", () => {
             makeState({ x: 8 }),
             now,
             STUCK,
+            TEACHES,
         );
         expect(crossed.hint.show).toBe(true);
-        expect(crossed.hint.verb).not.toBe(ZONE_TEACHES[1].verb);
-        expect(crossed.hint.verb).toBe(ZONE_TEACHES[2].verb);
+        expect(crossed.hint.verb).not.toBe(TEACHES[1].verb);
+        expect(crossed.hint.verb).toBe(TEACHES[2].verb);
     });
 
     test("zone 3 (chest) hides once the player has the key in inventory", () => {
@@ -115,6 +141,7 @@ describe("stepZoneTeaching — auto-dismiss on the correct action", () => {
             makeState({ x: 12, itemIds: [KEY_ID] }),
             now,
             STUCK,
+            TEACHES,
         );
         expect(solved.hint).toEqual({ show: false, verb: "" });
     });
@@ -125,8 +152,9 @@ describe("stepZoneTeaching — auto-dismiss on the correct action", () => {
             makeState({ x: 12, itemIds: [] }),
             now,
             STUCK,
+            TEACHES,
         );
-        expect(hint).toEqual({ show: true, verb: ZONE_TEACHES[2].verb });
+        expect(hint).toEqual({ show: true, verb: TEACHES[2].verb });
     });
 
     test("zone 4 (keyhole) hides once the door's collision is released", () => {
@@ -136,6 +164,7 @@ describe("stepZoneTeaching — auto-dismiss on the correct action", () => {
             makeState({ x: 24, doorSolid: false }),
             now,
             STUCK,
+            TEACHES,
         );
         expect(solved.hint).toEqual({ show: false, verb: "" });
     });
@@ -150,6 +179,7 @@ describe("stepZoneTeaching — sit-then-nudge", () => {
             makeState({ x: 7, idleStartTime: now - 1000 }),
             now,
             STUCK,
+            TEACHES,
         );
         expect(early.hint).toEqual({ show: false, verb: "" });
 
@@ -159,8 +189,9 @@ describe("stepZoneTeaching — sit-then-nudge", () => {
             makeState({ x: 7, idleStartTime: now - (STUCK + 1) }),
             now,
             STUCK,
+            TEACHES,
         );
-        expect(late.hint).toEqual({ show: true, verb: ZONE_TEACHES[1].verb });
+        expect(late.hint).toEqual({ show: true, verb: TEACHES[1].verb });
         // machine records that the nudge fired
         expect(late.machine.stuckAt).toBe(now);
     });
@@ -172,6 +203,7 @@ describe("stepZoneTeaching — sit-then-nudge", () => {
             makeState({ x: 7, idleStartTime: now - 50 }),
             now,
             STUCK,
+            TEACHES,
         );
         expect(hint).toEqual({ show: false, verb: "" });
     });
@@ -183,8 +215,9 @@ describe("stepZoneTeaching — sit-then-nudge", () => {
             makeState({ x: 7, idleStartTime: now - (STUCK + 5) }),
             now,
             STUCK,
+            TEACHES,
         );
-        expect(hint).toEqual({ show: true, verb: ZONE_TEACHES[1].verb });
+        expect(hint).toEqual({ show: true, verb: TEACHES[1].verb });
     });
 });
 
@@ -196,6 +229,7 @@ describe("stepZoneTeaching — no player", () => {
             state,
             now,
             STUCK,
+            TEACHES,
         );
         expect(hint).toEqual({ show: false, verb: "" });
     });

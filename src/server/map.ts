@@ -12,20 +12,18 @@ export const CHUNK_HEIGHT = CHUNK_WIDTH; // tiles
 const SCALE_DEFAULT = 1;
 
 // ===================== PHASE 0 INTRO MAP =====================
-// One hand-made map that proves the core loop: move → hop → pick up key →
-// place on keyhole → door opens. Four zones laid out left-to-right along a
-// corridor at world y=10, carved out of a procedural forest base that surrounds
-// the path with water/terrain so the player stays on the designed route.
+// The intro is built as discrete 16×16 rooms, one verb each, left-to-right:
+//   Room 1 (x0..15) `hjkl`  Room 2 (x16..31) `w`/`b`  Room 3 (x32..47) `yi"`
+//   Room 4 (x48..63) `pi"`  Room 5 (x64+)     exit
+// Each room is a cliff box with a forced grass path; everything outside the
+// forced path falls through to the seed-dependent procedural base. The grid
+// grows horizontally as rooms are built (Room 1 is 16 wide; Room 2 extends it
+// to 32 wide; ...). `defs` use world coords so entity positions don't move as
+// the grid grows. See docs/agents/intro-map-rooms.md for the per-room plan.
 //
-//   zone 1 (x2..6)  open room — `hjkl`
-//   gap    (x7)     1-tile WATER gap — hop across with `w`
-//   zone 2 (x8..27) corridor — chest holds the key (`yi"`), keyhole unlocks the door (`pi"`)
-//   zone 3 (x28..31) end room — walk through the now-open door
-//
-// The designed path is forced GRASS (and the gap forced WATER); everything else
-// is the seed-dependent procedural base. Niche cells at (12,8/9) and (20,8/9)
-// step up to the chest and keyhole so the player faces them from the corridor.
-// the grid covers the whole mapgen area (4×4 chunks × CHUNK_WIDTH tiles).
+// ASCII grid: each cell is one of `. GRASS ~ WATER , DIRT # CLIFF` (space =
+// leave to procedural base). The grid is compact and positioned by `origin`;
+// the parser expands it into the full INTRO_ROWS × INTRO_COLS grid.
 const INTRO_ROWS = 4 * CHUNK_HEIGHT;
 const INTRO_COLS = 4 * CHUNK_WIDTH;
 
@@ -49,35 +47,40 @@ export const INTRO_MAP: IntroMapSource = {
     seed: 12345678,
     baseRuleset: "forest-v1" as const,
     grid: [
-        //
-        "################################",
-        "#                              #",
-        "#                              #",
-        "#                              #",
-        "#                              #",
-        "#           .........        #",
-        "#                              #",
-        "#    ~.........................#",
-        // center =========================================================================
-        "#   ........................... ",
-        "#                              #",
-        "#                              #",
-        "#                              #",
-        "#                              #",
-        "#                              #",
-        "#                              #",
-        "################################",
+        "########################################################################",
+        "#              ##...~...~...~..##..............##...~..........#........",
+        "#              ##...~...~...~..##..............##...~..........#........",
+        "#              ##...~...~...~..##..............##...~..........#........",
+        "#              ##...~...~...~..##..............##...~..........#........",
+        "#              ##...~...~...~..##..............##...~..........#........",
+        "#              ##...~...~...~..##..............##...~..........#........",
+        "#              ##...~...~...~..##..............##...~..........#........",
+        "# ..................~...~...~.......................~...................",
+        "#              ##...~...~...~..##..............##...~..........#........",
+        "#              ##...~...~...~..##..............##...~..........#........",
+        "#              ##...~...~...~..##..............##...~..........#........",
+        "#              ##...~...~...~..##..............##...~..........#........",
+        "#              ##...~...~...~..##..............##...~..........#........",
+        "#              ##...~...~...~..##..............##...~..........#........",
+        "########################################################################",
     ],
     defs: {
-        "4,7": { id: "SPAWN-1", type: "SPAWN", dir: "E" },
-        "12,8": {
+        "2,8": { id: "SPAWN-1", type: "SPAWN", dir: "E" },
+        // Room 3 chest, just north of the y=8 path so it doesn't block the
+        // corridor. The player walks to (40,8), faces it with `k`, and yanks the
+        // key with `yi"`. Container carries the key's legacy prevId "789", which
+        // objects.ts resolves to the generated key id (link group "a").
+        "40,7": {
             id: "CHEST-KEY",
             type: "CHEST",
             collision: { solid: true },
             container: { capacity: 1, itemIds: ["789"], behavior: "PERSIST" },
             interactable: { selectors: ['"'], actions: [{ type: "PICK_UP" }] },
         },
-        "17,5": {
+        // Room 4 keyhole, north of the path beside the exit door. The player
+        // faces it with `k` from (62,8) and pastes the key with `pi"`. Linked to
+        // DOOR-1 by link group "a" (the parser wires keyhole.lock.doorId).
+        "62,7": {
             id: "KEYHOLE-1",
             type: "KEYHOLE",
             link: "a",
@@ -85,7 +88,10 @@ export const INTRO_MAP: IntroMapSource = {
             container: { capacity: 1, itemIds: [], behavior: "PERSIST" },
             interactable: { selectors: ['"'], actions: [{ type: "PICK_UP" }] },
         },
-        "31,8": {
+        // Room 4 exit door, set in the right wall at (63,8). Solid while locked;
+        // opening it (via the keyhole) releases its collision so the tile — forced
+        // grass under the door — becomes the walkable exit into Room 5.
+        "63,8": {
             id: "DOOR-1",
             type: "DOOR",
             link: "a",
@@ -94,10 +100,20 @@ export const INTRO_MAP: IntroMapSource = {
         },
     },
     zones: [
-        { id: "room1", xRange: [0, 6], verb: "Move with h j k l" },
-        { id: "gap", xRange: [7, 7], verb: "Hop across with w" },
-        { id: "chest", xRange: [8, 19], verb: 'Take the key with yi"', solved: { takeKey: "a" } },
-        { id: "keyhole", xRange: [20, 27], verb: 'Place the key with pi"', solved: { openDoor: "DOOR-1" } },
+        { id: "room1-hjkl", xRange: [0, 15], verb: "Move with h j k l" },
+        { id: "room2-hop", xRange: [16, 31], verb: "Hop gaps with w" },
+        {
+            id: "room3-yank",
+            xRange: [32, 47],
+            verb: 'Take the key with yi"',
+            solved: { takeKey: "a" },
+        },
+        {
+            id: "room4-paste",
+            xRange: [48, 63],
+            verb: 'Place the key with pi"',
+            solved: { openDoor: "DOOR-1" },
+        },
     ],
 };
 export const MAP_CONFIG: MapConfig = {

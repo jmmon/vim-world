@@ -8,6 +8,12 @@ behavior change.
 Status: **implemented** — every section below is done and the full gate is green
 (`pnpm test.unit && pnpm lint && pnpm build.types && pnpm build`: 86/86 tests).
 
+> **Reframed as rooms.** The intro map is now built as discrete 16×16 rooms (one
+> verb each), built left-to-right: `hjkl` → `w`/`b` → `yi"` → `pi"` → exit. See
+> `docs/agents/intro-map-rooms.md` for the per-room plan and build order. This doc
+> still describes the ASCII-data format, parser, link model, and zone/teaching
+> mechanics that the rooms are built with.
+
 ---
 
 ## 1. The ASCII source (`INTRO_MAP`)
