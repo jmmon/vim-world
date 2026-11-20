@@ -9,6 +9,7 @@ import {
     drawChunkOverlay,
     drawDevStats,
     drawFps,
+    closeFpsOnly,
     drawHelp,
     drawHelpHint,
     drawStatus,
@@ -40,6 +41,7 @@ const draw = {
     closeAfk,
 
     fps: drawFps,
+    closeFps: closeFpsOnly,
     helpHint: drawHelpHint,
     statusbar: drawStatus,
 

@@ -1,7 +1,22 @@
 # Two-tier testing plan (headless playtest + Chromium e2e)
 
 Created: 2026-11-20 07:45
-Status: PLANNED (not built) — capture of an agreed direction, to pick up later.
+Status: BUILT (2026-11-20) — implemented as `playwright.config.ts` +
+`e2e/intro.spec.ts` + the `__vimworld` dev hook. Deviations from the plan
+learned during the build:
+- The hook must be a `useVisibleTask$` (not a body statement or plain
+  `useTask$`): Qwik resume never re-runs the component body, and a mount
+  `useTask$` without track/cleanup was not serialized to the client.
+- Login gate for tests: `isReady && lastAckCheckpoint` — keys sent between
+  `isReady` and `INIT.CONFIRM` get dropped on the post-confirm reconcile.
+- The world is shared in-memory state: a run consumes the chest key, so a
+  **fresh dev server is required per e2e run** (the room3 test fails loudly
+  with "stale world" if the chest is already empty). Fixed username
+  `e2e-intro-player` keeps the drawn name label pixel-stable.
+- `show.devStats=false` now also hides the fps counter and chunk debug
+  (they were drawn unconditionally and made goldens non-deterministic).
+- `test.e2e` is separate from `test.unit`; vitest excludes `e2e/**` via
+  `test.exclude` in `vite.config.ts`.
 
 ## Goal
 

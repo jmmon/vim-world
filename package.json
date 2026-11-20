@@ -25,6 +25,7 @@
         "playtest": "tsx src/server/playtest/cli.ts",
         "start": "vite --open --mode ssr",
         "test.unit": "vitest run",
+        "test.e2e": "playwright test",
         "test.unit.ui": "vitest --ui",
         "qwik": "qwik"
     },

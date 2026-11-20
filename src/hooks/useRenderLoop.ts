@@ -144,14 +144,16 @@ export default function useRenderLoop(
                 wasZoneHintShowing = state.ctx.show.zoneHint;
             }
 
-            // handle rendering
-            draw.fps(state, lastFps, lastEma);
-            draw.statusbar(state);
+            // handle rendering — fps + dev stats are the dev overlay; both
+            // erase themselves when toggled off so screenshots stay clean
             if (state.ctx.show.devStats) {
+                draw.fps(state, lastFps, lastEma);
                 draw.devStats(state);
             } else {
+                draw.closeFps(state);
                 draw.closeDevStats(state);
             }
+            draw.statusbar(state);
 
             if (state.ctx.client.isDirty.map) renderMap();
             if (state.ctx.client.isDirty.overlay) draw.chunkOverlay(state);

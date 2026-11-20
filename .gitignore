@@ -49,3 +49,7 @@ lerna-debug.log*
 # Software factory
 /factory/state/
 qa-artifacts/
+
+# playwright
+test-results/
+playwright-report/

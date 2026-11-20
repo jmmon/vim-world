@@ -90,6 +90,12 @@ function closeFps(
     return d;
 }
 
+export function closeFpsOnly(state: GameState) {
+    // erase with a max-length placeholder so the box is fully covered
+    // regardless of the last drawn fps/ema string lengths
+    closeFps(state, state.ctx.client.viewport, state.ctx.world.config, "00.0", "00.0");
+}
+
 export function drawFps(state: GameState, fps: string, ema?: string) {
     if (hasScaleChanged(state.ctx)) {
         // clear old rect
@@ -609,11 +615,16 @@ const CHUNK_OVERLAY = {
     height: 160,
 };
 export function drawChunkOverlay(state: GameState) {
+    const canvas = state.refs.overlay.value!;
+    const ctx = canvas.getContext("2d")!;
+    // dev-only debug box; clear stale pixels when the toggle flips off
+    if (!state.ctx.show.devStats) {
+        ctx.clearRect(0, 0, CHUNK_OVERLAY.width, CHUNK_OVERLAY.height);
+        return;
+    }
     const { cx, cy } = chunkService.getChunkSlot(
         state.ctx.client.player?.pos ?? { x: 0, y: 0 },
     );
-    const canvas = state.refs.overlay.value!;
-    const ctx = canvas.getContext("2d")!;
     ctx.clearRect(0, 0, CHUNK_OVERLAY.width, CHUNK_OVERLAY.height);
 
     // draw background

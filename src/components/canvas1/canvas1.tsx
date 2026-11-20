@@ -1,4 +1,10 @@
-import { component$, useSignal, $, NoSerialize } from "@builder.io/qwik";
+import {
+    component$,
+    useSignal,
+    $,
+    NoSerialize,
+    useVisibleTask$,
+} from "@builder.io/qwik";
 import {
     ServerMessage,
     ServerOtherPlayerMessage,
@@ -27,6 +33,15 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
     const ws = useSignal<NoSerialize<WebSocket>>(undefined);
     const getNextSeq = useSeq(); // action index
     const state = useState(worldState, ws);
+
+    // dev-only: expose the live ctx so Playwright can assert state values
+    // (pos, hints, entity state) instead of pixels. Never ships to prod.
+    // must be a task: the component body never re-runs on the client (Qwik
+    // resume only executes QRLs), so a plain body statement is SSR-only.
+    // eslint-disable-next-line qwik/no-use-visible-task
+    useVisibleTask$(() => {
+        if (import.meta.env.DEV) (window as any).__vimworld = state.ctx;
+    });
 
     // so when I update cols, it causes component to rerender,
     // I guess because styles are used in the canvases below
