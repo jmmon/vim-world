@@ -61,5 +61,10 @@ keydown → VimFSM (src/fsm) → action → ws message (seq, clientTime)
 - The tick loop must stay under 100ms per tick (there is a console assertion).
   Avoid synchronous I/O inside tick handlers.
 - Everything is in memory. There is no database; checkpoints serialize players.
+  Persistence note: the intended backend for `checkpointService.ts` is the DASH
+  evonet platform (see the header comment in that file), not a bespoke database.
+  A Postgres backend is a reasonable second implementation for local dev or
+  self-hosting (e.g. a shared Postgres on the Halo NAS), so the service should be
+  written against an interface that both backends can satisfy.
 - Shared code under `src/simulation/shared/` must run in both browser and Node:
   no DOM-only or Node-only APIs there.
