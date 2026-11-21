@@ -36,6 +36,7 @@ Read first:
 1. `AGENTS.md`
 2. `docs/agents/architecture.md`
 3. `docs/agents/conventions.md`
+4. `GLOSSARY.md` and any `docs/adr/*.md` that touch the issue's area, if present
 
 Then inspect only the code needed to make the issue implementable. Do not
 design beyond the issue.

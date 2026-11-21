@@ -4,10 +4,10 @@ mode: all
 temperature: 0.2
 permission:
     edit:
-        "*": allow
-        "*.spec.ts": deny
-        "*.spec.tsx": deny
-        "specs/*": deny
+        "*": deny
+        "src/**": allow
+        "**/*.spec.ts": deny
+        "**/*.spec.tsx": deny
     read:
         "*": allow
         ".env": deny
@@ -16,8 +16,10 @@ permission:
         "**/.env": deny
     bash:
         "*": deny
-        "pnpm *": allow
-        "pnpm": allow
+        "pnpm test.unit": allow
+        "pnpm lint": allow
+        "pnpm build.types": allow
+        "pnpm exec prettier*": allow
         "git status*": allow
         "git diff*": allow
         "git log*": allow
@@ -37,14 +39,16 @@ the current failure output (or review findings on a fix cycle). Work only
 inside the current directory.
 
 Read first: `AGENTS.md`, `docs/agents/architecture.md`,
-`docs/agents/conventions.md`, the spec, and the test files. Then implement the
+`docs/agents/conventions.md`, `GLOSSARY.md` if present, the spec, and the test
+files. Then implement the
 smallest change that satisfies the spec and turns the tests green.
 
 Hard constraints:
 
 - Never edit `specs/**`, `*.spec.ts`, or `*.spec.tsx`. They are locked.
-- Never weaken, delete, or bypass tests. Never touch files outside `src/`,
-  `specs/` (read-only), or config explicitly named by the spec.
+- Never weaken, delete, or bypass tests. You may only edit files under `src/`.
+  If the spec requires a change outside `src/` (config, server, etc.), stop and
+  report it as blocked — do not attempt it.
 - Run the gate after each meaningful change:
   `pnpm test.unit && pnpm lint && pnpm build.types`
 - Format only the files you changed:

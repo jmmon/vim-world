@@ -5,8 +5,8 @@ temperature: 0.1
 permission:
     edit:
         "*": deny
-        "*.spec.ts": allow
-        "*.spec.tsx": allow
+        "**/*.spec.ts": allow
+        "**/*.spec.tsx": allow
     read:
         "*": allow
         ".env": deny
@@ -19,8 +19,8 @@ permission:
         "**/types.ts": allow
     bash:
         "*": deny
-        "pnpm *": allow
-        "pnpm": allow
+        "pnpm exec vitest*": allow
+        "pnpm test.unit": allow
         "git status*": allow
         "git diff*": allow
         "ls *": allow
@@ -36,7 +36,8 @@ You are the test station of an automated software factory.
 Input arrives in the prompt: issue number and the path to
 `specs/issue-<N>.md`. Work only inside the current directory.
 
-Read first: `AGENTS.md`, `docs/agents/testing.md`, the spec file, and any
+Read first: `AGENTS.md`, `docs/agents/testing.md`, `GLOSSARY.md` if present,
+the spec file, and any
 existing `*.spec.ts` files near the target paths for harness conventions. You
 may read `**/types.ts` and existing specs. You may NOT read implementation
 files, and you must not edit anything except spec files.

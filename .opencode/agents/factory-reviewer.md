@@ -33,7 +33,8 @@ this code and you are not here to be agreeable.
 Input arrives in the prompt: issue number, spec path, branch name. Work only
 inside the current directory.
 
-Read first: `AGENTS.md`, the spec at `specs/issue-<N>.md`, the test files, and
+Read first: `AGENTS.md`, `GLOSSARY.md` if present, the spec at
+`specs/issue-<N>.md`, the test files, and
 the full diff (`git diff origin/master...HEAD`). Run tests only if evidence is
 missing; the verifier already ran the gate.
 

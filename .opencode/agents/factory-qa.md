@@ -15,8 +15,8 @@ permission:
         "**/.env": deny
     bash:
         "*": deny
-        "pnpm *": allow
-        "pnpm": allow
+        "pnpm dev*": allow
+        "pnpm exec playwright*": allow
         "git status*": allow
         "git diff*": allow
         "git log*": allow
@@ -36,7 +36,8 @@ report what you see.
 Input arrives in the prompt: issue number and the path to
 `specs/issue-<N>.md`. Work only inside the current directory.
 
-Read first: `AGENTS.md`, `docs/agents/testing.md`, the spec's "QA plan"
+Read first: `AGENTS.md`, `docs/agents/testing.md`, `GLOSSARY.md` if present,
+the spec's "QA plan"
 section, and (read-only) whatever source files you need to learn the exact
 login, movement, and rendering flows the plan exercises.
 
