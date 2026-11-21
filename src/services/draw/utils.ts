@@ -1,7 +1,30 @@
 import { WorldEntity } from "~/types/worldTypes";
-import { LocalWorldWrapper, Viewport } from "~/simulation/client/types";;
+import { LocalWorldWrapper, Viewport } from "~/simulation/client/types";
 import { GameState } from "~/hooks/useState";
 import { MapConfig } from "~/server/map";
+
+export interface PixelRect {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+}
+
+/** Round a rect outward to device pixels: floor left/top, ceil right/bottom.
+ *  fillRect/clearRect over the result cover identical, pixel-aligned regions. */
+export function pixelRect(
+    left: number,
+    top: number,
+    right: number,
+    bottom: number,
+): PixelRect {
+    return {
+        left: Math.floor(left),
+        top: Math.floor(top),
+        right: Math.ceil(right),
+        bottom: Math.ceil(bottom),
+    };
+}
 
 export const getScaledTileSize = (config: MapConfig, scaleDecimal: number) => {
     const tileSize = Math.round(config.chunkWidth * scaleDecimal);
@@ -22,10 +45,9 @@ export function hasScaleChanged(state: LocalWorldWrapper) {
     );
 }
 
-export function generateOldDimensions(state: LocalWorldWrapper): [
-    Viewport,
-    MapConfig,
-] {
+export function generateOldDimensions(
+    state: LocalWorldWrapper,
+): [Viewport, MapConfig] {
     const tileSize = state.world.config.tileSize * state.world.config.lastScale;
     const config: MapConfig = {
         ...state.world.config,
@@ -38,10 +60,7 @@ export function generateOldDimensions(state: LocalWorldWrapper): [
         height: state.client.viewport.height,
         origin: state.client.viewport.origin,
     };
-    return [
-        viewport,
-        config,
-    ];
+    return [viewport, config];
 }
 
 export function clearOldCanvas(
@@ -50,9 +69,7 @@ export function clearOldCanvas(
 ) {
     // clear old rect
     if (hasScaleChanged(state)) {
-        const [ viewport ] = generateOldDimensions(
-            state,
-        );
+        const [viewport] = generateOldDimensions(state);
         ctx.clearRect(0, 0, viewport.width, viewport.height);
     }
 }
@@ -82,7 +99,7 @@ export function shadeColor(color: string, percent: number /** 0-100 */) {
 }
 
 export function clearAll(state: GameState) {
-    const [ viewport ] = generateOldDimensions(state.ctx);
+    const [viewport] = generateOldDimensions(state.ctx);
     [
         [viewport.width, viewport.height], // old
         [
@@ -96,4 +113,3 @@ export function clearAll(state: GameState) {
         state.refs.overlay.value!.getContext("2d")!.clearRect(0, 0, x, y);
     });
 }
-

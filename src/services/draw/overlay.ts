@@ -1,5 +1,10 @@
 import { roundToDecimals } from "~/utils/utils";
-import { generateOldDimensions, hasScaleChanged } from "./utils";
+import {
+    generateOldDimensions,
+    hasScaleChanged,
+    pixelRect,
+    PixelRect,
+} from "./utils";
 import { GameState } from "~/hooks/useState";
 import { MapConfig } from "~/server/map";
 import { Viewport } from "~/simulation/client/types";
@@ -51,7 +56,7 @@ interface StylesWithContext extends BoxStyles {
 // ****************************************************************
 
 // has about 10 total chars wide + padding
-function getFpsStyles(
+export function getFpsStyles(
     viewport: Viewport,
     { scale }: MapConfig,
     canvas: HTMLCanvasElement,
@@ -69,11 +74,20 @@ function getFpsStyles(
         12,
         scale,
     );
+    // right-anchored box: round the rect outward so fill/clear are exact
+    const rect = pixelRect(
+        viewport.width - styles.width,
+        0,
+        viewport.width,
+        styles.height,
+    );
     return {
         ctx: canvas.getContext("2d")!,
-        x: viewport.width - styles.width,
-        y: 0,
         ...styles,
+        x: rect.left,
+        y: rect.top,
+        width: rect.right - rect.left,
+        height: rect.bottom - rect.top,
     };
 }
 
@@ -90,10 +104,18 @@ function closeFps(
     return d;
 }
 
+// last box drawn by drawFps, so a shorter fps string still clears the old
+// wider box's columns (issue #4 vertical strip)
+let lastFpsRect: PixelRect | null = null;
+
 export function closeFpsOnly(state: GameState) {
-    // erase with a max-length placeholder so the box is fully covered
-    // regardless of the last drawn fps/ema string lengths
-    closeFps(state, state.ctx.client.viewport, state.ctx.world.config, "00.0", "00.0");
+    // clear exactly the box that was drawn last (the old "00.0" placeholder
+    // was shorter than real fps values and under-covered)
+    if (!lastFpsRect) return;
+    const ctx = state.refs.overlay.value!.getContext("2d")!;
+    const r = lastFpsRect;
+    ctx.clearRect(r.left, r.top, r.right - r.left, r.bottom - r.top);
+    lastFpsRect = null;
 }
 
 export function drawFps(state: GameState, fps: string, ema?: string) {
@@ -109,6 +131,17 @@ export function drawFps(state: GameState, fps: string, ema?: string) {
         fps,
         ema,
     );
+    // and the previously drawn box, so a shrinking fps string leaves no strip
+    if (lastFpsRect) {
+        const r = lastFpsRect;
+        d.ctx.clearRect(r.left, r.top, r.right - r.left, r.bottom - r.top);
+    }
+    lastFpsRect = {
+        left: d.x,
+        top: d.y,
+        right: d.x + d.width,
+        bottom: d.y + d.height,
+    };
 
     // background
     d.ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
@@ -207,7 +240,7 @@ type D = {
     y: number;
     lines: number;
 };
-function getDevStatsStyles(
+export function getDevStatsStyles(
     viewport: Viewport,
     { scale }: MapConfig,
     canvas: HTMLCanvasElement,
@@ -225,12 +258,21 @@ function getDevStatsStyles(
         scale,
     );
     const fpsYEnd = 2 * styles.fontSize + 12 * scale;
+    const y = fpsYEnd + 10 * scale; // slight gap from the fps window
+    const rect = pixelRect(
+        viewport.width - styles.width,
+        y,
+        viewport.width,
+        y + styles.height,
+    );
 
     return {
         ctx: canvas.getContext("2d")!,
-        x: viewport.width - styles.width,
-        y: fpsYEnd + 10 * scale, // slight gap from the fps window
         ...styles,
+        x: rect.left,
+        y: rect.top,
+        width: rect.right - rect.left,
+        height: rect.bottom - rect.top,
     };
 }
 
@@ -422,17 +464,20 @@ export function drawHelpHint(state: GameState) {
 // ****************************************************************
 
 /** single-line contextual hint, top-center — one verb at a time */
-function getZoneHintRect(
+export function getZoneHintRect(
     viewport: Viewport,
     { tileSize }: MapConfig,
 ): RectDimensions {
     const w = tileSize * 9;
     const h = tileSize * 1.6;
+    const left = (viewport.width - w) / 2;
+    const top = tileSize * 0.5;
+    const rect = pixelRect(left, top, left + w, top + h);
     return {
-        left: (viewport.width - w) / 2,
-        top: tileSize * 0.5,
-        w,
-        h,
+        left: rect.left,
+        top: rect.top,
+        w: rect.right - rect.left,
+        h: rect.bottom - rect.top,
     };
 }
 
