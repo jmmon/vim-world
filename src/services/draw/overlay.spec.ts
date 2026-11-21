@@ -1,9 +1,11 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import {
+    drawZoneHint,
     getDevStatsStyles,
     getFpsStyles,
     getZoneHintRect,
 } from "~/services/draw/overlay";
+import type { GameState } from "~/hooks/useState";
 import type { MapConfig } from "~/server/map";
 import type { Viewport } from "~/simulation/client/types";
 
@@ -120,5 +122,73 @@ describe("getDevStatsStyles", () => {
                 expect(isInt(s.y + s.height)).toBe(true);
             }
         }
+    });
+});
+
+// Issue #5: drawZoneHint mutates ctx.textAlign / ctx.textBaseline and must
+// restore them, or the leaked "middle" baseline shifts the statusbar text ~5px
+// and the leaked "center" alignment spills the help hint out of its clear rect.
+
+/** fake 2D ctx recording the text state visible at each fillText call. */
+function recordingCtx() {
+    const seen: { text: string; textAlign: string; textBaseline: string }[] =
+        [];
+    const ctx = {
+        textAlign: "left",
+        textBaseline: "alphabetic",
+        font: "",
+        fillStyle: "",
+        clearRect: vi.fn(),
+        fillRect: vi.fn(),
+        fillText: vi.fn((text: string) => {
+            seen.push({
+                text,
+                textAlign: ctx.textAlign,
+                textBaseline: ctx.textBaseline,
+            });
+        }),
+    };
+    return { ctx, seen };
+}
+
+/** minimal state stub for drawZoneHint (spec §Test plan shape). */
+function hintState(zoneHintText: string, ctx: unknown): GameState {
+    return {
+        refs: { overlay: { value: { getContext: () => ctx } } },
+        ctx: {
+            world: { config: { tileSize: 32, scale: 1, lastScale: 1 } },
+            client: {
+                viewport: { width: 1280, height: 720, origin: { x: 0, y: 0 } },
+                zoneHintText,
+            },
+        },
+    } as unknown as GameState;
+}
+
+describe("drawZoneHint text-state restore", () => {
+    test("draws the verb centered and restores textAlign/textBaseline on return (AC5)", () => {
+        const { ctx, seen } = recordingCtx();
+
+        drawZoneHint(hintState("Hop gaps with w", ctx));
+
+        // the verb was drawn exactly once, with the centered state in effect
+        expect(seen).toHaveLength(1);
+        expect(seen[0].text).toBe("Hop gaps with w");
+        expect(seen[0].textAlign).toBe("center");
+        expect(seen[0].textBaseline).toBe("middle");
+        // ... and the mutated state is restored to the entry values
+        expect(ctx.textAlign).toBe("left");
+        expect(ctx.textBaseline).toBe("alphabetic");
+    });
+
+    test("empty verb draws nothing and leaves text state untouched (AC6)", () => {
+        const { ctx, seen } = recordingCtx();
+
+        drawZoneHint(hintState("", ctx));
+
+        expect(ctx.fillText).not.toHaveBeenCalled();
+        expect(seen).toHaveLength(0);
+        expect(ctx.textAlign).toBe("left");
+        expect(ctx.textBaseline).toBe("alphabetic");
     });
 });

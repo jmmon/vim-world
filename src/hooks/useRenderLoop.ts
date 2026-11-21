@@ -5,15 +5,14 @@ import { GameState, handlers } from "~/hooks/useState";
 import chunkService from "~/services/chunk";
 import { isSnapshotSame } from "~/simulation/shared/helpers";
 import checkpointService from "~/server/checkpointService";
+import { zoneHintNeedsRedraw } from "~/hooks/useZoneTeaching";
 import { setupCallTicksForPlayer } from "~/simulation/shared/loop/loop";
 import viewport from "~/simulation/client/viewport";
 
 /** =======================================================
  *                        MAIN LOOP
  * ======================================================= */
-export default function useRenderLoop(
-    state: GameState,
-) {
+export default function useRenderLoop(state: GameState) {
     /**
      * lastSnapshot represents the last snapshot sent/received from the server
      * we check if player has changed from that snapshot to know if we need to dispatch another
@@ -104,6 +103,7 @@ export default function useRenderLoop(
         }
 
         let wasZoneHintShowing = state.ctx.show.zoneHint;
+        let wasZoneHintText = state.ctx.client.zoneHintText;
         let needsRedrawZoneHint = false;
         function renderZoneHint() {
             if (state.ctx.show.zoneHint) {
@@ -136,12 +136,17 @@ export default function useRenderLoop(
                 wasAfkShowing = state.ctx.show.afk;
             }
 
-            needsRedrawZoneHint =
-                wasZoneHintShowing !== state.ctx.show.zoneHint;
+            needsRedrawZoneHint = zoneHintNeedsRedraw(
+                wasZoneHintShowing,
+                wasZoneHintText,
+                state.ctx.show.zoneHint,
+                state.ctx.client.zoneHintText,
+            );
             if (needsRedrawZoneHint) {
                 renderZoneHint();
                 needsRedrawZoneHint = false;
                 wasZoneHintShowing = state.ctx.show.zoneHint;
+                wasZoneHintText = state.ctx.client.zoneHintText;
             }
 
             // handle rendering — fps + dev stats are the dev overlay; both

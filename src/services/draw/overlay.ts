@@ -493,11 +493,15 @@ export function drawZoneHint(state: GameState) {
     const verb = state.ctx.client.zoneHintText;
     if (!verb) return;
 
+    const prevAlign = ctx.textAlign;
+    const prevBaseline = ctx.textBaseline;
     ctx.font = `bold ${18 * config.scale}px mono`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = "#ffe082";
     ctx.fillText(verb, rect.left + rect.w / 2, rect.top + rect.h / 2 + 1);
+    ctx.textAlign = prevAlign;
+    ctx.textBaseline = prevBaseline;
 }
 
 export function closeZoneHint(state: GameState) {

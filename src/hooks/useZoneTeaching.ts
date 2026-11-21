@@ -173,6 +173,19 @@ export function stepZoneTeaching(
     return { machine: next, hint: { show: false, verb: "" } };
 }
 
+/** True when the Zone Hint overlay must be redrawn this frame: the box
+ *  appeared/disappeared OR the Verb text changed while (possibly) showing.
+ *  Zone x-ranges are contiguous, so a zone transition while showing changes
+ *  only the text — watching the visibility edge alone leaves a stale verb. */
+export function zoneHintNeedsRedraw(
+    prevShowing: boolean,
+    prevText: string,
+    showing: boolean,
+    text: string,
+): boolean {
+    return prevShowing !== showing || prevText !== text;
+}
+
 /**
  * Wire the pure teaching machine into the render loop. Runs on a dedicated rAF
  * task (independent of the main loop) and writes `show.zoneHint` +
