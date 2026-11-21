@@ -204,9 +204,10 @@ check_test_lock() {
 
 run_agent() {
     local agent=$1 model=$2 dir=$3 logf=$4 prompt=$5
-    timeout "$FACTORY_AGENT_TIMEOUT" \
-        opencode run --agent "$agent" --model "$model" --auto --dir "$dir" "$prompt" \
-        >"$logf" 2>&1
+    # opencode run has no --dir flag (v2.3.x); the project is chosen by cwd
+    (cd "$dir" && timeout "$FACTORY_AGENT_TIMEOUT" \
+        opencode run --agent "$agent" --model "$model" --auto "$prompt" \
+        >"$logf" 2>&1)
 }
 
 last_marker() {

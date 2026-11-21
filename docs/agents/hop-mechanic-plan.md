@@ -1,5 +1,7 @@
 # Hop mechanic: `w`/`b` hop over gaps, not walls
 
+Status: **DONE (2026-11-20)** — implemented, see **Done** section below; gate green.
+
 `w` and `b` are the two-tile horizontal moves (`keyToDelta("w")` → `{ x: 2 }`,
 `"b"` → `{ x: -2 }`). They are meant to **hop over a one-tile gap** (the intro
 water gap at `(5,7)`), but today they hop over *anything* between the start and
