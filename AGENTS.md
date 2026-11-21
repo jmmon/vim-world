@@ -55,3 +55,24 @@ Read on demand, not all at once:
 `factory/README.md` explains the operator workflow. Factory runs use
 `specs/issue-<N>.md` as the source of truth and must never modify test files
 outside the tester station.
+
+## Issue flow (GitHub tracker)
+
+When closing a ticket, post a 3-line evidence comment via
+`gh issue comment <N> --repo jmmon/vim-world -b ...`: before / after + test /
+review status. Review detail stays local — never paste raw review output into
+a public issue.
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked as GitHub issues in `jmmon/vim-world`, via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical triage labels are used verbatim (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` at the repo root plus `docs/adr/`. See `docs/agents/domain.md`.

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permissions": [
+    { "action": "skill", "resource": "investigate-first", "effect": "deny" },
+    { "action": "skill", "resource": "surgical-patch", "effect": "deny" },
+    { "action": "skill", "resource": "safe-refactor", "effect": "deny" },
+    { "action": "skill", "resource": "verify-and-stop", "effect": "deny" },
+    { "action": "skill", "resource": "lean-build", "effect": "deny" },
+    { "action": "skill", "resource": "caveman-review", "effect": "deny" }
+  ]
+}
