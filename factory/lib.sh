@@ -92,6 +92,9 @@ create_run_worktree() {
         fi
     fi
     git -C "$REPO_DIR" worktree add "$WT" -b "$BRANCH" origin/master >/dev/null || return 1
+    # the shared opencode service caches project state per path; a recreated
+    # worktree (same path) serves stale state and reports "Agent not found"
+    opencode reload >/dev/null 2>&1 || true
     mkdir -p "$WT/specs"
 }
 
