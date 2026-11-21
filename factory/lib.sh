@@ -132,15 +132,20 @@ check_prettier() {
     local dir=$1 mode=$2 logf=$3
     local -a files=()
     local line
+    # specs/ and factory/ are factory-internal artifacts: prettier's markdown
+    # printer is not idempotent on agent-written nested lists, and the builder
+    # is (correctly) forbidden to reformat them — so they must not gate.
     if [[ "$mode" == staged ]]; then
         while IFS= read -r line; do
             case "$line" in
+                specs/* | factory/*) continue ;;
                 *.ts | *.tsx | *.js | *.jsx | *.json | *.css | *.md) files+=("$line") ;;
             esac
         done < <(staged_paths "$dir")
     else
         while IFS= read -r line; do
             case "$line" in
+                specs/* | factory/*) continue ;;
                 *.ts | *.tsx | *.js | *.jsx | *.json | *.css | *.md) files+=("$line") ;;
             esac
         done < <(branch_paths "$dir")

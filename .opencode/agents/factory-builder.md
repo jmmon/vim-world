@@ -19,6 +19,7 @@ permission:
         "pnpm test.unit": allow
         "pnpm lint": allow
         "pnpm build.types": allow
+        "pnpm build": allow
         "pnpm exec prettier*": allow
         "git status*": allow
         "git diff*": allow
