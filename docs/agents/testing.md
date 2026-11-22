@@ -18,6 +18,10 @@
 - No snapshot of an entire object to dodge thinking about fields.
 - Deterministic: no real network, no wall-clock sleeps, no dependence on test
   order. Use fake timers for tick or timeout logic.
+- E2E: after any action whose effect lands on a later frame (canvas resize,
+  overlay repaint after a settings ack), poll with `expect.poll` until the
+  state settles — a single read can land in the ≤1-frame gap and flake
+  (PR #14 nit).
 - Prefer pure functions and small harnesses (see
   `src/simulation/shared/loop/helpers.spec.ts` and
   `src/server/wss/handleAfkDisconnect.spec.ts`).

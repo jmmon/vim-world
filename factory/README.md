@@ -96,6 +96,9 @@ history stays clean. Prune old runs with an occasional force-push of
   `vim-world-issue-N` and `vim-world-verify-N`.
 - Tests are written before code, must be red, then hashed into
   `logs/issue-N/test-lock.tsv`. Any change to those files fails the run.
+  The lock is per-run: when a human fixes a shipped branch by hand (e.g.
+  deleting a stray test), that is sanctioned — rerunning the factory on the
+  same issue with `--reset` re-locks from scratch.
 - The builder agent is denied edits to `*.spec.ts*` and `specs/*`.
 - The engine, not the agent, runs `git add`, `git commit`, `git push`, and
   `gh`.

@@ -207,7 +207,7 @@ station_qa() {
 }
 
 station_review() {
-    local n=$1 title=$2 round=1 findings prompt qa_json qa_log
+    local n=$1 title=$2 round=1 findings prompt qa_json qa_log head_before
     qa_log=$(find "$LOG_DIR" -maxdepth 1 -name 'qa-[0-9]*.log' -type f 2>/dev/null | sort -V | tail -1)
     qa_json=$(last_marker "$qa_log" "QA:")
     [[ -n "$qa_json" ]] || qa_json="QA: not run"
@@ -229,7 +229,12 @@ station_review() {
             return 1
         fi
         findings=$(last_marker "$LOG_DIR/review-$round.log" "REVIEW:")
+        head_before=$(git -C "$WT" rev-parse HEAD)
         fix_from_findings "$n" "$title" "$findings" "$round" || return 1
+        if [[ "$(git -C "$WT" rev-parse HEAD)" == "$head_before" ]]; then
+            log "fix cycle changed nothing (station blocked); escalating instead of re-reviewing an unchanged tree"
+            return 1
+        fi
         station_verify "$n" || return 1
         round=$((round + 1))
     done

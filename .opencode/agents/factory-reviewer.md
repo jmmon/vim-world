@@ -21,6 +21,7 @@ permission:
         "cat *": allow
         "pnpm test*": allow
         "pnpm exec vitest*": allow
+        "pnpm exec prettier*": allow
     question: deny
     webfetch: deny
     websearch: deny

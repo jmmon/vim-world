@@ -254,7 +254,13 @@ preflight_probe() {
     local logf="$LOG_DIR/preflight.log"
     run_agent factory-reviewer "$FACTORY_REVIEWER_MODEL" "$WT" "$logf" \
         "Preflight check: reply with exactly OK and do nothing else." || return 1
-    grep -q "OK" "$logf"
+    grep -q "OK" "$logf" || return 1
+    # push probe: ship needs a working push to origin; a dead credential or a
+    # push hook refusal otherwise surfaces at ship, ~2 h late. --dry-run runs
+    # auth and the pre-push hook without creating a ref.
+    git -C "$REPO_DIR" push --dry-run origin \
+        "master:refs/heads/factory-preflight-probe" \
+        >"$LOG_DIR/preflight-push.log" 2>&1
 }
 
 last_marker() {
