@@ -3,6 +3,7 @@ import {
     createZoneTeachingMachine,
     stepZoneTeaching,
     zoneIndexAtX,
+    zoneHintNeedsRedraw,
     type ZoneTeach,
 } from "~/hooks/useZoneTeaching";
 import { GameState } from "~/hooks/useState";
@@ -232,5 +233,26 @@ describe("stepZoneTeaching — no player", () => {
             TEACHES,
         );
         expect(hint).toEqual({ show: false, verb: "" });
+    });
+});
+
+// Issue #5: the render loop must redraw the Zone Hint when the Verb text
+// changes while the box is showing, not only on the show/hide edge (zone
+// x-ranges are contiguous, so a zone transition flips only the text).
+describe("zoneHintNeedsRedraw", () => {
+    test("no redraw while showing with an unchanged verb (AC1)", () => {
+        expect(zoneHintNeedsRedraw(true, "A", true, "A")).toBe(false);
+    });
+
+    test("redraw when the verb changes while still showing (AC2)", () => {
+        expect(zoneHintNeedsRedraw(true, "A", true, "B")).toBe(true);
+    });
+
+    test("redraw on the hide edge (AC3)", () => {
+        expect(zoneHintNeedsRedraw(true, "A", false, "")).toBe(true);
+    });
+
+    test("no redraw while hidden with empty text (AC4)", () => {
+        expect(zoneHintNeedsRedraw(false, "", false, "")).toBe(false);
     });
 });
