@@ -176,7 +176,16 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
     // through each zone; the render loop redraws the hint panel on change.
     useZoneTeaching(state);
 
-    // TODO: adjust width and height as needed based on camera settings
+    // The backing store is owned solely by viewport.updateCanvas: if the JSX
+    // width/height below read the live viewport, Qwik's DOM patching assigns
+    // canvas.width itself on :set columns/lines (component re-renders on the
+    // store change), clearing the bitmaps without raising
+    // needsOverlayRepaint. useSignal keeps the SSR/hydration values constant
+    // across re-renders so Qwik's diff never touches the backing store.
+    const initialSize = useSignal({
+        width: state.ctx.client.viewport.width,
+        height: state.ctx.client.viewport.height,
+    });
     const viewport = state.ctx.client.viewport;
     return (
         <>
@@ -191,26 +200,26 @@ const Canvas1 = component$<Canvas1Props>(({ worldState }) => {
             >
                 <canvas
                     ref={state.refs.map}
-                    width={viewport.width}
-                    height={viewport.height}
+                    width={initialSize.value.width}
+                    height={initialSize.value.height}
                     data-name="map"
                 />
                 <canvas
                     ref={state.refs.objects}
-                    width={viewport.width}
-                    height={viewport.height}
+                    width={initialSize.value.width}
+                    height={initialSize.value.height}
                     data-name="objects"
                 />
                 <canvas
                     ref={state.refs.players}
-                    width={viewport.width}
-                    height={viewport.height}
+                    width={initialSize.value.width}
+                    height={initialSize.value.height}
                     data-name="players"
                 />
                 <canvas
                     ref={state.refs.overlay}
-                    width={viewport.width}
-                    height={viewport.height}
+                    width={initialSize.value.width}
+                    height={initialSize.value.height}
                     data-name="overlay"
                 />
                 <ChooseUsername state={state.ctx} />
