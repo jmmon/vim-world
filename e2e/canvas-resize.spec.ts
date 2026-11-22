@@ -88,22 +88,43 @@ test.afterAll(async () => {
 test(":set columns=40 resizes the overlay backing store to viewport.width (AC5)", async () => {
     await runCommand("set columns=40");
     await waitForSetting("columns", 40);
-    // :set path: viewport.width = columns × tileSize, both integers → exact
-    const d = await overlayDims();
-    expect(Number.isInteger(d.vpWidth)).toBe(true);
-    const attr = await overlayCanvas().getAttribute("width");
-    expect(Number(attr)).toBe(d.vpWidth);
-    expect(d.width).toBe(d.vpWidth);
+    // :set path: viewport.width = columns × tileSize, both integers → exact.
+    // Poll, not a single read: the backing-store resize lands on the rAF
+    // after the settings ack, so one read can land in the ≤1-frame gap.
+    await expect
+        .poll(
+            async () => {
+                const d = await overlayDims();
+                return (
+                    Number.isInteger(d.vpWidth) &&
+                    Number(await overlayCanvas().getAttribute("width")) ===
+                        d.vpWidth &&
+                    d.width === d.vpWidth
+                );
+            },
+            { timeout: 5_000 },
+        )
+        .toBe(true);
 });
 
 test(":set lines=20 resizes the overlay backing store to viewport.height (AC6)", async () => {
     await runCommand("set lines=20");
     await waitForSetting("lines", 20);
-    const d = await overlayDims();
-    expect(Number.isInteger(d.vpHeight)).toBe(true);
-    const attr = await overlayCanvas().getAttribute("height");
-    expect(Number(attr)).toBe(d.vpHeight);
-    expect(d.height).toBe(d.vpHeight);
+    // poll for the same ≤1-frame resize-landing gap as AC5
+    await expect
+        .poll(
+            async () => {
+                const d = await overlayDims();
+                return (
+                    Number.isInteger(d.vpHeight) &&
+                    Number(await overlayCanvas().getAttribute("height")) ===
+                        d.vpHeight &&
+                    d.height === d.vpHeight
+                );
+            },
+            { timeout: 5_000 },
+        )
+        .toBe(true);
 });
 
 test("overlay canvas is not stretched: backing store equals CSS size (AC7)", async () => {
