@@ -47,15 +47,19 @@ Review for:
    mapped to a criterion. Vague plans are blockers; the test station cannot
    invent them.
 3. QA plan: boots on port 5199, concrete browser steps, observable outcome.
-4. Contract truth: modules, exported names, signatures, and types the spec names
-   actually exist in the repo as written. Verify by reading, not by trusting the
-   spec.
-5. Scope: stays inside the issue. No speculative future work, no parallel
+4. Manual test plan: present, covers every acceptance criterion by number, and
+   each step is followable by a human with no code knowledge — no DOM
+   selectors, no dev hooks, no QA port. A missing or code-facing plan is a
+   blocker.
+5. Contract truth: modules, exported names, signatures, and types the spec
+   names actually exist in the repo as written. Verify by reading, not by
+   trusting the spec.
+6. Scope: stays inside the issue. No speculative future work, no parallel
    abstractions, no renames the issue did not ask for.
-6. Hidden decisions: any product choice the spec makes silently (a new label, a
+7. Hidden decisions: any product choice the spec makes silently (a new label, a
    port, a default, a user-visible behavior change) must be stated as a decision,
    not smuggled into an implementation detail.
-7. Non-breakage: if the spec deletes or changes shared code, does it name every
+8. Non-breakage: if the spec deletes or changes shared code, does it name every
    caller it affects?
 
 You may not edit files, commit, or push. You review the plan, not the

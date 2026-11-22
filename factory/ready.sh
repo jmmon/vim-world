@@ -73,10 +73,11 @@ SPEC="specs/issue-$ISSUE.md"
 [[ -f "$SPEC" ]] || die "no spec at $SPEC — write or /to-spec it first"
 
 # Section contract from .opencode/agents/factory-spec.md. station_tests is told
-# to write "exactly the paths listed" in the Test plan, and station_qa boots
-# from the QA plan, so a spec missing either escalates mid-run.
+# to write "exactly the paths listed" in the Test plan, station_qa boots
+# from the QA plan, and the PR body ships the Manual test plan to the human
+# reviewer, so a spec missing any of these escalates mid-run or ships blind.
 missing=()
-for section in '## Goal' '## Non-goals' '## Contracts' '## Acceptance criteria' '## Test plan' '## QA plan'; do
+for section in '## Goal' '## Non-goals' '## Contracts' '## Acceptance criteria' '## Test plan' '## QA plan' '## Manual test plan'; do
     grep -q "^$section" "$SPEC" || missing+=("$section")
 done
 if (( ${#missing[@]} > 0 )); then

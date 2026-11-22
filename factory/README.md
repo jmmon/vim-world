@@ -82,6 +82,11 @@ raw URLs are embedded in the draft PR body — anyone can view them, `master`
 history stays clean. Prune old runs with an occasional force-push of
 `qa-screenshots`.
 
+The draft PR body also embeds the spec's `## Manual test plan` as a
+`### Manual test steps` block — checkout and boot commands plus step-by-step
+browser instructions a human follows by eye to confirm the fix before
+merging. Specs without the section ship a pointer to the QA plan instead.
+
 ## Enable / disable
 
 - Hard stop: keep `factory/FACTORY-OFF`. Delete it to enable.

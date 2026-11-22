@@ -87,6 +87,18 @@ automated test.
 - The observable visual or DOM state expected after each step, each one
   checkable by a Playwright assertion.
 
+## Manual test plan
+
+- Steps a human follows by eye to confirm the fix, one step per acceptance
+  criterion, each citing its number.
+- Written for someone who has not read the code or the spec: `pnpm dev`,
+  the URL to open, exact key sequences, and what to look at on screen
+  (statusbar text, canvas rendering, overlays). No DOM selectors, no
+  `__vimworld` dev hooks, no port 5199 — those belong to the QA plan.
+- Multiplayer steps state exactly how many browser windows to open and
+  which username to log in as in each.
+- Each step ends with the expected observable result.
+
 ## Risks
 
 Anything ambiguous, contradictory, or dependent on product judgment.

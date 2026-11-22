@@ -67,7 +67,7 @@ $findings
     fi
     while (( round <= 3 )); do
         log "spec review round $round"
-        prompt=$(printf 'Factory spec review station. Issue #%s.\n\nTitle: %s\n\nReview specs/issue-%s.md as a reviewer who did not write it. You may read code but must not edit anything. Judge it on: every acceptance criterion being machine-checkable as written; the Test plan naming exact spec file paths colocated with their source; the QA plan booting on port 5199 with concrete browser steps; contracts naming real modules and signatures; scope staying inside the issue; and no product decision left implicit. End with SPEC-REVIEW: {"verdict": "approve" or "changes", "findings": ["one entry per problem, empty if approve"]}\n' "$n" "$title" "$n")
+        prompt=$(printf 'Factory spec review station. Issue #%s.\n\nTitle: %s\n\nReview specs/issue-%s.md as a reviewer who did not write it. You may read code but must not edit anything. Judge it on: every acceptance criterion being machine-checkable as written; the Test plan naming exact spec file paths colocated with their source; the QA plan booting on port 5199 with concrete browser steps; the Manual test plan covering every acceptance criterion with steps a human can follow without reading code; contracts naming real modules and signatures; scope staying inside the issue; and no product decision left implicit. End with SPEC-REVIEW: {"verdict": "approve" or "changes", "findings": ["one entry per problem, empty if approve"]}\n' "$n" "$title" "$n")
         run_agent factory-spec-reviewer "$FACTORY_SPEC_REVIEW_MODEL" "$WT" "$LOG_DIR/spec-review-$round.log" "$prompt" || true
         if [[ -z "$(last_marker "$LOG_DIR/spec-review-$round.log" "SPEC-REVIEW:")" ]]; then
             log "spec review round $round produced no verdict; retrying"
@@ -279,7 +279,7 @@ station_review() {
 }
 
 write_evidence() {
-    local n=$1 title=$2 spec_files review_json
+    local n=$1 title=$2 spec_files review_json manual
     spec_files=$(join_comma <"$LOG_DIR/spec-files.txt")
     review_json=$(last_marker "$(latest_review_log)" "REVIEW:" | sed 's/^REVIEW: //')
     {
@@ -302,6 +302,13 @@ write_evidence() {
             printf '\n'
         else
             printf -- '- Playwright QA passed; screenshots at `factory/logs/issue-%s/qa/` (upload unavailable).\n\n' "$n"
+        fi
+        printf '### Manual test steps\n\n'
+        manual=$(awk '/^## Manual test plan/{p=1;next} /^## /{p=0} p' "$WT/specs/issue-$n.md" 2>/dev/null)
+        if [[ -n "${manual//[[:space:]]/}" ]]; then
+            printf 'Checkout and boot:\n\n```sh\ngit fetch origin && git checkout %s\npnpm install && pnpm dev\n```\n\n%s\n\n' "$BRANCH" "$manual"
+        else
+            printf 'The spec carries no Manual test plan; see the QA plan in `specs/issue-%s.md`.\n\n' "$n"
         fi
         printf '### Review\n\n'
         printf '```json\n%s\n```\n\n' "$review_json"
