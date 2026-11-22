@@ -54,6 +54,12 @@ Read on demand, not all at once:
 - `docs/agents/qwik-v1-v2-delta.md` — verified v1↔v2 symbol rename table, the
   exact server-only import guard, and which removals are public-API-only. Read
   to answer "does this import survive?".
+- `docs/agents/playtest-spec.md` — headless playtest harness: core API, CLI
+  flags, scenario format, re-derive-`expect` workflow. Read when touching
+  `pnpm playtest` scenarios or the golden suite.
+- `docs/agents/map-ascii-plan.md` + `docs/agents/intro-map-rooms.md` — intro-map
+  ASCII format, parser, link model, per-room layout, and open room backlog
+  (gale, double-key). Read when touching the map, zones, or teaching.
 
 ## Factory
 
