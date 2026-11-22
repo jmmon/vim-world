@@ -3,6 +3,10 @@
 station_spec() {
     local n=$1 title=$2 body=$3 attempt prompt spec_file
     spec_file="$WT/specs/issue-$n.md"
+    if [[ -f "$spec_file" ]] && grep -q 'STATUS: READY' "$spec_file"; then
+        log "spec already READY (human-reviewed), skipping spec station"
+        return 0
+    fi
     for attempt in 1 2; do
         if (( attempt == 1 )); then
             prompt=$(printf 'Factory spec station. Issue #%s.\n\nTitle: %s\n\nBody:\n%s\n\nWrite specs/issue-%s.md exactly as your instructions require. End the file with STATUS: READY or STATUS: NEEDS-HUMAN.\n' "$n" "$title" "$body" "$n")
