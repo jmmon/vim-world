@@ -1,0 +1,15 @@
+[Unit]
+Description=vim-world factory: run one queued issue (idle-exits when queue empty)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# login shell so mise (node/pnpm) and PATH are loaded; run.sh idle-exits
+# when no issue carries the `factory` label, and FACTORY-OFF is the kill switch
+WorkingDirectory=/run/media/jmmarchy/New Volume/code/projects/qwik/vim-world
+ExecStart=/usr/bin/bash -lc './factory/run.sh'
+Nice=10
+TimeoutStartSec=3h
+# external drive must be mounted before the queue is touched
+ConditionPathIsDirectory=/run/media/jmmarchy/New Volume/code/projects/qwik/vim-world/.git

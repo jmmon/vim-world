@@ -1,0 +1,11 @@
+[Unit]
+Description=vim-world factory queue tick
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+Persistent=true
+RandomizedDelaySec=2min
+
+[Install]
+WantedBy=timers.target

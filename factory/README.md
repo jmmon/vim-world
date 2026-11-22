@@ -141,3 +141,40 @@ first, and the resolution is simply to keep both lines.
 loop: retro proposals land as `factory-process` issues, and a human applies
 them to prompts, scripts, or docs. Nothing in the pipeline changes
 automatically.
+
+## Automation (drafted, not enabled)
+
+### Timer tick — "label = submit"
+
+`factory/systemd/factory-run.{service,timer}` runs `run.sh` every 15 min as a
+user timer. Safe by design: idle-exit when no issue carries `factory`,
+`state/run.lock` prevents overlap, `FACTORY-OFF` is the kill switch, and the
+unit refuses to start while the external drive is unmounted. Enable with:
+
+```sh
+cp factory/systemd/factory-run.{service,timer} ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now factory-run.timer
+systemctl --user list-timers factory-run.timer   # next tick
+journalctl --user -u factory-run.service -f      # watch a tick
+```
+
+Missed ticks (laptop asleep) are harmless: `Persistent=true` fires once on
+wake, and the queue drains one issue per tick anyway.
+
+### Auto-file Out-of-Scope defects (design, not implemented)
+
+The spec station names defects it excludes but has no `gh` permission (by
+design). Engine-side fix in `stations.sh` after the spec station succeeds:
+parse `## Non-goals` / Out-of-Scope bullets that describe a defect ("leaves",
+"stretches", "erases"), file each as `gh issue create --label bug --label
+needs-triage --body "Split from #<N>: <bullet>"`, and log the created numbers
+to `run.log`. Cap at 3 per run to avoid spec-station ramblings flooding the
+queue. Review cost: one triage pass per run, `needs-triage` marks what needs
+you.
+
+### Queue drain (optional)
+
+One issue per tick is deliberate (WIP 1). If the queue regularly exceeds one,
+swap the timer's `ExecStart` for a `while run_one_issue; do :; done` wrapper
+in `run.sh --drain` mode; keep the lock so ticks still cannot overlap.
