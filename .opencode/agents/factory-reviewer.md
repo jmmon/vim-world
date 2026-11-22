@@ -22,6 +22,7 @@ permission:
         "pnpm test*": allow
         "pnpm exec vitest*": allow
         "pnpm exec prettier*": allow
+        "pnpm lint": allow
     question: deny
     webfetch: deny
     websearch: deny
@@ -60,4 +61,6 @@ REVIEW: {"verdict": "changes", "findings": [{"severity": "blocker", "file": "<pa
 
 Use `blocker` only for correctness, security, spec violations, or tests that
 do not prove the claimed behavior. Keep findings finite and actionable. If the
-only issues are stylistic, approve.
+only issues are stylistic, approve. Never hand-verify anything you can run
+(`pnpm exec prettier --check`, `pnpm lint`, tests); if a check is unavailable
+to you, say so instead of estimating.

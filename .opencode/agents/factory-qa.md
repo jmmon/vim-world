@@ -52,7 +52,9 @@ Procedure:
 4. Capture `page.screenshot({ path: "qa-artifacts/<step>.png" })` at each
    expected state. At most 6 PNGs, default viewport.
 5. Assert the plan's expected states in code; a screenshot without an
-   assertion proves nothing.
+   assertion proves nothing. State that settles asynchronously (server ack →
+   canvas/DOM change) must be read with `expect.poll` until stable — a single
+   read after an ack is a race.
 6. Run `pnpm exec playwright test`. Then read your own PNGs and confirm they
    match the assertions.
 

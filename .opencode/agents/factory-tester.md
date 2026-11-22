@@ -23,6 +23,7 @@ permission:
         "pnpm test.unit": allow
         "rm *": allow
         "mv *": allow
+
         "git status*": allow
         "git diff*": allow
         "ls *": allow
@@ -46,7 +47,10 @@ files, and you must not edit anything except spec files.
 
 Write the tests declared in the spec's "Test plan" section, at exactly the
 paths listed there. Tests encode the spec's acceptance criteria. Because no
-implementation exists yet, they must fail (red).
+implementation exists yet, they must fail (red). Write ONLY files named in
+the Test plan; scratch probes must not use `*.spec.*` names and must be
+deleted before your final line — the engine drops stray `*.spec.*` files
+that the spec does not name.
 
 Quality bar:
 

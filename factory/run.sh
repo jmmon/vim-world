@@ -27,6 +27,7 @@ FACTORY_LABELS=(
 
 RUN_LOG=""
 NO_SHIP=0
+SHIP_ONLY=0
 FORCE_ISSUE=""
 RESET=0
 BRANCH=""
@@ -38,6 +39,10 @@ while (( $# > 0 )); do
     case "$1" in
         --no-ship)
             NO_SHIP=1
+            shift
+            ;;
+        --ship-only)
+            SHIP_ONLY=1
             shift
             ;;
         --issue)
@@ -110,7 +115,7 @@ BRANCH="factory/issue-$ISSUE"
 WT="$PROJECTS_DIR/vim-world-issue-$ISSUE"
 WT_V="$PROJECTS_DIR/vim-world-verify-$ISSUE"
 LOG_DIR="$FACTORY_DIR/logs/issue-$ISSUE"
-if [[ -d "$LOG_DIR" ]]; then
+if [[ -d "$LOG_DIR" ]] && (( ! SHIP_ONLY )); then
     # keep the previous run's transcripts: rerun overwrote issue #11's run-1
     # tester log and its failure cause became unrecordable
     rm -rf "$LOG_DIR.prev"
@@ -151,6 +156,21 @@ fi
 
 TITLE=$(issue_title "$ISSUE") || TITLE="issue $ISSUE"
 BODY=$(issue_body "$ISSUE") || BODY=""
+
+if (( SHIP_ONLY )); then
+    # resume path for a green run that died at ship (#11): re-gate the
+    # existing worktree and ship; stations are not re-run.
+    [[ -d "$WT" ]] || die "--ship-only requires the prior run's worktree $WT (rerun normally without it)"
+    [[ -f "$LOG_DIR/test-lock.tsv" ]] || die "--ship-only needs $LOG_DIR/test-lock.tsv from the prior run"
+    check_test_lock "$WT" || die "--ship-only: test lock mismatch, rerun normally"
+    run_gate "$WT" "$LOG_DIR/ship-only-gate.log" || die "--ship-only: gate failed in $WT"
+    log "station: ship (ship-only resume)"
+    ship "$ISSUE" "$TITLE"
+    case $? in
+        0|3) exit 0 ;;
+        *) escalate "$ISSUE" "ship-only failed"; exit 1 ;;
+    esac
+fi
 
 stage() {
     local name=$1
@@ -198,8 +218,9 @@ case "$SHIP_RC" in
         exit 0
         ;;
     *)
-        station_retro "$ISSUE" "$TITLE" "escalated" || true
-        escalate "$ISSUE" "ship failed"
+        # the pr-outcome retro is already committed on the branch; re-running
+        # it here only left an uncommitted rewrite in the worktree (#11)
+        escalate "$ISSUE" "ship failed; work is green on $BRANCH"
         exit 1
         ;;
 esac

@@ -254,7 +254,8 @@ preflight_probe() {
     local logf="$LOG_DIR/preflight.log"
     run_agent factory-reviewer "$FACTORY_REVIEWER_MODEL" "$WT" "$logf" \
         "Preflight check: reply with exactly OK and do nothing else." || return 1
-    grep -q "OK" "$logf" || return 1
+    # the echoed prompt itself contains "OK", so match the reply at the tail
+    tail -n 5 "$logf" | grep -q "OK" || return 1
     # push probe: ship needs a working push to origin; a dead credential or a
     # push hook refusal otherwise surfaces at ship, ~2 h late. --dry-run runs
     # auth and the pre-push hook without creating a ref.
@@ -338,7 +339,7 @@ ledger_tags() {
 ledger_attempts() {
     local f="${RUN_LOG:-/dev/null}"
     printf '%s/%s/%s/%s/%s' \
-        "$(grep -c 'station: spec' "$f" 2>/dev/null)" \
+        "$(grep -c 'station: spec$' "$f" 2>/dev/null)" \
         "$(grep -c 'station: tests' "$f" 2>/dev/null)" \
         "$(grep -c 'station: implement' "$f" 2>/dev/null)" \
         "$(grep -c 'station: qa' "$f" 2>/dev/null)" \
@@ -470,6 +471,10 @@ commit_branch() {
 escalate() {
     local n=$1 reason=$2 body
     log "escalating issue #$n: $reason"
+    if [[ -n "${WT:-}" && -d "$WT" && -n "${LOG_DIR:-}" ]]; then
+        { git -C "$WT" status --short; git -C "$WT" diff; } \
+            >"$LOG_DIR/escalation-snapshot.txt" 2>&1 || true
+    fi
     body=$(tail -n 60 "${RUN_LOG:-/dev/null}" 2>/dev/null | sanitize_stream)
     gh issue comment "$n" --body "Factory run escalated: $reason
 

@@ -47,7 +47,22 @@ station_spec_review() {
     # so no reviewer inherits the previous reviewer's context.
     local n=$1 title=$2 round=1 findings prompt verdict
     if spec_human_ready "$n"; then
-        log "spec already READY (human-reviewed), skipping spec review"
+        # human-reviewed spec: do not relitigate scope or style, but do not
+        # trust its factual claims either — #11's pinned root cause was wrong
+        # and nothing with code access ever checked it before implementation.
+        log "spec human-reviewed: fact-check pass (contracts vs code only)"
+        prompt=$(printf 'Factory spec review station. Issue #%s.\n\nThe spec specs/issue-%s.md is human-reviewed and locked. Do NOT judge scope, style, or completeness. Verify ONLY that every factual claim about the code in the Contracts section is true on disk: modules and functions exist with the stated names and signatures, and the stated root cause actually reproduces from the code as written. End with SPEC-REVIEW: {"verdict": "approve" or "changes", "findings": ["one entry per mismatch, empty if approve"]}\n' "$n" "$n")
+        run_agent factory-spec-reviewer "$FACTORY_SPEC_REVIEW_MODEL" "$WT" "$LOG_DIR/spec-factcheck.log" "$prompt" || true
+        if [[ "$(review_verdict "$LOG_DIR/spec-factcheck.log" "SPEC-REVIEW:")" == "changes" ]]; then
+            log "human spec fact-check found code mismatches; deferring to the spec owner"
+            findings=$(last_marker "$LOG_DIR/spec-factcheck.log" "SPEC-REVIEW:" | sed 's/^SPEC-REVIEW: //')
+            gh issue comment "$n" --body "Spec fact-check found Contracts claims that do not match the code. The spec owner should reconcile before this runs:
+
+\`\`\`
+$findings
+\`\`\`" >/dev/null 2>&1 || true
+            return 2
+        fi
         return 0
     fi
     while (( round <= 3 )); do
@@ -81,18 +96,30 @@ station_spec_review() {
 }
 
 station_tests() {
-    local n=$1 prompt f
+    local n=$1 prompt f attempt
     local -a specs=()
-    prompt=$(printf 'Factory test station. Issue #%s.\n\nSpec: specs/issue-%s.md\n\nWrite the tests declared in the spec Test plan section at exactly the paths listed there. Run them and confirm they are red. Do not touch implementation files. End with TESTS: {"files": [...], "red": true}.\n' "$n" "$n")
-    run_agent factory-tester "$FACTORY_TESTER_MODEL" "$WT" "$LOG_DIR/tester.log" "$prompt" || true
-    git -C "$WT" add -A >/dev/null 2>&1 || return 1
-    while IFS= read -r f; do
-        case "$f" in
-            *.spec.ts | *.spec.tsx) specs+=("$f") ;;
-        esac
-    done < <(staged_paths "$WT")
+    prompt=$(printf 'Factory test station. Issue #%s.\n\nSpec: specs/issue-%s.md\n\nWrite the tests declared in the spec Test plan section at exactly the paths listed there. Write ONLY files named in the Test plan; scratch probes must not use *.spec.* names and must be deleted before your final line. Run them and confirm they are red. Do not touch implementation files. End with TESTS: {"files": [...], "red": true}.\n' "$n" "$n")
+    for attempt in 1 2; do
+        specs=()
+        run_agent factory-tester "$FACTORY_TESTER_MODEL" "$WT" "$LOG_DIR/tester-$attempt.log" "$prompt" || true
+        git -C "$WT" add -A >/dev/null 2>&1 || return 1
+        while IFS= read -r f; do
+            case "$f" in
+                *.spec.ts | *.spec.tsx)
+                    # scratch probes must not enter the locked test set
+                    if ! grep -q "$(basename "$f")" "$WT/specs/issue-$n.md"; then
+                        log "dropped scratch test file not named in the spec: $f"
+                        git -C "$WT" rm --cached -f --quiet "$f" >/dev/null 2>&1
+                        rm -f "$WT/$f"
+                    else
+                        specs+=("$f")
+                    fi ;;
+            esac
+        done < <(staged_paths "$WT")
+        (( ${#specs[@]} > 0 )) && break
+        log "tester attempt $attempt produced no spec files"
+    done
     if (( ${#specs[@]} == 0 )); then
-        log "tester produced no spec files"
         return 1
     fi
     printf '%s\n' "${specs[@]}" >"$LOG_DIR/spec-files.txt"
@@ -143,6 +170,10 @@ fix_from_findings() {
     local n=$1 title=$2 findings=$3 round=$4 prompt
     prompt=$(printf 'Factory fix cycle %s for issue #%s.\n\nSpec: specs/issue-%s.md\nReviewer findings JSON:\n%s\n\nAddress every blocker without editing specs or test files. End with BUILD: {"result": "green"} or BUILD: {"result": "blocked", "reason": "..."}.\n' "$round" "$n" "$n" "$findings")
     run_agent factory-builder "$FACTORY_BUILDER_MODEL" "$WT" "$LOG_DIR/fix-$round.log" "$prompt" || true
+    if grep -q '"result": "blocked"' "$LOG_DIR/fix-$round.log" 2>/dev/null; then
+        log "fix station blocked: $(grep -o '"reason": "[^"]*"' "$LOG_DIR/fix-$round.log" | tail -1)"
+        return 3
+    fi
     check_test_lock "$WT" || return 1
     git -C "$WT" add -A >/dev/null 2>&1 || return 1
     fix_staged "$WT" "$LOG_DIR/fix-autofix-$round.log"
@@ -230,7 +261,13 @@ station_review() {
         fi
         findings=$(last_marker "$LOG_DIR/review-$round.log" "REVIEW:")
         head_before=$(git -C "$WT" rev-parse HEAD)
-        fix_from_findings "$n" "$title" "$findings" "$round" || return 1
+        fix_from_findings "$n" "$title" "$findings" "$round"
+        frc=$?
+        if (( frc == 3 )); then
+            log "fix cycle blocked; escalating with the reviewer findings instead of re-reviewing"
+            return 1
+        fi
+        (( frc == 0 )) || return 1
         if [[ "$(git -C "$WT" rev-parse HEAD)" == "$head_before" ]]; then
             log "fix cycle changed nothing (station blocked); escalating instead of re-reviewing an unchanged tree"
             return 1
@@ -284,7 +321,9 @@ ship() {
     files=$(join_comma <"$LOG_DIR/spec-files.txt")
     write_evidence "$n" "$title" "$files"
     printf 'Closes #%s\n' "$n" >>"$LOG_DIR/evidence.md"
-    git -C "$WT" push -u origin "$BRANCH" >"$LOG_DIR/push.log" 2>&1 || return 1
+    # --force-with-lease: a partial ship (push ok, gh pr create failed) must
+    # not dead-lock the rerun on non-fast-forward; the factory owns this branch
+    git -C "$WT" push -u --force-with-lease origin "$BRANCH" >"$LOG_DIR/push.log" 2>&1 || return 1
     existing=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number' 2>/dev/null)
     if [[ -z "$existing" || "$existing" == "null" ]]; then
         gh pr create --draft --base master --head "$BRANCH" \

@@ -64,6 +64,7 @@ it before any test is written.
 ```sh
 factory/run.sh --issue 12 --no-ship   # dry run: no branch/PR/screenshot pushes
 factory/run.sh --issue 12             # full run: pushes branch, opens draft PR
+factory/run.sh --issue 12 --ship-only # resume ship after a green run died at push
 factory/run.sh                        # picks the oldest issue labeled factory
 factory/run.sh --issue 12 --reset     # discard leftover branch/worktree first
 ```

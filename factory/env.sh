@@ -1,3 +1,7 @@
+# Accepted risk: every station defaults to the same model lineage, so the
+# README's "reviewer on a different lineage" rule is not met — review
+# agreement is NOT independent confirmation. Override here when a second
+# lineage is available.
 FACTORY_SPEC_MODEL="${FACTORY_SPEC_MODEL:-halo/flash-next}"
 FACTORY_TESTER_MODEL="${FACTORY_TESTER_MODEL:-halo/flash-next}"
 FACTORY_BUILDER_MODEL="${FACTORY_BUILDER_MODEL:-halo/flash-next}"
