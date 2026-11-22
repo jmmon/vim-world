@@ -62,7 +62,8 @@ issue_body() {
 
 claim_issue() {
     local n=$1
-    gh issue edit "$n" --remove-label factory --add-label factory:wip >/dev/null || return 1
+    gh issue edit "$n" --remove-label factory --remove-label factory:escalated --add-label factory:wip >/dev/null || return 1
+
     gh issue comment "$n" --body "Factory run claimed this issue at $(date -Is). Branch: \`$BRANCH\`." >/dev/null || return 1
 }
 
@@ -216,6 +217,16 @@ run_agent() {
     (cd "$dir" && timeout "$FACTORY_AGENT_TIMEOUT" \
         opencode run --agent "$agent" --model "$model" --auto "$prompt" \
         >"$logf" 2>&1)
+}
+
+preflight_probe() {
+    # Probe the agent system with a zero-edit agent before burning install time;
+    # catches agent-launch breakage (unknown agent, stale service cache) in seconds.
+    # factory-reviewer is edit:deny, so a confused probe cannot write anything.
+    local logf="$LOG_DIR/preflight.log"
+    run_agent factory-reviewer "$FACTORY_REVIEWER_MODEL" "$WT" "$logf" \
+        "Preflight check: reply with exactly OK and do nothing else." || return 1
+    grep -q "OK" "$logf"
 }
 
 last_marker() {

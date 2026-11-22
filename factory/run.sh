@@ -119,6 +119,11 @@ if ! create_run_worktree "$ISSUE"; then
     exit 1
 fi
 
+if ! preflight_probe; then
+    escalate "$ISSUE" "preflight agent probe failed (see $LOG_DIR/preflight.log)"
+    exit 1
+fi
+
 if ! install_deps "$WT" "$LOG_DIR/install.log"; then
     escalate "$ISSUE" "dependency install failed"
     exit 1
