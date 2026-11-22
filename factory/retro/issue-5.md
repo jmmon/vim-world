@@ -30,3 +30,8 @@ Filled later by `factory/retro.sh --merged`.
 
 - merged: <sha>
 - human edits: none | spec | tests | code | other
+
+### Merge record
+
+- merged: 12b334a on 2026-11-21
+- human edits: none
