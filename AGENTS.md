@@ -48,6 +48,12 @@ Read on demand, not all at once:
 - `docs/agents/testing.md` — test conventions, what counts as a real test,
   determinism rules.
 - `docs/agents/conventions.md` — TypeScript, formatting, naming, environment.
+- `docs/agents/qwik-v2-migration-plan.md` — active Qwik 1.19 → 2.0 migration:
+  phases, dependency pins, verification gates. Read before touching Qwik
+  versions or the `src/server` layout.
+- `docs/agents/qwik-v1-v2-delta.md` — verified v1↔v2 symbol rename table, the
+  exact server-only import guard, and which removals are public-API-only. Read
+  to answer "does this import survive?".
 
 ## Factory
 

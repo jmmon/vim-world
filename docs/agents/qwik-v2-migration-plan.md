@@ -6,23 +6,20 @@ This is a **real v2 adoption**, not a v1-compat shim: every compat default the
 migrator writes gets deleted, and the folder layout is fixed so v2's
 server-only guard actually protects the in-memory world.
 
+For the symbol-level rename table — what moved, what is source-compatible, and
+which claims below were checked against the shipped `.d.ts` files — see
+[`qwik-v1-v2-delta.md`](./qwik-v1-v2-delta.md).
+
 ---
 
 ## 0. Pre-flight
 
-The tree already holds uncommitted work:
-
-```
- M package.json
- M pnpm-lock.yaml
-?? src/server/playtest/
-?? docs/agents/playtest-spec.md
-?? more-notes.md
-```
-
-Commit or stash that **first** (`git stash push -u`), on a branch, before any
-step below. Per `AGENTS.md` the agent must not run `git commit`, `git push`, or
-`gh`; each phase is followed by a human commit.
+Nothing to stash: the uncommitted work this section used to list (`package.json`,
+`pnpm-lock.yaml`, `src/server/playtest/`, `docs/agents/playtest-spec.md`,
+`more-notes.md`) is **now committed**, so the tree is clean apart from whatever
+you are about to change. Re-run `git status` before starting and stash only if
+something new has landed. Per `AGENTS.md` the agent must not run `git commit`,
+`git push`, or `gh`; each phase is followed by a human commit.
 
 Order matters: the restructure in phase 3 is not polish. v2 hard-fails the
 client build when client code imports `src/**/server/**`, and this repo has
@@ -100,7 +97,7 @@ Then **revert every compat default it adds**:
 | `strictLoaders: false` | delete; repo has zero loaders, so `true` is free |
 | `requestBodyLimit: Number.MAX_SAFE_INTEGER` | delete; 10 MiB default is fine (only small form posts) |
 | `viewTransition` prop on the provider + `:root{view-transition-name:none}` in `global.css` | delete both; no view transitions in use |
-| `<Link prefetchData="visible">` edits | revert; no `<Link>` in the repo |
+| `<Link prefetchData="visible">` edits | review, do not blanket-revert. The repo **does** have `<Link>`s — two in `src/routes/index.tsx:9-10` (`/canvas1`, `/test/offscreen-map`). Decide per Link whether prefetch is wanted; the default `off`/`visible` choice changes when bundle JS is fetched on the landing page |
 | head-wrapper changes in `root.tsx` | revert if it added any |
 | `src/plugins/plugin@000-v1-errors.ts` (or `plugin@000-v1-errors.ts`) | delete |
 | `src/routes/layout.ts` with a `useV1NavigationProbe` loader | delete the file; the repo has no root `layout.tsx` and no loaders, so the probe is pure overhead |
@@ -184,8 +181,8 @@ Also update:
 - `package.json` `"playtest"` → `tsx src/game/server/playtest/cli.ts`.
 - `src/entry.node-server.tsx` imports.
 
-`git mv` will not move `src/server/playtest/` (it is untracked) — use plain
-`mv` for that subtree.
+`src/server/playtest/` is tracked now (13 files), so `git mv` works for the
+whole subtree — no plain-`mv` special case.
 
 ---
 
@@ -295,14 +292,23 @@ pnpm test.unit
 pnpm lint
 pnpm build.client          # proves the server-only guard is satisfied
 pnpm build                 # client + server + types
+pnpm test.e2e              # real browser, real socket, via `pnpm dev`
 ```
+
+`pnpm test.e2e` is not optional here. `e2e/intro.spec.ts` boots `pnpm dev`
+through Playwright's `webServer` and drives a connected player through five
+rooms asserting vim-key movement, hops, yank and unlock — which is exactly the
+"socket opened on a direct load" behaviour that typecheck cannot see and that
+regressed in v1. If phase 5's `useVisibleTask$` swap is wrong, this suite goes
+red without a human looking at a screen.
 
 Then behaviour, because typecheck cannot see any of it:
 
 1. `pnpm dev` — socket connects on a **direct** URL load (not just after a
    click), other players move, `w`/`b` hops still work.
 2. Same on `pnpm serve` after a build — this is the path that regressed in v1
-   and is why `eagerness: 'load'` existed.
+   and is why `eagerness: 'load'` existed. The e2e suite only covers `pnpm dev`
+   (`webServer.command`), so this one stays manual.
 3. `/canvas1` still fetches the map through `useResource$`.
 4. Hit an unknown URL: expect a real `404` with `Not Found`, no crash. v2 sets
    `{ status: 404, message: "Not Found" }` when no route matches, so no
@@ -315,7 +321,9 @@ Then behaviour, because typecheck cannot see any of it:
 
 - `useResource$` in `src/routes/canvas1/index.tsx` → `routeLoader$`, with
   `src/routes/api/map/index.tsx` folded in. Do it after the migration is green,
-  as its own change.
+  as its own change. Note `useResource$` is `@deprecated` in rc.5 and Qwik's own
+  suggestion is `useComputed$`, not `routeLoader$` — see delta doc §3 before
+  picking.
 - Remove the now-unused `src/routes/api/map` endpoint if the loader lands.
 - `eslint.config.js` `"**/server"` → `"/server"` so `src/game/server/**` is
   linted again.
@@ -358,8 +366,15 @@ Then behaviour, because typecheck cannot see any of it:
   wrapper, not a folder reshuffle.
 - **Streaming changes the SSR response shape** for a canvas app whose first
   paint matters. Watch for a flash or a hydration-order regression on `/`.
-- **`git mv` vs untracked `playtest/`:** the playtest tree is untracked, so
-  `git mv` fails on it and `git stash -u` is the safer pre-flight.
+- **`useResource$` is deprecated upstream** but the plan keeps it during the
+  migration (phase 8 follow-up). That is fine — it still works in rc.5 — but the
+  deprecation warning will show up in lint output. Do not treat it as a
+  migration failure.
 - **No `src/routes/layout.tsx` today.** If the migrator creates one for its
   navigation probe, deleting it is correct — but re-check that nothing else
   landed in it.
+- **`node:crypto` in a client component.** `src/components/choose-username/choose-username.tsx:3`
+  imports `node:crypto` at module scope and uses it only inside a `server$()`
+  body, so it is dead in the client bundle today. If v2's optimizer stops
+  shaking it out, `pnpm build.client` fails on a `node:` builtin. Loud, not
+  silent — phase 7 catches it. Details in `qwik-v1-v2-delta.md` §7.
