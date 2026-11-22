@@ -1,6 +1,8 @@
 import { describe, expect, test, vi } from "vitest";
 import {
+    drawAfk,
     drawZoneHint,
+    getAfkRect,
     getDevStatsStyles,
     getFpsStyles,
     getZoneHintRect,
@@ -67,6 +69,33 @@ describe("getZoneHintRect", () => {
             expect(isInt(r.top)).toBe(true);
             expect(isInt(r.left + r.w)).toBe(true);
             expect(isInt(r.top + r.h)).toBe(true);
+        }
+    });
+});
+
+// Issue #12: the AFK box moved down to y = 2.5·tileSize so it never
+// intersects the Zone Hint box (the overlap caused a silent-erase bug), and
+// drawAfk centers its text in the box and restores the textAlign it sets.
+
+describe("getAfkRect", () => {
+    test("y is 2.5·tileSize with x, width, height unchanged (AC1)", () => {
+        const r = getAfkRect(viewport(1280), config(1));
+        expect(r[0]).toBe(32 * 6.5); // 208
+        expect(r[1]).toBe(32 * 2.5); // 80
+        expect(r[2]).toBe(1280 - 32 * 13); // 864
+        expect(r[3]).toBe(32 * 5); // 160
+    });
+
+    test("disjoint from the Zone Hint rect across widths and scales (AC2)", () => {
+        for (const tiles of [20, 40, 100]) {
+            for (const scale of [1, 1.25]) {
+                const vp = viewport(tiles * 32);
+                const cfg = config(scale);
+                const afk = getAfkRect(vp, cfg);
+                const hint = getZoneHintRect(vp, cfg);
+                // AFK top must sit at or below the hint's rounded bottom
+                expect(afk[1]).toBeGreaterThanOrEqual(hint.top + hint.h);
+            }
         }
     });
 });
@@ -190,5 +219,60 @@ describe("drawZoneHint text-state restore", () => {
         expect(seen).toHaveLength(0);
         expect(ctx.textAlign).toBe("left");
         expect(ctx.textBaseline).toBe("alphabetic");
+    });
+});
+
+/** minimal state stub for drawAfk: scale === lastScale keeps
+ *  hasScaleChanged false so closeAfk clears exactly one rect. */
+function afkState(ctx: unknown): GameState {
+    return {
+        refs: { overlay: { value: { getContext: () => ctx } } },
+        ctx: {
+            show: { afk: true },
+            world: { config: { tileSize: 32, scale: 1, lastScale: 1 } },
+            client: {
+                viewport: { width: 1280, height: 720, origin: { x: 0, y: 0 } },
+            },
+        },
+    } as unknown as GameState;
+}
+
+describe("drawAfk", () => {
+    test("draws centered and restores textAlign on return (AC3)", () => {
+        const { ctx, seen } = recordingCtx();
+
+        drawAfk(afkState(ctx));
+
+        // the message was drawn exactly once, with center alignment in
+        // effect ...
+        expect(seen).toHaveLength(1);
+        expect(seen[0].text).toBe("You are AFK!");
+        expect(seen[0].textAlign).toBe("center");
+        // ... and the entry value is restored, so later Help / Help Hint
+        // text is not silently center-aligned
+        expect(ctx.textAlign).toBe("left");
+    });
+
+    test("fillText centers the message in the box at its new position (AC4)", () => {
+        const { ctx } = recordingCtx();
+
+        drawAfk(afkState(ctx));
+
+        // box at tileSize 32: x = 208, y = 80, w = 1280 − 416 = 864, h = 160
+        expect(ctx.fillText).toHaveBeenCalledWith(
+            "You are AFK!",
+            208 + 864 / 2,
+            80 + 160 / 2,
+        );
+    });
+
+    test("clear-first clears the rect at the new position (AC5)", () => {
+        const { ctx } = recordingCtx();
+
+        drawAfk(afkState(ctx));
+
+        // scale === lastScale, so exactly one clear: the new AFK rect
+        expect(ctx.clearRect).toHaveBeenCalledTimes(1);
+        expect(ctx.clearRect).toHaveBeenCalledWith(208, 80, 864, 160);
     });
 });

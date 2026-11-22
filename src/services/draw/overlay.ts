@@ -518,10 +518,15 @@ export function closeZoneHint(state: GameState) {
 // ****************************************************************
 
 /** @returns [x, y, width, height] array */
-function getAfkRect(viewport: Viewport, { tileSize }: MapConfig) {
+export function getAfkRect(viewport: Viewport, { tileSize }: MapConfig) {
+    // Invariant: the AFK top (2.5·tileSize) must stay at or below the Zone
+    // Hint bottom. The hint bottom is pixelRect's ceil of 0.5·tileSize +
+    // 1.6·tileSize, i.e. ≤ 2.1·tileSize + 1 px; the gap is 0.4·tileSize − 1 px
+    // (12 px at tileSize 32, lower bound 11.8), positive for every real
+    // tileSize, so the two rects are disjoint at all widths and scales.
     return [
         tileSize * 6.5,
-        tileSize / 2,
+        tileSize * 2.5,
         viewport.width - tileSize * 13,
         tileSize * 5,
     ] as const; // x, y, width, height
@@ -555,14 +560,16 @@ export function drawAfk(state: GameState) {
     ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
     ctx.fillRect(...dimensions);
 
+    const prevAlign = ctx.textAlign;
     ctx.font = `bold ${24 * state.ctx.world.config.scale}px mono`;
     ctx.textAlign = "center";
     ctx.fillStyle = "red";
     ctx.fillText(
         `You are AFK!`,
         dimensions[0] + dimensions[2] / 2,
-        dimensions[3] / 2,
+        dimensions[1] + dimensions[3] / 2,
     );
+    ctx.textAlign = prevAlign;
 }
 
 // ****************************************************************
