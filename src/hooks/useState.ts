@@ -595,6 +595,7 @@ function useState(world: World<"Client">, ws: Signal<NoSerialize<WebSocket>>) {
                 objects: true,
                 map: true,
             },
+            needsOverlayRepaint: false,
             inputBuffer: [],
             actionQueue: [],
             tick: -1,

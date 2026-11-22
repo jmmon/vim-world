@@ -170,6 +170,21 @@ export default function useRenderLoop(state: GameState) {
             state.ctx.client.isDirty.players = false;
             state.ctx.client.isDirty.map = false;
 
+            // a backing-store resize this frame cleared the persistent Overlay
+            // Boxes; redraw them in the same frame and sync the was* trackers
+            // so the transition blocks above don't draw them twice next frame
+            if (state.ctx.client.needsOverlayRepaint) {
+                state.ctx.client.needsOverlayRepaint = false;
+                renderHelp();
+                wasHelpShowing = state.ctx.show.help;
+                renderAfk();
+                wasAfkShowing = state.ctx.show.afk;
+                renderZoneHint();
+                wasZoneHintShowing = state.ctx.show.zoneHint;
+                wasZoneHintText = state.ctx.client.zoneHintText;
+                if (state.ctx.show.helpHint) draw.helpHint(state);
+            }
+
             state.ctx.world.config.lastScale = state.ctx.world.config.scale;
         }
 

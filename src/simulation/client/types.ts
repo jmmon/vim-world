@@ -13,22 +13,22 @@ export interface Prediction {
     snapshotBefore: Player;
 }
 export type IsDirty = {
-    overlay: boolean,
-    players: boolean,
-    objects: boolean,
-    map: boolean,
+    overlay: boolean;
+    players: boolean;
+    objects: boolean;
+    map: boolean;
 };
 
 export type Viewport = {
-    origin: Vec2,
+    origin: Vec2;
     width: number; // px
     height: number; // px
 };
 export type VimSettings = {
-    sidescrolloff: number,
-    scrolloff: number,
-    lines: number,
-    columns: number,
+    sidescrolloff: number;
+    scrolloff: number;
+    lines: number;
+    columns: number;
 };
 
 export type ClientData = {
@@ -43,6 +43,9 @@ export type ClientData = {
     idleStartTime: number;
     timeSinceLastCheckpoint: number;
     isDirty: IsDirty;
+    /** One-shot: set when a canvas backing store was actually resized;
+     *  consumed (cleared) by the render loop to repaint persistent Overlay Boxes. */
+    needsOverlayRepaint: boolean;
     inputBuffer: Prediction[];
     actionQueue: ExpandedVimAction[];
     tick: number;
