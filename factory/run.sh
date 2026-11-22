@@ -54,6 +54,13 @@ if [[ -f "$FACTORY_DIR/FACTORY-OFF" ]]; then
     exit 0
 fi
 
+# yield to the nightly skill A/B runner: it measures latency, factory load would skew it.
+# oneshot units sit in "activating" while running, which is-active --quiet does not match.
+if [[ "$(systemctl --user show -p ActiveState --value skill-ab.service 2>/dev/null)" == activ* ]]; then
+    printf 'factory skipped: skill-ab.service is running\n'
+    exit 0
+fi
+
 for var in FACTORY_SPEC_MODEL FACTORY_TESTER_MODEL FACTORY_BUILDER_MODEL FACTORY_QA_MODEL FACTORY_REVIEWER_MODEL FACTORY_SPEC_REVIEW_MODEL FACTORY_RETRO_MODEL; do
     if [[ -z "${!var:-}" ]]; then
         die "$var is empty; fill it in factory/env.sh"
@@ -74,7 +81,8 @@ fi
 if ! acquire_lock; then
     exit 1
 fi
-trap release_lock EXIT INT TERM
+trap 'release_lock; exit 1' INT TERM
+trap release_lock EXIT
 
 ensure_labels
 

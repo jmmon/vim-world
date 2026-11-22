@@ -2,6 +2,8 @@
 Description=vim-world factory: run one queued issue (idle-exits when queue empty)
 After=network-online.target
 Wants=network-online.target
+# external drive must be mounted before the queue is touched
+ConditionPathIsDirectory=/run/media/jmmarchy/New Volume/code/projects/qwik/vim-world/.git
 
 [Service]
 Type=oneshot
@@ -11,5 +13,3 @@ WorkingDirectory=/run/media/jmmarchy/New Volume/code/projects/qwik/vim-world
 ExecStart=/usr/bin/bash -lc './factory/run.sh'
 Nice=10
 TimeoutStartSec=3h
-# external drive must be mounted before the queue is touched
-ConditionPathIsDirectory=/run/media/jmmarchy/New Volume/code/projects/qwik/vim-world/.git
