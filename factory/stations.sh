@@ -3,7 +3,7 @@
 station_spec() {
     local n=$1 title=$2 body=$3 attempt prompt spec_file
     spec_file="$WT/specs/issue-$n.md"
-    if [[ -f "$spec_file" ]] && grep -q 'STATUS: READY' "$spec_file"; then
+    if spec_human_ready "$n"; then
         log "spec already READY (human-reviewed), skipping spec station"
         return 0
     fi
@@ -36,6 +36,46 @@ The issue was relabeled \`factory:needs-human\`." >/dev/null 2>&1 || true
             return 0
         fi
         log "spec missing STATUS marker (attempt $attempt)"
+    done
+    return 1
+}
+
+station_spec_review() {
+    # Independent review of the spec before any test or code is written: a fresh
+    # reviewer process per round, the spec author fixes, then a *different* fresh
+    # reviewer. Mirrors station_review; run_agent starts a new process each call
+    # so no reviewer inherits the previous reviewer's context.
+    local n=$1 title=$2 round=1 findings prompt verdict
+    if spec_human_ready "$n"; then
+        log "spec already READY (human-reviewed), skipping spec review"
+        return 0
+    fi
+    while (( round <= 3 )); do
+        log "spec review round $round"
+        prompt=$(printf 'Factory spec review station. Issue #%s.\n\nTitle: %s\n\nReview specs/issue-%s.md as a reviewer who did not write it. You may read code but must not edit anything. Judge it on: every acceptance criterion being machine-checkable as written; the Test plan naming exact spec file paths colocated with their source; the QA plan booting on port 5199 with concrete browser steps; contracts naming real modules and signatures; scope staying inside the issue; and no product decision left implicit. End with SPEC-REVIEW: {"verdict": "approve" or "changes", "findings": ["one entry per problem, empty if approve"]}\n' "$n" "$title" "$n")
+        run_agent factory-spec-reviewer "$FACTORY_SPEC_REVIEW_MODEL" "$WT" "$LOG_DIR/spec-review-$round.log" "$prompt" || true
+        if [[ -z "$(last_marker "$LOG_DIR/spec-review-$round.log" "SPEC-REVIEW:")" ]]; then
+            log "spec review round $round produced no verdict; retrying"
+            round=$((round + 1))
+            continue
+        fi
+        verdict=$(review_verdict "$LOG_DIR/spec-review-$round.log" "SPEC-REVIEW:")
+        if [[ "$verdict" == "approve" ]]; then
+            log "spec approved on round $round"
+            return 0
+        fi
+        log "spec review requested changes on round $round"
+        if (( round >= 3 )); then
+            return 1
+        fi
+        findings=$(last_marker "$LOG_DIR/spec-review-$round.log" "SPEC-REVIEW:" | sed 's/^SPEC-REVIEW: //')
+        prompt=$(printf 'Revise specs/issue-%s.md to resolve these independent review findings. Keep the required section order and the final STATUS line; do not widen the scope of the issue.\n\nFindings:\n%s\n' "$n" "$findings")
+        run_agent factory-spec "$FACTORY_SPEC_MODEL" "$WT" "$LOG_DIR/spec-fix-$round.log" "$prompt" || true
+        if ! grep -q 'STATUS: READY' "$WT/specs/issue-$n.md"; then
+            log "spec revision dropped the READY marker"
+            return 1
+        fi
+        round=$((round + 1))
     done
     return 1
 }

@@ -54,7 +54,7 @@ if [[ -f "$FACTORY_DIR/FACTORY-OFF" ]]; then
     exit 0
 fi
 
-for var in FACTORY_SPEC_MODEL FACTORY_TESTER_MODEL FACTORY_BUILDER_MODEL FACTORY_QA_MODEL FACTORY_REVIEWER_MODEL FACTORY_RETRO_MODEL; do
+for var in FACTORY_SPEC_MODEL FACTORY_TESTER_MODEL FACTORY_BUILDER_MODEL FACTORY_QA_MODEL FACTORY_REVIEWER_MODEL FACTORY_SPEC_REVIEW_MODEL FACTORY_RETRO_MODEL; do
     if [[ -z "${!var:-}" ]]; then
         die "$var is empty; fill it in factory/env.sh"
     fi
@@ -84,11 +84,11 @@ git fetch origin master --quiet || die "git fetch origin master failed"
 if [[ -n "$FORCE_ISSUE" ]]; then
     ISSUE="$FORCE_ISSUE"
 else
-    ISSUE=$(gh issue list --label factory --state open --limit 1 --json number --jq '.[0].number' 2>/dev/null)
+    ISSUE=$(next_issue)
 fi
 
 if [[ -z "$ISSUE" || "$ISSUE" == "null" ]]; then
-    log "factory idle: no open issues labeled factory"
+    log "factory idle: no open issues labeled factory or ready-for-agent"
     exit 0
 fi
 
@@ -153,6 +153,7 @@ stage() {
 }
 
 stage spec station_spec "$ISSUE" "$TITLE" "$BODY"
+stage spec-review station_spec_review "$ISSUE" "$TITLE"
 stage tests station_tests "$ISSUE"
 stage implement station_implement "$ISSUE" "$TITLE"
 stage verify station_verify "$ISSUE"

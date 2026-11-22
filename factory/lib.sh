@@ -56,13 +56,41 @@ issue_title() {
     gh issue view "$1" --json title --jq '.title'
 }
 
+next_issue() {
+    # Polls both entry labels: `factory` is the hand-labelled queue,
+    # `ready-for-agent` is what /to-spec applies. gh has no label-OR, so two
+    # queries, dedup, lowest number wins.
+    local a b
+    a=$(gh issue list --label factory --state open --limit 20 --json number --jq '.[].number' 2>/dev/null)
+    b=$(gh issue list --label ready-for-agent --state open --limit 20 --json number --jq '.[].number' 2>/dev/null)
+    printf '%s\n%s\n' "$a" "$b" | grep -E '^[0-9]+$' | sort -n -u | head -1
+}
+
 issue_body() {
-    gh issue view "$1" --json body --jq '.body'
+    # Body plus the discussion. A grilled issue carries its answers in comments;
+    # a body-only read made every human reply invisible to every station.
+    local body comments
+    body=$(gh issue view "$1" --json body --jq '.body') || return 1
+    comments=$(gh issue view "$1" --json comments \
+        --jq '.comments[] | "### \(.author.login) \(.createdAt)\n\(.body)"' 2>/dev/null) || comments=""
+    # shortcut: discussion is capped at 24 KB, lift it if a real thread overflows a prompt
+    [[ ${#comments} -gt 24576 ]] && comments="${comments:0:24576}"$'\n\n_(discussion truncated)_'
+    if [[ -n "$comments" ]]; then
+        printf '%s\n\n## Discussion\n\n%s\n' "$body" "$comments"
+    else
+        printf '%s\n' "$body"
+    fi
+}
+
+spec_human_ready() {
+    # A spec already carrying STATUS: READY on the base branch was human-reviewed
+    # (grill -> /to-spec -> review -> commit -> push). Stations must not churn it.
+    [[ -f "$WT/specs/issue-$1.md" ]] && grep -q 'STATUS: READY' "$WT/specs/issue-$1.md"
 }
 
 claim_issue() {
     local n=$1
-    gh issue edit "$n" --remove-label factory --remove-label factory:escalated --add-label factory:wip >/dev/null || return 1
+    gh issue edit "$n" --remove-label factory --remove-label ready-for-agent --remove-label factory:escalated --add-label factory:wip >/dev/null || return 1
 
     gh issue comment "$n" --body "Factory run claimed this issue at $(date -Is). Branch: \`$BRANCH\`." >/dev/null || return 1
 }
@@ -238,13 +266,13 @@ last_marker() {
 }
 
 review_verdict() {
-    local line verdict
-    line=$(last_marker "$1" "REVIEW:")
+    local line verdict marker="${2:-REVIEW:}"
+    line=$(last_marker "$1" "$marker")
     if [[ -z "$line" ]]; then
         printf 'changes'
         return 0
     fi
-    verdict=$(printf '%s\n' "${line#REVIEW: }" | python3 -c 'import json,sys
+    verdict=$(printf '%s\n' "${line#"$marker" }" | python3 -c 'import json,sys
 try:
     print(json.load(sys.stdin).get("verdict", "changes"))
 except Exception:

@@ -1,35 +1,60 @@
 # Software factory
 
-Local, serial pipeline: a GitHub issue labeled `factory` goes in, a draft PR
-with verified tests comes out. The factory never merges.
+Local, serial pipeline: a GitHub issue labeled `factory` or `ready-for-agent`
+goes in, a draft PR with verified tests comes out. The factory never merges.
 
 ```
-issue (factory) → spec → tests (red, hash-locked) → implement (worktree)
-  → verify (cold detached checkout) → qa (Playwright + screenshots)
-  → review ≤3 → retro → draft PR → human merges
+issue (factory | ready-for-agent) → spec → spec review ≤3 → tests (red, hash-locked)
+  → implement (worktree) → verify (cold detached checkout)
+  → qa (Playwright + screenshots) → review ≤3 → retro → draft PR → human merges
 ```
 
 ## Files
 
-| Path             | Role                                                |
-| ---------------- | --------------------------------------------------- |
-| `env.sh`         | model IDs per station, timeouts. Fill this first    |
-| `run.sh`         | orchestrator. All git and GitHub writes happen here |
-| `stations.sh`    | spec, test, build, verify, qa, review, retro, ship  |
-| `lib.sh`         | gates, worktrees, lock, labels, logging             |
-| `retro.sh`       | post-merge ritual and ledger stats                  |
-| `retro/`         | committed history: ledger + per-issue retros        |
-| `FACTORY-OFF`    | present = hard stop. Delete to enable               |
-| `logs/issue-N/`  | transcripts, test lock, evidence (gitignored)       |
-| `state/run.lock` | single-run lock (gitignored)                        |
+| Path             | Role                                                            |
+| ---------------- | --------------------------------------------------------------- |
+| `env.sh`         | model IDs per station, timeouts. Fill this first                |
+| `run.sh`         | orchestrator. All git and GitHub writes happen here             |
+| `stations.sh`    | spec, spec-review, test, build, verify, qa, review, retro, ship |
+| `lib.sh`         | gates, worktrees, lock, labels, logging                         |
+| `ready.sh`       | human gate: validate + label + commit + push a reviewed spec    |
+| `retro.sh`       | post-merge ritual and ledger stats                              |
+| `retro/`         | committed history: ledger + per-issue retros                    |
+| `FACTORY-OFF`    | present = hard stop. Delete to enable                           |
+| `logs/issue-N/`  | transcripts, test lock, evidence (gitignored)                   |
+| `state/run.lock` | single-run lock (gitignored)                                    |
 
 Agent definitions live in `.opencode/agents/factory-*.md`. Repo conventions
 for all agents live in `AGENTS.md` and `docs/agents/`.
 
+## Two ways in
+
+**Grill first (preferred for anything ambiguous).** Reproduce it or don't, then
+run `/grill-with-docs` and `/to-spec` in the issue discussion, get the spec
+reviewed, and publish it:
+
+```sh
+factory/ready.sh --issue 12
+```
+
+That validates the spec against the station contract, labels it
+`ready-for-agent`, commits it, and pushes `master`. The runner builds its
+worktree from `origin/master`, so **a spec that is only committed locally does
+not exist as far as the pipeline is concerned.** A spec already carrying
+`STATUS: READY` makes both the spec station and the spec review station skip:
+your review replaces them.
+
+**Straight issue.** Label it `factory` (or let `/to-spec` apply
+`ready-for-agent` — the runner polls both) and the spec station writes the spec
+from the issue body and its comments, then an independent reviewer iterates on
+it before any test is written.
+
 ## Setup
 
-1. Fill the five model IDs in `factory/env.sh`. Use a different model lineage
-   for `FACTORY_REVIEWER_MODEL` than `FACTORY_BUILDER_MODEL`.
+1. Fill the model IDs in `factory/env.sh`. Use a different model lineage for
+   `FACTORY_REVIEWER_MODEL` than `FACTORY_BUILDER_MODEL`, and for
+   `FACTORY_SPEC_REVIEW_MODEL` than `FACTORY_SPEC_MODEL` — a reviewer that shares
+   a lineage with the author is a rubber stamp.
 2. Commit the bootstrap (agents, docs, factory) to `master` so worktrees
    contain the definitions.
 3. Labels are created automatically on the first run.
@@ -93,7 +118,9 @@ history stays clean. Prune old runs with an occasional force-push of
   For QA escalations the screenshots and the Playwright script
   `qa-run.ts` are under `factory/logs/issue-N/qa/`.
 - `factory:needs-human`: the spec station found an ambiguous or product-level
-  decision. Answer in the issue, remove the label, add `factory` back.
+  decision. Answer **in the issue comments** — the spec station re-reads the
+  body and the whole discussion, so a reply in the thread is what it acts on.
+  Remove the label, add `factory` back.
 - Branch conflicts on rerun: an unpushed `factory/issue-N` branch resets
   itself automatically; a pushed branch needs `factory/run.sh --issue N --reset`.
 

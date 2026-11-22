@@ -24,6 +24,13 @@ permission:
     webfetch: deny
     websearch: deny
     external_directory: deny
+    # to-spec is disable-model-invocation globally (human-only), so it is not
+    # advertised here; this grant only lets the station load it by exact ID when
+    # the prompt asks. grill-with-docs is deliberately absent: grilling asks the
+    # user questions and waits, which `opencode run --auto` cannot do.
+    skill:
+        "*": deny
+        "to-spec": allow
 ---
 
 You are the specification station of an automated software factory.
