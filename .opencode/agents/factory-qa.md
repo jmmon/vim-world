@@ -14,15 +14,7 @@ permission:
         "*.env.*": deny
         "**/.env": deny
     bash:
-        "*": deny
-        "pnpm dev*": allow
-        "pnpm exec playwright*": allow
-        "git status*": allow
-        "git diff*": allow
-        "git log*": allow
-        "ls *": allow
-        "rg *": allow
-        "cat *": allow
+        "*": allow
     question: deny
     webfetch: deny
     websearch: deny

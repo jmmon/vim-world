@@ -25,6 +25,7 @@ permission:
         "git diff*": allow
         "git log*": allow
         "git show*": allow
+        "rm *": allow
         "ls *": allow
         "rg *": allow
     question: deny

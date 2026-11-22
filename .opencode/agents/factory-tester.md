@@ -21,6 +21,8 @@ permission:
         "*": deny
         "pnpm exec vitest*": allow
         "pnpm test.unit": allow
+        "rm *": allow
+        "mv *": allow
         "git status*": allow
         "git diff*": allow
         "ls *": allow
