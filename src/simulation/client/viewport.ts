@@ -1,4 +1,4 @@
-import { LocalWorldWrapper, Viewport } from "~/simulation/client/types";;
+import { LocalWorldWrapper, Viewport } from "~/simulation/client/types";
 import { MapConfig } from "~/server/map";
 import { Vec2 } from "~/types/worldTypes";
 import { subtractPos } from "../shared/helpers";
@@ -74,7 +74,6 @@ function getIsOutsideViewport(
     return false;
 }
 
-
 // function getIsOutsideViewport2(
 //     config: MapConfig,
 //     viewport: Viewport,
@@ -112,7 +111,6 @@ function getIsOutsideViewport(
 //     return false;
 // }
 
-
 // currently is toggling back and forth..
 // currently is snapping viewport
 function scrollViewport(
@@ -128,7 +126,7 @@ function scrollViewport(
     const offsetPx = {
         x: sidescrolloff * tileSize,
         y: scrolloff * tileSize,
-    }
+    };
     const shouldScroll = getIsOutsideViewport(
         state.world.config,
         viewport,
@@ -173,7 +171,6 @@ function scrollViewport(
     }
     return true;
 }
-
 
 // function scrollViewport2(
 //     state: LocalWorldWrapper,
@@ -237,7 +234,6 @@ function scrollViewport(
 //     return true;
 // }
 
-
 // TODO: in full-prediction, viewport works as expected
 // - in VISUAL_ONLY, the viewport is ending up at the expected position without accounting for collision!!!!
 // - need to make sure the onServerAck will propery fix the viewport
@@ -293,6 +289,28 @@ function updateCanvasDimensions(state: GameState) {
         state.refs.players.value!.style.height =
         state.refs.overlay.value!.style.height =
             state.ctx.client.viewport.height + "px";
+
+    // Backing store must follow the CSS size or the bitmap stretches. Assigning
+    // width/height clears the canvas even when the value is unchanged, so only
+    // assign the differing attributes and raise the one-shot repaint flag.
+    const { width, height } = state.ctx.client.viewport;
+    let resized = false;
+    for (const canvas of [
+        state.refs.map.value!,
+        state.refs.objects.value!,
+        state.refs.players.value!,
+        state.refs.overlay.value!,
+    ]) {
+        if (canvas.width !== width) {
+            canvas.width = width;
+            resized = true;
+        }
+        if (canvas.height !== height) {
+            canvas.height = height;
+            resized = true;
+        }
+    }
+    if (resized) state.ctx.client.needsOverlayRepaint = true;
 }
 
 const viewport = {

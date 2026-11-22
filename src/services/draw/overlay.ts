@@ -346,13 +346,6 @@ function closeOldHelp(state: GameState, ctx: CanvasRenderingContext2D) {
     }
 }
 
-const HELP_DIMENSIONS: Record<string, RectDimensions> = {};
-const getHelpDimensions = (viewport: Viewport, config: MapConfig) => {
-    if (!HELP_DIMENSIONS[config.tileSize]) {
-        HELP_DIMENSIONS[config.tileSize] = STYLES.help(viewport, config);
-    }
-    return HELP_DIMENSIONS[config.tileSize];
-};
 const HELP_TEXT = [
     "h - Move left",
     "l - Move right",
@@ -376,7 +369,9 @@ export function drawHelp(state: GameState) {
     closeOldHelp(state, ctx);
     const { config } = state.ctx.world;
 
-    const HELP = getHelpDimensions(state.ctx.client.viewport, config);
+    // no dimension cache: the rect must derive from the live viewport so a
+    // columns/lines resize redraws at the new size
+    const HELP = generateHelpDimensions(state.ctx.client.viewport, config);
     ctx.clearRect(HELP.left, HELP.top, HELP.w, HELP.h);
     ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
     ctx.fillRect(HELP.left, HELP.top, HELP.w, HELP.h);
